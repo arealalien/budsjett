@@ -1,0 +1,28 @@
+date add purchase falsch :( - not only aber überall :(
+WUSCH - add category selbst - edit category (name, color) ---- lightmode
+
+moer categories - default : Hobby, Wifi, Power, Forsikring, Tax
+
+
+Trend : Choose type of graph 
+Trend : Multiple : Reset all active buttons / CHoose all
+
+Relative percentage bar / pie chart with options form Trend
+
+Trend : New component : more advanced time picking 
+
+forgot password. username doesn't exist.
+
+add email verfifcation on user create, add forgot password email link verification.
+
+
+export const DEFAULT_CATEGORIES = [
+  { name: 'Furniture',     slug: 'furniture',     color: '#3b82f6', sortOrder: 10 },
+  { name: 'Groceries',     slug: 'groceries',     color: '#22c55e', sortOrder: 20 },
+  { name: 'Takeaway',      slug: 'takeaway',      color: '#f59e0b', sortOrder: 30 },
+  { name: 'Restaurant',    slug: 'restaurant',    color: '#ef4444', sortOrder: 40 },
+  { name: 'Household',     slug: 'household',     color: '#06b6d4', sortOrder: 50 },
+  { name: 'Subscriptions', slug: 'subscriptions', color: '#a855f7', sortOrder: 60 },
+  { name: 'Other',         slug: 'other',         color: '#64748b', sortOrder: 70 },
+] as const;
+

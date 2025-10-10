@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { api } from '../lib/api';
 import Button from './Button';
 import { NavLink } from "react-router-dom";
 
-const images = Array.from({ length: 60 }, (_, i) => `mag${i + 1}.jpg`);
-
 export default function RegisterForm() {
     const [form, setForm] = useState({
+        displayName: '',
+        username: '',
+        email: '',
         password: '',
         confirmPassword: '',
-        name: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError]     = useState('');
@@ -141,8 +141,43 @@ export default function RegisterForm() {
                             <input
                                 className="register-form-inner-field-input-field"
                                 name="name"
+                                type="text"
                                 placeholder="Username"
                                 value={form.name}
+                                onChange={onChange}
+                                required
+                            />
+                            <p className="register-form-inner-field-input-text">@</p>
+                        </div>
+                    </label>
+                </fieldset>
+                <fieldset className="register-form-inner-field">
+                    <label className="register-form-inner-field-label">
+                        <span className="register-form-inner-field-label-name">Email</span>
+                        <div className="register-form-inner-field-input">
+                            <input
+                                className="register-form-inner-field-input-field"
+                                type="email"
+                                name="email"
+                                placeholder="Email"
+                                value={form.email}
+                                onChange={onChange}
+                                required
+                            />
+                            <p className="register-form-inner-field-input-text">@</p>
+                        </div>
+                    </label>
+                </fieldset>
+                <fieldset className="register-form-inner-field">
+                    <label className="register-form-inner-field-label">
+                        <span className="register-form-inner-field-label-name">Display name</span>
+                        <div className="register-form-inner-field-input">
+                            <input
+                                className="register-form-inner-field-input-field"
+                                type="text"
+                                name="displayName"
+                                placeholder="Display name"
+                                value={form.displayName}
                                 onChange={onChange}
                                 required
                             />

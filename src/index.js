@@ -14,6 +14,7 @@ import SignIn from './SignIn';
 import Addpurchase from "./Addpurchase";
 import Purchases from "./Purchases";
 import Budget from "./Budget";
+import VerifyEmailPage from './VerifyEmailPage';
 
 const router = createBrowserRouter([
     {
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
             { path: '/new', element: <Addpurchase /> },
             { path: '/purchases', element: <Purchases /> },
             { path: '/budget', element: <Budget /> },
+            { path: '/verify', element: <VerifyEmailPage /> },
         ]
     }
 ]);
