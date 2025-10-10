@@ -1,0 +1,199 @@
+@use "../abstracts/colors";
+@use "../abstracts/mixins";
+@use "../abstracts/utilities";
+
+.purchase {
+  padding: 2em;
+  &-form {
+    padding: 1px;
+    position: relative;
+    background-color: mixins.hslac(colors.$clr-gray-800, 1);
+    border-radius: 1.6em;
+    gap: 1em;
+    overflow: hidden;
+    @include mixins.flex-col();
+
+    &-rim {
+      $size: 18;
+      top: - calc($size / 1.5) + em;
+      left: - calc($size / 2.5) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-white, 1);
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      pointer-events: none;
+      opacity: .15;
+    }
+    &-glow {
+      $size: 50;
+      right: - calc($size / 3) + em;
+      bottom: - calc($size / 1.1) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1.5;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-purple-500, 1);
+      border-radius: 50%;
+      filter: blur(calc($size * 1.2) + rem);
+      pointer-events: none;
+      opacity: .15;
+    }
+    &-inner {
+      padding: 2em;
+      width: 100%; height: 100%;
+      display: grid;
+      background-color: mixins.hslac(colors.$clr-gray-900, 1);
+      border-radius: 1.6em;
+      gap: 1em;
+
+      &-header {
+        width: 100%;
+        @include mixins.flex-space-bet();
+
+        h3 {
+          font-weight: 700;
+        }
+        &-badge {
+          padding: .4em .8em;
+          border-radius: 5em;
+          &.pf-success {
+            background: mixins.hslac(colors.$clr-lime-500, .15);
+            color: mixins.hslac(colors.$clr-lime-200, 1);
+            border: 1px solid mixins.hslac(colors.$clr-lime-600, 1); }
+          &.pf-error {
+            background: mixins.hslac(colors.$clr-red-500, .15);
+            color: mixins.hslac(colors.$clr-red-300, 1);
+            border: 1px solid mixins.hslac(colors.$clr-red-600, 1);
+          }
+        }
+      }
+      &-grid {
+        display: grid;
+        gap: 1em;
+        grid-template-columns: repeat(2, 1fr);
+        .pf-col-span-2 {
+          grid-column: span 2;
+        }
+        &-field {
+          gap: .6em;
+          @include mixins.flex-col-left();
+
+          &-label {
+            color: mixins.hslac(colors.$clr-gray-500, 1);
+          }
+          &-input {
+            padding: 1em 1.2em;
+            width: 100%;
+            border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+            border-radius: 1em;
+            background: mixins.hslac(colors.$clr-gray-900, 1);
+            color: mixins.hslac(colors.$clr-gray-100, 1);
+            &:focus {
+              outline: none;
+              border-color: mixins.hslac(colors.$clr-purple-500, 1);
+            }
+          }
+          .pf-input-with-prefix {
+            padding: 0 1em;
+            gap: .8em;
+            @include mixins.flex-center();
+            input {
+              padding: 1em 0;
+              width: 100%;
+              color: inherit;
+              background: transparent;
+              border: none;
+              -webkit-appearance: none;
+              -moz-appearance: textfield;
+            }
+            .pf-prefix {
+              color: #9ca3af;
+            }
+          }
+          &-seg {
+            padding: 4px;
+            width: 100%;
+            border-radius: 1.2em;
+            border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+            @include mixins.flex-space-bet();
+
+            &-btn {
+              padding: .7em 1.4em;
+              width: 100%;
+              color: mixins.hslac(colors.$clr-cyan-100, .5);
+              background-color: transparent;
+              border-radius: .8em;
+              border: none;
+              text-wrap: nowrap;
+              cursor: pointer;
+              transition: opacity .15s cubic-bezier(utilities.$transition-main, 1);
+              &:not(.active):hover {
+                opacity: .5;
+              }
+              &.active {
+                color: mixins.hslac(colors.$clr-cyan-100, 1);
+                background-color: mixins.hslac(colors.$clr-purple-400, 1);
+                transition: background-color .75s cubic-bezier(utilities.$transition-main, 1);
+              }
+            }
+          }
+          &-help {
+            margin-top: .2em;
+            color: mixins.hslac(colors.$clr-gray-600, 1);
+          }
+          &-range {
+            width: 100%;
+            accent-color: mixins.hslac(colors.$clr-purple-500, 1);
+            background-color: mixins.hslac(colors.$clr-gray-900, 1);
+          }
+          &-split-row {
+            width: 100%;
+            @include mixins.flex-space-bet();
+
+            &-label {
+              color: mixins.hslac(colors.$clr-gray-500, 1);
+            }
+            &-chip {
+              padding: .4em .8em;
+              color: mixins.hslac(colors.$clr-purple-300, 1);
+              background: mixins.hslac(colors.$clr-purple-600, .15);
+              border: 1px solid mixins.hslac(colors.$clr-purple-500, 1);
+              border-radius: 5em;
+            }
+          }
+          &-split-pills {
+            padding: 4px;
+            width: 100%;
+            border-radius: 1.2em;
+            border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+            @include mixins.flex-space-bet();
+
+            &-pill {
+              padding: .8em 1.4em;
+              width: 100%;
+              color: mixins.hslac(colors.$clr-cyan-100, .5);
+              background-color: transparent;
+              border-radius: .8em;
+              border: none;
+              text-wrap: nowrap;
+              cursor: pointer;
+              transition: opacity .15s cubic-bezier(utilities.$transition-main, 1);
+              &:not(.active):hover {
+                opacity: .5;
+              }
+              &.active {
+                color: mixins.hslac(colors.$clr-cyan-100, 1);
+                background-color: mixins.hslac(colors.$clr-purple-400, 1);
+                transition: background-color .75s cubic-bezier(utilities.$transition-main, 1);
+              }
+            }
+          }
+        }
+      }
+      &-actions {
+        @include mixins.flex-left();
+      }
+    }
+  }
+}

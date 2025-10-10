@@ -1,0 +1,471 @@
+@use "../abstracts/colors";
+@use "../abstracts/font-face";
+@use "../abstracts/mixins";
+@use "../abstracts/utilities";
+@use "sass:math";
+
+body {
+  width: 100%;
+  color: mixins.hslac(colors.$clr-white, 1);
+  font-family: utilities.$font-main;
+  font-size: .85rem;
+  background: mixins.hslac(colors.$clr-black, 1);
+  @include mixins.lightMode {
+    color: mixins.hslac(colors.$clr-black, 1);
+    background-color: mixins.hslac(colors.$clr-white, 1);
+  }
+}
+.view-width {
+  width: utilities.$view-width !important;
+}
+
+em {
+  font-weight: 700;
+}
+
+main {
+  margin-top: utilities.$navbar-height;
+  position: relative;
+  gap: 1em;
+  @include mixins.flex-col();
+}
+
+.round {
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+}
+
+.button-primary {
+  --font-size: .9rem;
+  font-size: var(--font-size);
+  padding: 1em 1.5em;
+  color: mixins.hslac(colors.$clr-white, 1);
+  background-color: mixins.hslac(colors.$clr-primary-500, 1);
+  border: none;
+  text-decoration: none;
+  border-radius: 5em;
+  gap: .5em;
+  cursor: pointer;
+  transition: opacity .15s cubic-bezier(utilities.$transition-smooth, 1);
+  @include mixins.flex-center();
+
+  &:disabled {
+    opacity: .5;
+    pointer-events: none;
+  }
+  span {
+
+  }
+  svg {
+    width: 1.3em; height: 1.3em;
+    path {
+      stroke-width: .9;
+      stroke: mixins.hslac(colors.$clr-white, 1);
+    }
+  }
+}
+.button-white {
+  --font-size: .9rem;
+  font-size: var(--font-size);
+  padding: 1em 1.5em;
+  color: mixins.hslac(colors.$clr-black, 1);
+  background-color: mixins.hslac(colors.$clr-white, 1);
+  border: none;
+  text-decoration: none;
+  border-radius: 5em;
+  gap: .5em;
+  cursor: pointer;
+  transition: opacity .15s cubic-bezier(utilities.$transition-smooth, 1);
+  @include mixins.flex-center();
+
+  &:disabled {
+    opacity: .5;
+    pointer-events: none;
+  }
+  span {
+
+  }
+  svg {
+    width: 1.3em; height: 1.3em;
+    path {
+      stroke-width: .9;
+      stroke: mixins.hslac(colors.$clr-black, 1);
+    }
+  }
+}
+.button-blur {
+  --font-size: .9rem;
+  font-size: var(--font-size);
+  padding: 1em 1.5em;
+  color: mixins.hslac(colors.$clr-white, 1);
+  background-color: mixins.hslac(colors.$clr-gray-800, .6);
+  border: none;
+  backdrop-filter: blur(3rem);
+  text-decoration: none;
+  border-radius: 5em;
+  gap: .5em;
+  cursor: pointer;
+  transition: opacity .15s cubic-bezier(utilities.$transition-smooth, 1);
+  @include mixins.flex-center();
+
+  &:disabled {
+    opacity: .5;
+    pointer-events: none;
+  }
+  span {
+
+  }
+  svg {
+    width: 1.3em; height: 1.3em;
+    path {
+      stroke-width: .9;
+      stroke: mixins.hslac(colors.$clr-white, 1);
+    }
+  }
+}
+
+.ba-primary {
+  background: mixins.hslac(colors.$clr-skyblue-500, 1);
+  color: mixins.hslac(colors.$clr-white, 1);
+  div {
+    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+  }
+}
+.ba-white {
+  background: mixins.hslac(colors.$clr-white, 1);
+  color: mixins.hslac(colors.$clr-black, 1);
+  div {
+    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-black, 1);
+  }
+}
+.ba-gray {
+  background: mixins.hslac(colors.$clr-gray-900, 1);
+  color: mixins.hslac(colors.$clr-white, 1);
+  div {
+    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+  }
+}
+.ba-purple {
+  background: mixins.hslac(colors.$clr-purple-500, 1);
+  color: mixins.hslac(colors.$clr-white, 1);
+  div {
+    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+  }
+}
+.ba-yellow {
+  background: mixins.hslac(colors.$clr-yellow-500, 1);
+  color: mixins.hslac(colors.$clr-white, 1);
+  div {
+    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+  }
+}
+.ba-deeppink {
+  background: mixins.hslac(colors.$clr-deeppink-500, 1);
+  color: mixins.hslac(colors.$clr-white, 1);
+  div {
+    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+  }
+}
+.button-animated {
+  --font-size: .9rem;
+  --duration: .3s;
+  --font-shadow: calc(var(--font-size) + .1rem);
+  appearance: none;
+  padding: 1em 1.5em;
+  font-size: var(--font-size);
+  letter-spacing: .02em;
+  font-weight: 500;
+  text-decoration: none;
+  line-height: calc(var(--font-size) + .12rem);
+  border-radius: 1em;
+  outline: none;
+  border: none;
+  cursor: pointer;
+  transform: translateY(var(--y)) translateZ(0);
+  transition: transform var(--duration) cubic-bezier(utilities.$transition-smooth, 1), box-shadow var(--duration) cubic-bezier(utilities.$transition-smooth, 1), opacity .15s cubic-bezier(utilities.$transition-smooth, 1);
+  &:disabled {
+    opacity: .5;
+    pointer-events: none;
+  }
+  div {
+    display: flex;
+    overflow: hidden;
+    span {
+      display: block;
+      backface-visibility: hidden;
+      font-style: normal;
+      transition: transform var(--duration) ease;
+      transform: translateY(var(--m)) translateZ(0);
+      $i: 1;
+      @while $i < 22 {
+        &:nth-child(#{$i}) {
+          transition-delay: #{math.div($i, 60)}s;
+        }
+        $i: $i + 1;
+      }
+    }
+  }
+  &:hover {
+    span {
+      --m: calc(calc(var(--font-size) + .1rem) * -1);
+    }
+  }
+  &.reverse {
+    &:hover {
+      span {
+        --m: calc(var(--font-size));
+      }
+    }
+  }
+}
+
+@supports (-webkit-appearance: none) or (-moz-appearance: none) {
+  input[type='checkbox'].check-purple, input[type='radio'].check-purple {
+    --active: #{mixins.hslac(colors.$clr-purple-500, 1)};
+    --focus: 2px #{mixins.hslac(colors.$clr-purple-500, 0.3)};
+    --border-hover: #{mixins.hslac(colors.$clr-purple-500, 1)};
+  }
+  input[type='checkbox'].check-yellow, input[type='radio'].check-yellow {
+    --active: #{mixins.hslac(colors.$clr-yellow-500, 1)};
+    --focus: 2px #{mixins.hslac(colors.$clr-yellow-500, 0.3)};
+    --border-hover: #{mixins.hslac(colors.$clr-yellow-500, 1)};
+  }
+  input[type='checkbox'].check-deeppink, input[type='radio'].check-deeppink {
+    --active: #{mixins.hslac(colors.$clr-deeppink-500, 1)};
+    --focus: 2px #{mixins.hslac(colors.$clr-deeppink-500, 0.3)};
+    --border-hover: #{mixins.hslac(colors.$clr-deeppink-500, 1)};
+  }
+  input[type='checkbox'].check-FURNITURE, input[type='radio'].check-FURNITURE {
+    --active: #{colors.$clr-furniture};
+    --focus: 2px #{rgba(colors.$clr-furniture, 0.3)};
+    --border-hover: #{colors.$clr-furniture};
+  }
+  input[type='checkbox'].check-GROCERIES, input[type='radio'].check-GROCERIES {
+    --active: #{colors.$clr-groceries};
+    --focus: 2px #{rgba(colors.$clr-groceries, 0.3)};
+    --border-hover: #{colors.$clr-groceries};
+  }
+  input[type='checkbox'].check-TAKEAWAY, input[type='radio'].check-TAKEAWAY {
+    --active: #{colors.$clr-takeaway};
+    --focus: 2px #{rgba(colors.$clr-takeaway, 0.3)};
+    --border-hover: #{colors.$clr-takeaway};
+  }
+  input[type='checkbox'].check-RESTAURANT, input[type='radio'].check-RESTAURANT {
+    --active: #{colors.$clr-restaurant};
+    --focus: 2px #{rgba(colors.$clr-restaurant, 0.3)};
+    --border-hover: #{colors.$clr-restaurant};
+  }
+  input[type='checkbox'].check-HOUSEHOLD, input[type='radio'].check-HOUSEHOLD {
+    --active: #{colors.$clr-household};
+    --focus: 2px #{rgba(colors.$clr-household, 0.3)};
+    --border-hover: #{colors.$clr-household};
+  }
+  input[type='checkbox'].check-SUBSCRIPTIONS, input[type='radio'].check-SUBSCRIPTIONS {
+    --active: #{colors.$clr-subscriptions};
+    --focus: 2px #{rgba(colors.$clr-subscriptions, 0.3)};
+    --border-hover: #{colors.$clr-subscriptions};
+  }
+  input[type='checkbox'].check-OTHER, input[type='radio'].check-OTHER {
+    --active: #{colors.$clr-other};
+    --focus: 2px #{rgba(colors.$clr-other, 0.3)};
+    --border-hover: #{colors.$clr-other};
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    --active: #{mixins.hslac(colors.$clr-skyblue-500, 1)};
+    --active-inner: #{mixins.hslac(colors.$clr-white, 1)};
+    --focus: 2px #{mixins.hslac(colors.$clr-skyblue-500, 0.3)};
+    --border: #{mixins.hslac(colors.$clr-gray-700, 1)};
+    --border-hover: #{mixins.hslac(colors.$clr-skyblue-500, 1)};
+    --background: #{mixins.hslac(colors.$clr-black, .5)};
+    --disabled: #{mixins.hslac(colors.$clr-gray-900, 1)};
+    --disabled-inner: #{mixins.hslac(colors.$clr-gray-800, 1)};
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    height: 21px;
+    outline: none;
+    display: inline-block;
+    vertical-align: top;
+    position: relative;
+    margin: 0;
+    cursor: pointer;
+    border: 1px solid var(--bc, var(--border));
+    background: var(--b, var(--background));
+    transition: background .3s, border-color .3s, box-shadow .2s;
+    &:after {
+      content: '';
+      display: block;
+      left: 0;
+      top: 0;
+      position: absolute;
+      transition: transform var(--d-t, .3s) cubic-bezier(utilities.$transition-smooth, 1),
+      opacity var(--d-o, .2s);
+    }
+    &:checked {
+      --b: var(--active);
+      --bc: var(--active);
+      --d-o: .1s;
+      --d-t: .3s;
+    }
+    &:disabled {
+      --b: var(--disabled);
+      cursor: not-allowed;
+      opacity: .9;
+      &:checked {
+        --b: var(--disabled-inner);
+        --bc: var(--border);
+      }
+      & + label {
+        cursor: not-allowed;
+      }
+    }
+    &:hover {
+      &:not(:checked) {
+        &:not(:disabled) {
+          --bc: var(--border-hover);
+        }
+      }
+    }
+    &:focus {
+      box-shadow: 0 0 0 var(--focus);
+    }
+    &:not(.switch) {
+      width: 21px;
+      &:after {
+        opacity: var(--o, 0);
+      }
+      &:checked {
+        --o: 1;
+      }
+    }
+    & + label {
+      font-size: 14px;
+      line-height: 21px;
+      display: inline-block;
+      vertical-align: top;
+      cursor: pointer;
+      margin-left: 4px;
+    }
+  }
+  input[type='checkbox'] {
+    &:not(.switch) {
+      border-radius: 7px;
+      &:after {
+        width: 5px;
+        height: 9px;
+        border: 2px solid var(--active-inner);
+        border-top: 0;
+        border-left: 0;
+        left: 7px;
+        top: 4px;
+        transform: rotate(var(--r, 43deg));
+      }
+      &:checked {
+        --r: 43deg;
+      }
+    }
+    &.switch {
+      width: 38px;
+      border-radius: 11px;
+      &:after {
+        left: 2px;
+        top: 2px;
+        border-radius: 50%;
+        width: 15px;
+        height: 15px;
+        background: var(--ab, var(--border));
+        transform: translateX(var(--x, 0));
+      }
+      &:checked {
+        --ab: var(--active-inner);
+        --x: 17px;
+      }
+      &:disabled {
+        &:not(:checked) {
+          &:after {
+            opacity: .6;
+          }
+        }
+      }
+    }
+  }
+  input[type='radio'] {
+    border-radius: 50%;
+    &:after {
+      width: 19px;
+      height: 19px;
+      border-radius: 50%;
+      background: var(--active-inner);
+      opacity: 0;
+      transform: scale(var(--s, .7));
+    }
+    &:checked {
+      --s: .5;
+    }
+  }
+}
+
+label {
+  user-select: none;
+}
+
+.error {
+  color: mixins.hslac(colors.$clr-red-500, 1);
+}
+
+.loader {
+  width: 100%; height: calc(100vh - utilities.$navbar-height);
+  @include mixins.flex-center();
+}
+.spinner svg {
+  animation: loading-rotate 2.2s linear infinite;
+  height: 42px;
+  width: 42px;
+}
+.spinner .path {
+  stroke-dasharray: 90, 150;
+  stroke-dashoffset: 0;
+  stroke-width: 3;
+  stroke: mixins.hslac(colors.$clr-white, 1);
+  stroke-linecap: round;
+  animation: loading-dash 1.6s ease-in-out infinite;
+}
+@keyframes loading-rotate {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@keyframes loading-dash {
+  0% {
+    stroke-dasharray: 1, 200;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -40px;
+  }
+  to {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -120px;
+  }
+}
+
+::selection {
+  color: mixins.hslac(colors.$clr-black, 1);
+  background: mixins.hslac(colors.$clr-white, 1);
+}
+
+::-webkit-scrollbar-track {
+  background-color: mixins.hslac(colors.$clr-black, 1);
+}
+::-webkit-scrollbar {
+  width: 8px;
+  background-color: mixins.hslac(colors.$clr-black, 1);
+}
+::-webkit-scrollbar-thumb {
+  background-color: mixins.hslac(colors.$clr-white, .7);
+  border-radius: 1em;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: mixins.hslac(colors.$clr-white, .9);
+}

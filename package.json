@@ -1,0 +1,57 @@
+{
+  "name": "budsjett",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "axios": "^1.11.0",
+    "date-fns": "^4.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router": "^7.7.0",
+    "react-router-dom": "^7.7.1",
+    "react-scripts": "5.0.1",
+    "recharts": "^3.2.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "css:watch": "sass --watch src/sass/main.scss:src/css/main.css",
+    "css:compile": "sass src/sass/main.scss:src/css/main.css",
+    "css:prefix": "postcss --use autoprefixer -b \"last 4 versions\" src/css/main.css -o src/css/main.css",
+    "css:compress": "css-minify -f src/css/main.css -o src/css",
+    "css:build": "npm-run-all css:compile css:prefix css:compress",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "concat": "^1.0.3",
+    "css-minify": "^2.1.0",
+    "npm-run-all": "^4.1.5",
+    "postcss-cli": "^11.0.1",
+    "sass": "^1.89.2"
+  }
+}

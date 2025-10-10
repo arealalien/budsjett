@@ -1,0 +1,482 @@
+@use "../abstracts/colors";
+@use "../abstracts/mixins";
+@use "../abstracts/utilities";
+
+.dashboard {
+  padding: 2em;
+  width: 100%;
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 2em;
+
+  &-balance {
+    padding: 1px;
+    width: 20em;
+    position: relative;
+    background-color: mixins.hslac(colors.$clr-gray-800, 1);
+    border-radius: 1.6em;
+    gap: 1em;
+    overflow: hidden;
+    @include mixins.flex-col();
+
+    &-rim {
+      $size: 10;
+      top: - calc($size / 1.5) + em;
+      left: - calc($size / 2.5) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-white, 1);
+      border-radius: 50%;
+      filter: blur(calc($size / 2) + rem);
+      pointer-events: none;
+      opacity: .2;
+    }
+    &-glow {
+      $size: 20;
+      right: - calc($size / 2.5) + em;
+      bottom: - calc($size / 1.5) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      pointer-events: none;
+      opacity: .25;
+    }
+    &-glow.red {
+      background-color: mixins.hslac(colors.$clr-red-500, 1);
+    }
+    &-glow.green {
+      background-color: mixins.hslac(colors.$clr-green-500, 1);
+    }
+    &-inner {
+      width: 100%;
+      height: 100%;
+      padding: 2em;
+      background-color: mixins.hslac(colors.$clr-gray-900, 1);
+      border-radius: 1.6em;
+      gap: 1em;
+      @include mixins.flex-col();
+
+      &-top {
+        width: 100%;
+
+        &-title {
+          font-weight: 700;
+          text-wrap: nowrap;
+        }
+      }
+      &-center {
+        width: 100%;
+
+        &-block {
+          width: 100%;
+          @include mixins.flex-space-bet();
+        }
+      }
+      &-bottom {
+        width: 100%;
+        @include mixins.flex-space-bet();
+
+        &-red {
+          color: mixins.hslac(colors.$clr-red-500, 1);
+        }
+      }
+    }
+  }
+  &-categoryblock {
+    padding: 1px;
+    width: 60em;
+    position: relative;
+    background-color: mixins.hslac(colors.$clr-gray-800, 1);
+    border-radius: 1.6em;
+    gap: 1em;
+    overflow: hidden;
+    @include mixins.flex-col();
+
+    &-rim {
+      $size: 20;
+      top: - calc($size / 1.5) + em;
+      left: - calc($size / 2.5) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-white, 1);
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      pointer-events: none;
+      opacity: .2;
+    }
+    &-glow {
+      $size: 80;
+      right: - calc($size / 3) + em;
+      bottom: - calc($size / 1.1) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-purple-500, 1);
+      border-radius: 50%;
+      filter: blur(calc($size * 1.2) + rem);
+      pointer-events: none;
+      opacity: .25;
+    }
+    &-inner {
+      width: 100%;
+      height: 100%;
+      padding: 2em;
+      background-color: mixins.hslac(colors.$clr-gray-900, 1);
+      border-radius: 1.6em;
+      gap: 1em;
+      @include mixins.flex-col();
+
+      &-top {
+        width: 100%;
+        gap: 2em;
+        @include mixins.flex-space-bet();
+        &-title {
+          font-size: utilities.$heading-medium;
+          font-weight: 800;
+          gap: .4em;
+          @include mixins.flex-left();
+
+          .currency-symbol {
+            color: mixins.hslac(colors.$clr-purple-400, 1);
+          }
+        }
+        &-buttons {
+          padding: 4px;
+          border-radius: 1.2em;
+          border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+          @include mixins.flex-space-bet();
+
+          button {
+            padding: .8em 1.4em;
+            width: 100%;
+            color: mixins.hslac(colors.$clr-cyan-100, .5);
+            background-color: transparent;
+            border-radius: .8em;
+            border: none;
+            text-wrap: nowrap;
+            cursor: pointer;
+            transition: opacity .15s cubic-bezier(utilities.$transition-main, 1);
+            &:not(.active):hover {
+              opacity: .5;
+            }
+            &.active {
+              color: mixins.hslac(colors.$clr-cyan-100, 1);
+              background-color: mixins.hslac(colors.$clr-purple-400, 1);
+              transition: background-color .75s cubic-bezier(utilities.$transition-main, 1);
+            }
+          }
+        }
+      }
+      &-date {
+        width: 100%;
+        color: mixins.hslac(colors.$clr-gray-500, 1);
+      }
+      &-center {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15em, 1fr));
+        gap: 1em;
+        &-item {
+          padding: 2em;
+          width: 100%;
+          border-radius: 1.2em;
+
+          &-title {
+            font-weight: 700;
+          }
+
+          &-subtitle {
+
+          }
+        }
+        .FURNITURE {
+          background-color: rgba(colors.$clr-furniture, 0.1);
+          border: 1px solid colors.$clr-furniture;
+        }
+        .TAKEAWAY {
+          background-color: rgba(colors.$clr-takeaway, 0.1);
+          border: 1px solid colors.$clr-takeaway;
+        }
+        .RESTAURANT {
+          background-color: rgba(colors.$clr-restaurant, 0.1);
+          border: 1px solid colors.$clr-restaurant;
+        }
+        .GROCERIES {
+          background-color: rgba(colors.$clr-groceries, 0.1);
+          border: 1px solid colors.$clr-groceries;
+        }
+        .HOUSEHOLD {
+          background-color: rgba(colors.$clr-household, 0.1);
+          border: 1px solid colors.$clr-household;
+        }
+        .SUBSCRIPTIONS {
+          background-color: rgba(colors.$clr-subscriptions, 0.1);
+          border: 1px solid colors.$clr-subscriptions;
+        }
+        .OTHER {
+          background-color: rgba(colors.$clr-other, 0.1);
+          border: 1px solid colors.$clr-other;
+        }
+        .TOTAL {
+          background-color: rgba(colors.$clr-total, 0.1);
+          border: 1px solid colors.$clr-total;
+        }
+      }
+    }
+  }
+  &-trend {
+    --accent: #8b5cf6;
+    padding: 1px;
+    width: 35em;
+    position: relative;
+    background-color: mixins.hslac(colors.$clr-gray-800, 1);
+    border-radius: 1.6em;
+    gap: 1em;
+    overflow: hidden;
+    @include mixins.flex-col();
+
+    &.total {
+      --accent: #8b5cf6;
+    }
+    &.furniture {
+      --accent: #3b82f6;
+    }
+    &.groceries {
+      --accent: #ef4444;
+    }
+    &.takeaway {
+      --accent: #f59e0b;
+    }
+    &.restaurant {
+      --accent: #10b981;
+    }
+    &.household {
+      --accent: #06b6d4;
+    }
+    &.subscriptions {
+      --accent: #a855f7;
+    }
+    &.other {
+      --accent: #64748b;
+    }
+    &-rim {
+      $size: 14;
+      top: - calc($size / 1.2) + em;
+      left: - calc($size / 2.5) + em;
+      width: $size + em;
+      aspect-ratio: 1.5 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-white, 1);
+      border-radius: 50%;
+      filter: blur(calc($size / 2) + rem);
+      pointer-events: none;
+      opacity: .25;
+    }
+    &-glow {
+      $size: 40;
+      right: - calc($size / 2.5) + em;
+      bottom: - calc($size / 1.5) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: var(--accent);
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      pointer-events: none;
+      opacity: .25;
+      transition: background-color .75s cubic-bezier(utilities.$transition-main, 1);
+    }
+    &-inner {
+      width: 100%;
+      height: 100%;
+      padding: 2em;
+      background-color: mixins.hslac(colors.$clr-gray-900, 1);
+      border-radius: 1.6em;
+      gap: 1em;
+      @include mixins.flex-col();
+
+      &-top {
+        width: 100%;
+        @include mixins.flex-space-bet();
+
+        &-title {
+          font-weight: 700;
+        }
+        &-sum {
+          font-weight: 800;
+          gap: .3em;
+          @include mixins.flex-left();
+
+          .currency-symbol {
+            color: var(--accent);
+            transition: color .75s cubic-bezier(utilities.$transition-main, 1);
+          }
+        }
+      }
+      &-buttons {
+        padding: 4px;
+        width: 100%;
+        border-radius: 1.2em;
+        border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+        @include mixins.flex-space-bet();
+
+        button {
+          padding: .8em 1.2em;
+          width: 100%;
+          color: mixins.hslac(colors.$clr-cyan-100, .5);
+          background-color: transparent;
+          border-radius: .8em;
+          border: none;
+          text-wrap: nowrap;
+          cursor: pointer;
+          transition: opacity .15s cubic-bezier(utilities.$transition-main, 1);
+          &:not(.active):hover {
+            opacity: .5;
+          }
+          &.active {
+            color: mixins.hslac(colors.$clr-cyan-100, 1);
+            background-color: var(--accent);
+            transition: background-color .75s cubic-bezier(utilities.$transition-main, 1);
+          }
+        }
+      }
+      &-dropdown {
+        width: 100%;
+        label {
+          gap: .4em;
+          @include mixins.flex-col-left-ns();
+
+          span {
+            margin-left: 1em;
+            color: mixins.hslac(colors.$clr-gray-500, 1);
+          }
+          select {
+            padding: 1em 1.2em;
+            width: 100%;
+            border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+            border-radius: 1em;
+            background: mixins.hslac(colors.$clr-gray-900, 1);
+            color: mixins.hslac(colors.$clr-gray-100, 1);
+            transition: border-color .25s cubic-bezier(utilities.$transition-main, 1);
+            &:focus {
+              outline: none;
+              border-color: var(--accent);
+            }
+          }
+        }
+        &-multi {
+          span {
+            margin-left: 1em;
+            color: mixins.hslac(colors.$clr-gray-500, 1);
+          }
+          &-buttons {
+            margin: 1em 0;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 1em;
+
+            button {
+              padding: .8em 1.2em;
+              color: mixins.hslac(colors.$clr-white, 1);
+              border-style: solid;
+              border-width: 1px;
+              border-radius: 5em;
+              gap: .5em;
+              cursor: pointer;
+              @include mixins.flex-center();
+
+              svg {
+                width: .75em; height: .75em;
+                path {
+                  stroke: mixins.hslac(colors.$clr-white, 1);
+                }
+              }
+            }
+          }
+          &-combine {
+            button {
+              padding: .8em 1.2em;
+              color: mixins.hslac(colors.$clr-white, 1);
+              background-color: mixins.hslac(colors.$clr-gray-900, 1);
+              border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+              border-radius: 5em;
+              gap: .5em;
+              cursor: pointer;
+              @include mixins.flex-center();
+
+              &:disabled {
+                opacity: .5;
+                cursor: default;
+              }
+              svg {
+                width: .75em; height: .75em;
+                path {
+                  stroke: mixins.hslac(colors.$clr-white, 1);
+                }
+              }
+            }
+            button.active {
+              background-color: mixins.hslac(colors.$clr-gray-800, 1);
+            }
+          }
+        }
+      }
+      &-center {
+        width: 100%; height: 20em;
+        @include mixins.flex-center();
+
+        &-graph {
+          width: 100%; height: 100%;
+          .recharts-cartesian-axis-line {
+            stroke: mixins.hslac(colors.$clr-gray-500, .5);
+          }
+          .recharts-text {
+            fill: mixins.hslac(colors.$clr-gray-500, .5);
+          }
+          .custom-tooltip {
+            padding: 1em;
+            background-color: mixins.hslac(colors.$clr-white, .1);
+            backdrop-filter: blur(.5rem);
+            border-radius: 1em;
+            &-title {
+              margin-bottom: .2em;
+              color: var(--accent);
+              transition: color .75s cubic-bezier(utilities.$transition-main, 1);
+            }
+            &-subtitle {
+              color: mixins.hslac(colors.$clr-white, 1);
+            }
+          }
+        }
+      }
+      &-bottom {
+        width: 100%;
+        .trend-change {
+          font-weight: 600;
+          font-size: utilities.$heading-small;
+          .trend-sign {
+            margin-right: .15em;
+            color: var(--accent);
+            transition: color .75s cubic-bezier(utilities.$transition-main, 1);
+          }
+          .trend-percent {
+            margin-left: .05em;
+            color: mixins.hslac(colors.$clr-gray-500, 1);
+            font-size: utilities.$paragraph;
+          }
+        }
+      }
+    }
+  }
+}

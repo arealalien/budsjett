@@ -1,0 +1,289 @@
+@use "../abstracts/colors";
+@use "../abstracts/mixins";
+@use "../abstracts/utilities";
+
+.purchases-wrap {
+  width: 100%;
+  gap: 1em;
+  @include mixins.flex-col();
+
+  &.compact {
+    width: 60vw;
+  }
+  &-filters {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15em, 1fr));
+    gap: 1em;
+    &-button {
+      height: 100%;
+      @include mixins.flex-left-start-end();
+    }
+    &-item {
+      height: 100%;
+      gap: .2em;
+      @include mixins.flex-col-left-ns();
+
+      &:first-child {
+        grid-column: 1 / 4;
+      }
+      span {
+        margin-left: 1em;
+      }
+      &-search, &-select, &-date {
+        padding: 1em 1.2em;
+        width: 100%;
+        border-radius: 5em;
+        border: none;
+      }
+      &-search {
+        padding: 1em 1.2em;
+        width: 100%;
+        border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+        border-radius: 1em;
+        background: mixins.hslac(colors.$clr-gray-900, 1);
+        color: mixins.hslac(colors.$clr-gray-100, 1);
+        &:focus {
+          outline: none;
+          border-color: mixins.hslac(colors.$clr-purple-500, 1);
+        }
+      }
+      &-select {
+        padding: 1em 1.2em;
+        width: 100%;
+        border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+        border-radius: 1em;
+        background: mixins.hslac(colors.$clr-gray-900, 1);
+        color: mixins.hslac(colors.$clr-gray-100, 1);
+        &:focus {
+          outline: none;
+          border-color: mixins.hslac(colors.$clr-purple-500, 1);
+        }
+      }
+      &-date {
+        padding: 1em 1.2em;
+        width: 100%;
+        border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+        border-radius: 1em;
+        background: mixins.hslac(colors.$clr-gray-900, 1);
+        color: mixins.hslac(colors.$clr-gray-100, 1);
+        &:focus {
+          outline: none;
+          border-color: mixins.hslac(colors.$clr-purple-500, 1);
+        }
+      }
+      &-paidby-toggle, &-shared-toggle {
+        @include mixins.flex-center();
+
+        button {
+          padding: 1em 1.2em;
+          color: mixins.hslac(colors.$clr-white, 1);
+          background: mixins.hslac(colors.$clr-gray-900, 1);
+          border-top: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+          border-bottom: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+          border-right: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+          gap: .5em;
+          cursor: pointer;
+          @include mixins.flex-center();
+
+          svg {
+            width: .75em; height: .75em;
+            path {
+              stroke: mixins.hslac(colors.$clr-white, 1);
+            }
+          }
+          span {
+            margin-left: 0;
+          }
+          &:first-child {
+            border-top-left-radius: 5em;
+            border-bottom-left-radius: 5em;
+            border-left: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+            border-right: none;
+          }
+          &:last-child {
+            border-top-right-radius: 5em;
+            border-bottom-right-radius: 5em;
+            border-left: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+          }
+        }
+        button.active {
+          opacity: .75;
+        }
+      }
+    }
+  }
+  &-table {
+    margin-top: 2em;
+    padding: 1px;
+    width: 100%;
+    position: relative;
+    background-color: mixins.hslac(colors.$clr-gray-800, 1);
+    border-radius: 1em;
+    overflow: hidden;
+
+    &-rim {
+      $size: 40;
+      top: - calc($size / 1.5) + em;
+      left: - calc($size / 2.5) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-white, 1);
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      pointer-events: none;
+      opacity: .1;
+    }
+    &-glow {
+      $size: 140;
+      right: - calc($size / 3) + em;
+      bottom: - calc($size / 1.1) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-purple-500, 1);
+      border-radius: 50%;
+      filter: blur(calc($size / 2) + rem);
+      pointer-events: none;
+      opacity: .2;
+    }
+    &-inner {
+      width: 100%;
+      background-color: mixins.hslac(colors.$clr-gray-900, 1);
+      border-radius: 1em;
+      border-collapse: collapse;
+      thead {
+        border-bottom: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+        th {
+          padding: 1em !important;
+          user-select: none;
+          cursor: pointer;
+        }
+        tr {
+          &:hover {
+            background-color: transparent;
+          }
+        }
+      }
+      tr {
+        transition: background-color .1s cubic-bezier(utilities.$transition-main, 1);
+        &:hover {
+          background-color: mixins.hslac(colors.$clr-gray-800, 1);
+        }
+        .arealalien {
+          p {
+            padding: .2em .6em;
+            display: inline-block;
+            color: mixins.hslac(colors.$clr-green-100, 1);
+            background-color: mixins.hslac(colors.$clr-green-700, 0.1);
+            border: 1px solid mixins.hslac(colors.$clr-green-700, 1);
+            border-radius: 1em;
+          }
+        }
+        .leenut {
+          p {
+            padding: .2em .6em;
+            display: inline-block;
+            color: mixins.hslac(colors.$clr-purple-100, 1);
+            background-color: mixins.hslac(colors.$clr-purple-600, 0.1);
+            border: 1px solid mixins.hslac(colors.$clr-purple-600, 1);
+            border-radius: 1em;
+          }
+        }
+        .date, .shared, .notes {
+          color: mixins.hslac(colors.$clr-gray-200, 1);
+        }
+        .category {
+          p {
+            padding: .2em .6em;
+            display: inline-block;
+            border-radius: 1em;
+          }
+        }
+        .FURNITURE {
+          p {
+            color: mixins.hslac(colors.$clr-white, 1);
+            background-color: rgba(colors.$clr-furniture, 0.1);
+            border: 1px solid colors.$clr-furniture;
+          }
+        }
+        .TAKEAWAY {
+          p {
+            color: mixins.hslac(colors.$clr-white, 1);
+            background-color: rgba(colors.$clr-takeaway, 0.1);
+            border: 1px solid colors.$clr-takeaway;
+          }
+        }
+        .RESTAURANT {
+          p {
+            color: mixins.hslac(colors.$clr-white, 1);
+            background-color: rgba(colors.$clr-restaurant, 0.1);
+            border: 1px solid colors.$clr-restaurant;
+          }
+        }
+        .GROCERIES {
+          p {
+            color: mixins.hslac(colors.$clr-white, 1);
+            background-color: rgba(colors.$clr-groceries, 0.1);
+            border: 1px solid colors.$clr-groceries;
+          }
+        }
+        .HOUSEHOLD {
+          p {
+            color: mixins.hslac(colors.$clr-white, 1);
+            background-color: rgba(colors.$clr-household, 0.1);
+            border: 1px solid colors.$clr-household;
+          }
+        }
+        .SUBSCRIPTIONS {
+          p {
+            color: mixins.hslac(colors.$clr-white, 1);
+            background-color: rgba(colors.$clr-subscriptions, 0.1);
+            border: 1px solid colors.$clr-subscriptions;
+          }
+        }
+        .OTHER {
+          p {
+            color: mixins.hslac(colors.$clr-white, 1);
+            background-color: rgba(colors.$clr-other, 0.1);
+            border: 1px solid colors.$clr-other;
+          }
+        }
+        td {
+          padding: 1em;
+          &:first-child {
+            border-left: none;
+          }
+          &:nth-child(2), &:nth-child(5) {
+          }
+        }
+      }
+    }
+  }
+  &-pager {
+    gap: 1em;
+    @include mixins.flex-center();
+
+    &-button {
+      padding: 1em;
+      background-color: mixins.hslac(colors.$clr-gray-900, 1);
+      border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+      border-radius: .9em;
+      cursor: pointer;
+      &:disabled {
+        opacity: .5;
+        cursor: default;
+      }
+      svg {
+        width: .8em; height: .8em;
+        path {
+          stroke: mixins.hslac(colors.$clr-white, 1);
+        }
+      }
+    }
+    &-text {
+
+    }
+  }
+}

@@ -1,0 +1,32 @@
+/* Sizes */
+$heading-xlarge: clamp(4.2rem, 3.2399999999999998rem + 3.8vw, 5.6rem);
+$heading-large: clamp(2.5rem, 2.2399999999999998rem + 2.8vw, 4.2rem);
+$heading-medium: clamp(1.4rem, 1.68rem + 1.6vw, 2rem);
+$heading-small: clamp(1.2rem, 1.578rem + 0.59vw, 1.5rem);
+$paragraph-xlarge: clamp(1.69rem, 1.578rem + 1.51vw, 1.75rem);
+$paragraph-large: clamp(.95rem, 1.278rem + 1.21vw, 1.1rem);
+$paragraph-medium: clamp(.875rem, 1.178rem + 1.11vw, .95rem);
+$paragraph: clamp(.7rem, 0.978rem + 0.11vw, .875rem);
+$paragraph-small: clamp(0.66rem, 0.778rem + 0.088vw, 0.75rem);
+$paragraph-xsmall: clamp(0.5rem, 0.578rem + 0.066vw, 0.66rem);
+$banner: clamp(2.8rem, 3.2399999999999998rem + 3.8vw, 8.9rem);
+$navbar-height: 4.5em;
+$sidebar-width: 18em;
+$profile-size: 16em;
+/* misc */
+$transition-main: .175, .685, .32;
+$transition-smooth: .175, .285, .32;
+$transition-menu: .75, .185, .144032;
+$view-width-padding: 3rem;
+$view-width: calc(100% - $view-width-padding);
+$max-view-width: 1496px;
+/* Fonts */
+$font-main: "Sora", system-ui, sans-serif;
+$font-title: "Playfair Display", serif;
+/* Breakpoints */
+$layout-breakpoint-large: 1920px;
+$layout-breakpoint-medium: 1440px;
+$layout-breakpoint-xmedium: 1220px;
+$layout-breakpoint-small: 960px;
+$layout-breakpoint-msmall: 756px;
+$layout-breakpoint-xsmall: 580px;
