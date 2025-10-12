@@ -55,6 +55,11 @@
           font-weight: 700;
         }
       }
+      .rfi-double {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1em;
+      }
       &-field {
         margin-bottom: .4em;
         border: none;
@@ -67,6 +72,7 @@
           }
         }
         &-input {
+          width: 100%;
           position: relative;
           @include mixins.flex-center();
 
@@ -93,12 +99,16 @@
           @include mixins.flex-left();
         }
         &-indicator {
-          width: 100%;
+          padding: .4em .8em;
+          border-width: 1px;
+          border-style: solid;
+          border-radius: 5em;
         }
         &-line {
           width: 100%;
           background-color: mixins.hslac(colors.$clr-gray-800, 1);
           border-radius: 5em;
+          overflow: hidden;
           &-inner {
             width: 100%; height: 4px;
             border-radius: 5em;
@@ -106,13 +116,67 @@
         }
       }
       .pass-strength {
-        gap: .25em;
-        @include mixins.flex-col-left-ns();
+        gap: 1em;
+        @include mixins.flex-left();
       }
       &-bottom {
         margin-top: 1em;
         gap: 1em;
         @include mixins.flex-left();
+      }
+    }
+  }
+}
+.verify {
+  padding: 2em;
+  &-email {
+    padding: 1px;
+    position: relative;
+    background-color: mixins.hslac(colors.$clr-gray-800, 1);
+    border-radius: 1.6em;
+    gap: 1em;
+    overflow: hidden;
+    @include mixins.flex-col();
+
+    &-rim {
+      $size: 15;
+      top: - calc($size / 1.5) + em;
+      left: - calc($size / 2.5) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-white, 1);
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      pointer-events: none;
+      opacity: .15;
+    }
+    &-glow {
+      $size: 30;
+      right: - calc($size / 3) + em;
+      bottom: - calc($size / 1.1) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1.5;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-lime-500, 1);
+      border-radius: 50%;
+      filter: blur(calc($size * 1.2) + rem);
+      pointer-events: none;
+      opacity: .15;
+    }
+    &-inner {
+      padding: 2em;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      background-color: mixins.hslac(colors.$clr-gray-900, 1);
+      border-radius: 1.6em;
+      gap: 1em;
+      &-title {
+        font-weight: 700;
+      }
+      &-subtitle {
+        color: mixins.hslac(colors.$clr-gray-300, 1);
       }
     }
   }

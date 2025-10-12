@@ -1,0 +1,214 @@
+@use "../abstracts/colors";
+@use "../abstracts/mixins";
+@use "../abstracts/utilities";
+
+.landing {
+  &-header {
+    width: 100%; height: 100vh;
+    position: relative;
+    background-color: mixins.hslac(colors.$clr-gray-900, 1);
+    gap: 2em;
+    overflow: hidden;
+    @include mixins.flex-col();
+
+    &-rim {
+      $size: 25;
+      top: - calc($size / 1.5) + em;
+      left: 50%;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-white, 1);
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      transform: translateX(-50%);
+      pointer-events: none;
+      opacity: .15;
+    }
+    &-glow {
+      $size: 130;
+      left: 50%;
+      bottom: - calc($size / 1.5) + em;
+      width: $size + em;
+      aspect-ratio: 1.2 / 1;
+      position: absolute;
+      background-color: mixins.hslac(colors.$clr-purple-500, 1);
+      border-radius: 50%;
+      filter: blur(calc($size * 1.2) + rem);
+      transform: translateX(-50%);
+      pointer-events: none;
+      opacity: .15;
+    }
+    &-top {
+      max-width: 70vw;
+      gap: 1em;
+      @include mixins.flex-col();
+
+      &-title {
+        font-size: utilities.$heading-xlarge;
+        font-weight: 800;
+        text-align: center;
+        line-height: 1;
+        span {
+          background: -webkit-linear-gradient(185deg, mixins.hslac(colors.$clr-purple-400, 1), mixins.hslac(colors.$clr-purple-500, 1));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+      }
+      &-subtitle {
+        color: mixins.hslac(colors.$clr-gray-300, 1);
+        font-size: utilities.$paragraph-large;
+        font-weight: 400;
+      }
+    }
+    &-center {
+      gap: 1em;
+      @include mixins.flex-center();
+    }
+  }
+  &-section {
+    padding: 2em;
+    width: 100%;
+    gap: 2em;
+    @include mixins.flex-col();
+
+    &-header {
+      width: 100%;
+      &-title {
+        font-weight: 700;
+      }
+    }
+    &-content {
+      width: 100%;
+      &-pricing {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        place-items: flex-start;
+        gap: 2em;
+        &-card {
+          padding: 1px;
+          width: 100%; height: 100%;
+          position: relative;
+          background-color: mixins.hslac(colors.$clr-gray-800, 1);
+          border-radius: 1.6em;
+          gap: 1em;
+          overflow: hidden;
+          @include mixins.flex-col();
+
+          &-rim {
+            $size: 14;
+            top: - calc($size / 1.5) + em;
+            left: - calc($size / 2.5) + em;
+            width: $size + em;
+            aspect-ratio: 1 / 1;
+            position: absolute;
+            background-color: mixins.hslac(colors.$clr-white, 1);
+            border-radius: 50%;
+            filter: blur(calc($size / 1.5) + rem);
+            pointer-events: none;
+            opacity: .2;
+          }
+          &-glow {
+            $size: 30;
+            right: - calc($size / 3) + em;
+            bottom: - calc($size / 1.1) + em;
+            width: $size + em;
+            aspect-ratio: 1 / 1.5;
+            position: absolute;
+            background-color: mixins.hslac(colors.$clr-lime-500, 1);
+            border-radius: 50%;
+            filter: blur(calc($size * 1.2) + rem);
+            pointer-events: none;
+            opacity: .2;
+          }
+          &-glow.tier-one {
+            background-color: mixins.hslac(colors.$clr-purple-500, 1);
+          }
+          &-glow.tier-two {
+            background-color: mixins.hslac(colors.$clr-skyblue-400, 1);
+          }
+          &-glow.tier-three {
+            background-color: mixins.hslac(colors.$clr-deeppink-500, 1);
+          }
+          &-inner {
+            padding: 2em;
+            width: 100%; height: 100%;
+            background-color: mixins.hslac(colors.$clr-gray-900, 1);
+            border-radius: 1.6em;
+            gap: 4em;
+            @include mixins.flex-col-space-bet();
+
+            &-top {
+              width: 100%;
+              gap: .5em;
+              @include mixins.flex-col-left-ns();
+
+              h3 {
+                font-size: utilities.$heading-medium;
+                font-weight: 700;
+              }
+              ul {
+                list-style-type: none;
+                gap: .4em;
+                @include mixins.flex-col-left-ns();
+
+                li {
+                  color: mixins.hslac(colors.$clr-gray-300, 1);
+                }
+              }
+              .tier-one {
+                padding: .3em .8em;
+                color: mixins.hslac(colors.$clr-purple-200, 1);
+                background-color: mixins.hslac(colors.$clr-purple-500, .15);
+                border: 1px solid mixins.hslac(colors.$clr-purple-500, 1);
+                border-radius: 5em;
+              }
+              .tier-two {
+                padding: .4em .8em;
+                color: mixins.hslac(colors.$clr-skyblue-200, 1);
+                background-color: mixins.hslac(colors.$clr-skyblue-500, .15);
+                border: 1px solid mixins.hslac(colors.$clr-skyblue-500, 1);
+                border-radius: 5em;
+              }
+              .tier-three {
+                padding: .4em .8em;
+                color: mixins.hslac(colors.$clr-deeppink-200, 1);
+                background-color: mixins.hslac(colors.$clr-deeppink-500, .15);
+                border: 1px solid mixins.hslac(colors.$clr-deeppink-500, 1);
+                border-radius: 5em;
+              }
+            }
+            &-bottom {
+              width: 100%;
+              gap: 1em;
+              @include mixins.flex-col-left-ns();
+
+              p {
+                font-size: utilities.$heading-medium;
+                font-weight: 700;
+                gap: .2em;
+                @include mixins.flex-left-end();
+
+                span.tier-one {
+                  color: mixins.hslac(colors.$clr-purple-500, 1);
+                }
+                span.tier-two {
+                  color: mixins.hslac(colors.$clr-skyblue-400, 1);
+                }
+                span.tier-three {
+                  color: mixins.hslac(colors.$clr-deeppink-500, 1);
+                }
+                sub {
+                  margin-bottom: .25em;
+                  color: mixins.hslac(colors.$clr-gray-500, 1);
+                  font-size: utilities.$paragraph-medium;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

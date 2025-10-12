@@ -166,6 +166,13 @@ main {
     text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
   }
 }
+.ba-green {
+  background: mixins.hslac(colors.$clr-lime-500, 1);
+  color: mixins.hslac(colors.$clr-white, 1);
+  div {
+    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+  }
+}
 .button-animated {
   --font-size: .9rem;
   --duration: .3s;

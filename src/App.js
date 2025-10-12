@@ -123,20 +123,36 @@ function App() {
                 </div>
                 <div className="navbar-inner-right">
                     {!user && (
-                        <NavLink
-                            to="/signin"
-                            end
-                            className={({isActive, isPending, isTransitioning}) =>
-                                [
-                                    "",
-                                    isPending ? "pending" : "",
-                                    isActive ? "active" : "",
-                                    isTransitioning ? "transitioning" : "",
-                                ].join(" ")
-                            }
-                        >
-                            <Button className="ba-white" children="Sign in" type="button" />
-                        </NavLink>
+                        <>
+                            <NavLink
+                                to="/register"
+                                end
+                                className={({isActive, isPending, isTransitioning}) =>
+                                    [
+                                        "",
+                                        isPending ? "pending" : "",
+                                        isActive ? "active" : "",
+                                        isTransitioning ? "transitioning" : "",
+                                    ].join(" ")
+                                }
+                            >
+                                <Button className="ba-purple" children="Register" type="button" />
+                            </NavLink>
+                            <NavLink
+                                to="/signin"
+                                end
+                                className={({isActive, isPending, isTransitioning}) =>
+                                    [
+                                        "",
+                                        isPending ? "pending" : "",
+                                        isActive ? "active" : "",
+                                        isTransitioning ? "transitioning" : "",
+                                    ].join(" ")
+                                }
+                            >
+                                <Button className="ba-white" children="Sign in" type="button" />
+                            </NavLink>
+                        </>
                     )}
                     {!loading && user && (
                         <Button className="ba-white" children="Sign out" type="submit" onClick={handleLogout} />

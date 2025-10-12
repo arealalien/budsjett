@@ -10,7 +10,7 @@ export async function verifyToken(req, res, next) {
 
         const user = await prisma.user.findUnique({
             where: { id: payload.sub },
-            select: { id: true, name: true }
+            select: { id: true, username: true, displayName: true }
         });
 
         if (!user) return res.status(401).json({ error: 'Invalid token user' });
@@ -34,7 +34,7 @@ export async function verifyTokenOptional(req, res, next) {
 
         const user = await prisma.user.findUnique({
             where: { id: payload.sub },
-            select: { id: true, name: true }
+            select: { id: true, username: true, displayName: true }
         });
 
         req.user = user || null;

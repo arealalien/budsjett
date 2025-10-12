@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { NavLink } from "react-router-dom";
 import { api } from '../lib/api';
 import Button from './Button';
-import { NavLink } from "react-router-dom";
+import { useToast } from './ToastContext';
 
 export default function RegisterForm() {
     const [form, setForm] = useState({
@@ -17,6 +18,7 @@ export default function RegisterForm() {
     const [strength, setStrength] = useState(0);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const { showToast } = useToast();
 
     const onChange = e => {
         const { name, value } = e.target;
@@ -88,7 +90,7 @@ export default function RegisterForm() {
         setError('');
         setSuccess(false);
 
-        if (!usernameRegex.test(form.name)) {
+        if (!usernameRegex.test(form.username)) {
             setError('Username can only contain letters, numbers, and underscores');
             return;
         }
@@ -110,37 +112,39 @@ export default function RegisterForm() {
 
             await api.post('/auth/register', payload);
             setSuccess(true);
+            showToast('Success', { type: 'success', duration: 2500 });
         } catch (err) {
             const msg = err.response?.data?.error || err.message;
             setError(msg);
+            showToast(msg, { type: 'error', duration: 3500 });
         } finally {
             setLoading(false);
         }
     };
 
     const getStrengthLabel = () => {
-        if (strength <= 2) return { text: 'Weak', color: 'red' };
-        if (strength === 3 || strength === 4) return { text: 'Medium', color: 'orange' };
-        return { text: 'Strong', color: 'green' };
+        if (strength <= 2) return { text: 'Weak', color: '#ef4444', colorAlpha: 'rgba(239, 68, 68, .15)' };
+        if (strength === 3 || strength === 4) return { text: 'Medium', color: '#f59e0b', colorAlpha: 'rgba(245, 158, 11, .15)' };
+        return { text: 'Strong', color: '#10b981', colorAlpha: 'rgba(16, 185, 129, .15)' };
     };
 
-    const { text: strengthText, color: strengthColor } = getStrengthLabel();
+    const { text: strengthText, color: strengthColor, colorAlpha: strengthColorAlpha } = getStrengthLabel();
 
     return (
-        <form className="register-form" onSubmit={onSubmit}>
+        <form className="register-form" autocomplete="on" onSubmit={onSubmit}>
             <div className="register-form-rim"></div>
             <div className="register-form-glow"></div>
             <div className="register-form-inner">
                 <div className="register-form-inner-header">
                     <h3>Register</h3>
                 </div>
-                <fieldset className="register-form-inner-field">
+                <fieldset className="register-form-inner-field rfi-double">
                     <label className="register-form-inner-field-label">
                         <span className="register-form-inner-field-label-name">Username</span>
                         <div className="register-form-inner-field-input">
                             <input
                                 className="register-form-inner-field-input-field"
-                                name="name"
+                                name="username"
                                 type="text"
                                 placeholder="Username"
                                 value={form.name}
@@ -150,25 +154,6 @@ export default function RegisterForm() {
                             <p className="register-form-inner-field-input-text">@</p>
                         </div>
                     </label>
-                </fieldset>
-                <fieldset className="register-form-inner-field">
-                    <label className="register-form-inner-field-label">
-                        <span className="register-form-inner-field-label-name">Email</span>
-                        <div className="register-form-inner-field-input">
-                            <input
-                                className="register-form-inner-field-input-field"
-                                type="email"
-                                name="email"
-                                placeholder="Email"
-                                value={form.email}
-                                onChange={onChange}
-                                required
-                            />
-                            <p className="register-form-inner-field-input-text">@</p>
-                        </div>
-                    </label>
-                </fieldset>
-                <fieldset className="register-form-inner-field">
                     <label className="register-form-inner-field-label">
                         <span className="register-form-inner-field-label-name">Display name</span>
                         <div className="register-form-inner-field-input">
@@ -186,6 +171,24 @@ export default function RegisterForm() {
                     </label>
                 </fieldset>
                 <fieldset className="register-form-inner-field">
+                    <label className="register-form-inner-field-label">
+                        <span className="register-form-inner-field-label-name">Email</span>
+                        <div className="register-form-inner-field-input">
+                            <input
+                                className="register-form-inner-field-input-field"
+                                type="text"
+                                name="email"
+                                placeholder="Email"
+                                value={form.email}
+                                onChange={onChange}
+                                autoComplete="email"
+                                required
+                            />
+                            <p className="register-form-inner-field-input-text">@</p>
+                        </div>
+                    </label>
+                </fieldset>
+                <fieldset className="register-form-inner-field rfi-double">
                     <label className="register-form-inner-field-label">
                         <span className="register-form-inner-field-label-name">Password</span>
                         <div className="register-form-inner-field-input">
@@ -214,8 +217,6 @@ export default function RegisterForm() {
                             )}
                         </div>
                     </label>
-                </fieldset>
-                <fieldset className="register-form-inner-field">
                     <label className="register-form-inner-field-label">
                         <span className="register-form-inner-field-label-name">Confirm Password</span>
                         <div className="register-form-inner-field-input">
@@ -248,7 +249,7 @@ export default function RegisterForm() {
                 </fieldset>
                 {form.password && (
                     <fieldset className="register-form-inner-field pass-strength">
-                        <p className="register-form-inner-field-indicator" style={{ color: strengthColor }}>{strengthText}</p>
+                        <p className="register-form-inner-field-indicator" style={{ color: strengthColor, backgroundColor: strengthColorAlpha, borderColor: strengthColor }}>{strengthText}</p>
                         <div className="register-form-inner-field-line">
                             <div className="register-form-inner-field-line-inner" style={{
                                 width: `${(strength / 5) * 100}%`,
@@ -258,15 +259,14 @@ export default function RegisterForm() {
                     </fieldset>
                 )}
 
+                {error && <p style={{ color: 'crimson' }}>{error}</p>}
+
                 <div className="register-form-inner-bottom">
                     <Button className="ba-deeppink" children="Register" type="submit" />
                     <NavLink to="/signin">
                         <Button className="ba-white reversed" children="Sign in" />
                     </NavLink>
                 </div>
-
-                {error && <p style={{ color: 'crimson' }}>{error}</p>}
-                {success && <p style={{ color: 'green' }}>Registered! 🎉</p>}
             </div>
         </form>
     );

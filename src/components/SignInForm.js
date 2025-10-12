@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from "react-router-dom";
 import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 import Button from "./Button";
 
 
 export default function LoginForm() {
     const [form, setForm] = useState({
-        name: '',
+        usernameOrEmail: '',
         password: '',
         remember: false
     });
@@ -17,6 +18,7 @@ export default function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
     const { setUser } = useAuth();
+    const { showToast } = useToast();
 
     const onChange = e => {
         const { name, value, type, checked } = e.target;
@@ -34,9 +36,11 @@ export default function LoginForm() {
             setSuccess(true);
             setUser(data);
             navigate('/');
+            showToast('Logged in successfully', { type: 'success', duration: 2500 });
         } catch (err) {
             const msg = err.response?.data?.error || err.message;
             setError(msg);
+            showToast(msg, { type: 'error', duration: 3500 });
         } finally {
             setLoading(false);
         }
@@ -44,7 +48,7 @@ export default function LoginForm() {
 
 
     return (
-        <form className="register-form" onSubmit={onSubmit}>
+        <form className="register-form signin-form" autocomplete="on" onSubmit={onSubmit}>
             <div className="register-form-rim"></div>
             <div className="register-form-glow"></div>
             <div className="register-form-inner">
@@ -52,23 +56,22 @@ export default function LoginForm() {
                     <h3>Sign in</h3>
                 </div>
 
-                <fieldset className="register-form-inner-field">
+                <fieldset className="register-form-inner-field rfi-double">
                     <label className="register-form-inner-field-label">
                         <span className="register-form-inner-field-label-name">Username</span>
                         <div className="register-form-inner-field-input">
                             <input
                                 className="register-form-inner-field-input-field"
-                                name="name"
-                                placeholder="Username"
-                                value={form.name}
+                                name="usernameOrEmail"
+                                placeholder="Username or email"
+                                value={form.usernameOrEmail}
                                 onChange={onChange}
+                                autoComplete="email"
                                 required
                             />
                             <p className="register-form-inner-field-input-text">@</p>
                         </div>
                     </label>
-                </fieldset>
-                <fieldset className="register-form-inner-field">
                     <label className="register-form-inner-field-label">
                         <span className="register-form-inner-field-label-name">Password</span>
                         <div className="register-form-inner-field-input">
@@ -112,15 +115,14 @@ export default function LoginForm() {
                     </label>
                 </fieldset>
 
+                {error && <p style={{ color: 'crimson' }}>{error}</p>}
+
                 <div className="register-form-inner-bottom">
                     <Button className="ba-deeppink" children="Sign in" type="submit" disabled={loading} />
                     <NavLink to="/register">
                         <Button className="ba-white reversed" children="Register" />
                     </NavLink>
                 </div>
-
-                {error && <p style={{ color: 'crimson' }}>{error}</p>}
-                {success && <p style={{ color: 'green' }}>Signed in! 🎉</p>}
             </div>
         </form>
     );

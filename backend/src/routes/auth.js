@@ -36,42 +36,70 @@ function urlSafeToken(bytes = 32) {
     return crypto.randomBytes(bytes).toString('base64url'); // ~43–86 chars; we store in VarChar(64)
 }
 
-const hasMailtrap = process.env.MAILTRAP_USER && process.env.MAILTRAP_PASS;
+const hasMailtrap = !!(process.env.MAILTRAP_USER && process.env.MAILTRAP_PASS);
 
 const transport = hasMailtrap
     ? nodemailer.createTransport({
         host: 'sandbox.smtp.mailtrap.io',
         port: 2525,
-        auth: { user: process.env.MAILTRAP_USER, pass: process.env.MAILTRAP_PASS },
+        auth: {
+            user: process.env.MAILTRAP_USER,
+            pass: process.env.MAILTRAP_PASS,
+        },
     })
     : null;
 
+function extractFirstHref(html) {
+    const m = html.match(/href="([^"]+)"/i);
+    return m ? m[1] : null;
+}
+
 async function sendEmail({ to, subject, html }) {
     if (!transport) {
+        const url = extractFirstHref(html);
         console.log('--- DEV EMAIL (no SMTP configured) ---');
         console.log('To:', to);
         console.log('Subject:', subject);
+        if (url) console.log('Link:', url);
         console.log(html);
         console.log('--------------------------------------');
-        return;
+        return { devLink: url };
     }
     await transport.sendMail({ from: '"Budsjett" <no-reply@budsjett.local>', to, subject, html });
+    return {};
 }
 
 // For links in emails
 function appUrl(path) {
-    const base = process.env.APP_ORIGIN || 'http://localhost:3000';
-    return `${base}${path}`;
+    const base = (process.env.APP_ORIGIN || 'http://localhost:3000').replace(/\/+$/, '');
+    return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
+function readTokenFromReq(req) {
+    // Prefer cookie; fall back to "Authorization: Bearer <token>"
+    const bearer = req.get('authorization');
+    const headerToken = bearer?.startsWith('Bearer ') ? bearer.slice(7) : null;
+    return req.cookies?.token || headerToken || null;
+}
+
+function verifyJwtOrNull(token) {
+    try {
+        if (!token) return null;
+        return jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+        return null;
+    }
 }
 
 // ---------- schemas ----------
 const registerSchema = z.object({
     username: z.string()
         .min(3).max(50)
-        .regex(usernameRegex, "Username can only contain letters, numbers, and underscores"),
+        .regex(/^[A-Za-z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
     email: z.string().email(),
     password: passwordSchema,
     confirmPassword: z.string(),
+    displayName: z.string().min(1).max(100).optional(), // <-- add this
 }).refine(d => d.password === d.confirmPassword, { path: ['confirmPassword'], message: 'Passwords do not match' });
 
 const loginSchema = z.object({
@@ -100,12 +128,11 @@ const verifySchema = z.object({
 // Creates user, stores verification token, emails link. DOES NOT log in.
 router.post('/register', async (req, res, next) => {
     try {
-        const { username, email, password } = registerSchema.parse(req.body);
-
+        const { username, email, password, displayName } = registerSchema.parse(req.body);
         const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
         const user = await prisma.user.create({
-            data: { username, email, passwordHash },
+            data: { username, email, passwordHash, displayName },
             select: { id: true, username: true, email: true }
         });
 
@@ -152,56 +179,70 @@ router.get('/verify', async (req, res, next) => {
     try {
         const { token } = verifySchema.parse({ token: req.query.token });
 
-        const record = await prisma.authToken.findUnique({ where: { token } });
-        if (!record || record.type !== 'EMAIL_VERIFY') {
-            return res.status(400).json({ error: 'Invalid token' });
-        }
-        if (record.consumedAt) {
-            return res.status(400).json({ error: 'Token already used' });
-        }
-        if (record.expiresAt < new Date()) {
-            return res.status(400).json({ error: 'Token expired' });
-        }
+        await prisma.$transaction(async (tx) => {
+            // 1) Validate token inside the txn
+            const record = await tx.authToken.findUnique({ where: { token } });
+            if (!record || record.type !== 'EMAIL_VERIFY') {
+                throw Object.assign(new Error('Invalid token'), { status: 400 });
+            }
+            if (record.consumedAt) {
+                throw Object.assign(new Error('Token already used'), { status: 400 });
+            }
+            if (record.expiresAt < new Date()) {
+                throw Object.assign(new Error('Token expired'), { status: 400 });
+            }
 
-        const user = await prisma.user.update({
-            where: { id: record.userId },
-            data: { emailVerifiedAt: new Date() },
-            select: { id: true, username: true, emailVerifiedAt: true }
-        });
+            // 2) Mark user as verified
+            const user = await tx.user.update({
+                where: { id: record.userId },
+                data: { emailVerifiedAt: new Date() },
+                select: { id: true, username: true, emailVerifiedAt: true },
+            });
 
-        await prisma.authToken.update({
-            where: { token },
-            data: { consumedAt: new Date() }
-        });
+            // 3) Consume token
+            await tx.authToken.update({
+                where: { token },
+                data: { consumedAt: new Date() },
+            });
 
-        // (Optional) Seed a starter budget + default categories if none exist yet
-        const existing = await prisma.budget.findFirst({ where: { ownerId: user.id } });
-        if (!existing) {
-            const budget = await prisma.budget.create({
-                data: {
+            // 4) Seed default budget (idempotent)
+            const budget = await tx.budget.upsert({
+                where: { ownerId_name: { ownerId: user.id, name: 'My Budget' } }, // @@unique([ownerId, name])
+                create: {
                     ownerId: user.id,
                     name: 'My Budget',
                     members: { create: { userId: user.id, role: 'OWNER' } },
-                }
+                },
+                update: {},
             });
 
             const defaults = [
-                { name: 'Furniture', slug: 'furniture', color: '#3b82f6', isSystem: true },
-                { name: 'Groceries', slug: 'groceries', color: '#ef4444', isSystem: true },
-                { name: 'Takeaway', slug: 'takeaway', color: '#f59e0b', isSystem: true },
-                { name: 'Restaurant', slug: 'restaurant', color: '#10b981', isSystem: true },
-                { name: 'Household', slug: 'household', color: '#06b6d4', isSystem: true },
-                { name: 'Subscriptions', slug: 'subscriptions', color: '#a855f7', isSystem: true },
-                { name: 'Other', slug: 'other', color: '#64748b', isSystem: true },
+                { name: 'Furniture',     slug: 'furniture',     color: '59, 130, 246', isSystem: true },
+                { name: 'Groceries',     slug: 'groceries',     color: '239, 68, 68',  isSystem: true },
+                { name: 'Takeaway',      slug: 'takeaway',      color: '245, 158, 11', isSystem: true },
+                { name: 'Restaurant',    slug: 'restaurant',    color: '16, 185, 129', isSystem: true },
+                { name: 'Household',     slug: 'household',     color: '6, 182, 212',  isSystem: true },
+                { name: 'Subscriptions', slug: 'subscriptions', color: '168, 85, 247', isSystem: true },
+                { name: 'Other',         slug: 'other',         color: '100, 116, 139', isSystem: true },
             ];
-            await prisma.category.createMany({
-                data: defaults.map((c, i) => ({ ...c, budgetId: budget.id, sortOrder: i }))
+
+            await tx.category.createMany({
+                data: defaults.map((c, i) => ({
+                    ...c,
+                    budgetId: budget.id,
+                    sortOrder: i,
+                })),
+                skipDuplicates: true, // relies on @@unique([budgetId, slug])
             });
-        }
+        });
 
         return res.json({ ok: true, message: 'Email verified. You can sign in now.' });
     } catch (err) {
-        if (err.name === 'ZodError') {
+        // Map our thrown 400s cleanly
+        if (err?.status === 400) {
+            return res.status(400).json({ error: err.message });
+        }
+        if (err?.name === 'ZodError') {
             return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
         }
         next(err);
@@ -283,7 +324,12 @@ router.post('/login', async (req, res, next) => {
             maxAge,
         });
 
-        res.json({ id: user.id, username: user.username, email: user.email });
+        res.json({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            displayName: user.displayName ?? null,
+        });
     } catch (err) {
         if (err.name === 'ZodError') {
             return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
@@ -361,6 +407,32 @@ router.post('/password/reset', async (req, res, next) => {
         }
         next(err);
     }
+});
+
+// GET /api/auth/me
+router.get('/me', async (req, res) => {
+    const token = readTokenFromReq(req);
+    const payload = verifyJwtOrNull(token);
+
+    if (!payload?.sub) {
+        return res.json(null);
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: {
+            id: true,
+            username: true,
+            email: true,
+            displayName: true,
+            emailVerifiedAt: true,
+            createdAt: true,
+        },
+    });
+
+    if (!user) return res.json(null);
+
+    return res.json(user);
 });
 
 // POST /api/auth/logout

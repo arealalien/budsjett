@@ -1,0 +1,47 @@
+@use "../abstracts/colors";
+@use "../abstracts/mixins";
+@use "../abstracts/utilities";
+
+.toast {
+  bottom: 2em; right: 2em;
+  padding: 1.5em;
+  position: fixed;
+  background-color: mixins.hslac(colors.$clr-gray-800, .6);
+  backdrop-filter: blur(3rem);
+  border-radius: 1.2em;
+  z-index: 9999;
+  animation: fadeInOut 2s cubic-bezier(utilities.$transition-menu, 1) forwards;
+  border: 1px solid transparent;
+
+  &-message {
+    color: mixins.hslac(colors.$clr-white, 1);
+    font-weight: 600;
+  }
+
+  &-success {
+    background-color: mixins.hslac(colors.$clr-lime-500, .15);
+    border-color: mixins.hslac(colors.$clr-lime-500, 1);
+  }
+
+  &-error {
+    background-color: mixins.hslac(colors.$clr-red-500, .15);
+    border-color: mixins.hslac(colors.$clr-red-500, 1);
+  }
+
+  &-warning {
+    background-color: mixins.hslac(colors.$clr-orange-500, .15);
+    border-color: mixins.hslac(colors.$clr-orange-500, 1);
+  }
+
+  &-info {
+    background-color: mixins.hslac(colors.$clr-skyblue-400, .15);
+    border-color: mixins.hslac(colors.$clr-skyblue-400, 1);
+  }
+}
+
+@keyframes fadeInOut {
+  0%   { opacity: 0; transform: scale(0.95); }
+  15%  { opacity: 1; transform: scale(1); }
+  85%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.97); }
+}
