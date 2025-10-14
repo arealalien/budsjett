@@ -91,6 +91,18 @@ function verifyJwtOrNull(token) {
     }
 }
 
+async function needsOnboarding(userId) {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { onboardingSkippedAt: true },
+    });
+    if (!user) return true;
+    if (user.onboardingSkippedAt) return false;
+
+    const count = await prisma.budget.count({ where: { ownerId: userId } });
+    return count === 0;
+}
+
 // ---------- schemas ----------
 const registerSchema = z.object({
     username: z.string()
@@ -136,20 +148,15 @@ router.post('/register', async (req, res, next) => {
             select: { id: true, username: true, email: true }
         });
 
-        // create verify token (1 day)
-        const token = urlSafeToken(32); // base64url ~43 chars
+        const token = urlSafeToken(32);
         const expiresAt = new Date(Date.now() + 24*60*60*1000);
+
         await prisma.authToken.create({
-            data: {
-                userId: user.id,
-                token,
-                type: 'EMAIL_VERIFY',
-                expiresAt,
-            }
+            data: { userId: user.id, token, type: 'EMAIL_VERIFY', expiresAt }
         });
 
         const verifyLink = appUrl(`/verify?token=${encodeURIComponent(token)}`);
-        await sendEmail({
+        const emailResult = await sendEmail({
             to: user.email,
             subject: 'Verify your account',
             html: `
@@ -160,7 +167,12 @@ router.post('/register', async (req, res, next) => {
       `
         });
 
-        res.status(201).json({ ok: true, message: 'Registered. Please check your email to verify your account.' });
+        // Return dev link only when we didn't actually send an email
+        const body = { ok: true, message: 'Registered. Please check your email to verify your account.' };
+        if (emailResult?.devLink) body.devLink = emailResult.devLink;
+        if (process.env.NODE_ENV !== 'production') body.devLink = body.devLink || verifyLink;
+
+        res.status(201).json(body);
     } catch (err) {
         if (err.code === 'P2002') {
             const field = err.meta?.target?.[0] || 'field';
@@ -180,71 +192,26 @@ router.get('/verify', async (req, res, next) => {
         const { token } = verifySchema.parse({ token: req.query.token });
 
         await prisma.$transaction(async (tx) => {
-            // 1) Validate token inside the txn
             const record = await tx.authToken.findUnique({ where: { token } });
-            if (!record || record.type !== 'EMAIL_VERIFY') {
-                throw Object.assign(new Error('Invalid token'), { status: 400 });
-            }
-            if (record.consumedAt) {
-                throw Object.assign(new Error('Token already used'), { status: 400 });
-            }
-            if (record.expiresAt < new Date()) {
-                throw Object.assign(new Error('Token expired'), { status: 400 });
-            }
+            if (!record || record.type !== 'EMAIL_VERIFY') throw Object.assign(new Error('Invalid token'), { status: 400 });
+            if (record.consumedAt) throw Object.assign(new Error('Token already used'), { status: 400 });
+            if (record.expiresAt < new Date()) throw Object.assign(new Error('Token expired'), { status: 400 });
 
-            // 2) Mark user as verified
-            const user = await tx.user.update({
+            await tx.user.update({
                 where: { id: record.userId },
                 data: { emailVerifiedAt: new Date() },
-                select: { id: true, username: true, emailVerifiedAt: true },
             });
 
-            // 3) Consume token
             await tx.authToken.update({
                 where: { token },
                 data: { consumedAt: new Date() },
             });
-
-            // 4) Seed default budget (idempotent)
-            const budget = await tx.budget.upsert({
-                where: { ownerId_name: { ownerId: user.id, name: 'My Budget' } }, // @@unique([ownerId, name])
-                create: {
-                    ownerId: user.id,
-                    name: 'My Budget',
-                    members: { create: { userId: user.id, role: 'OWNER' } },
-                },
-                update: {},
-            });
-
-            const defaults = [
-                { name: 'Furniture',     slug: 'furniture',     color: '59, 130, 246', isSystem: true },
-                { name: 'Groceries',     slug: 'groceries',     color: '239, 68, 68',  isSystem: true },
-                { name: 'Takeaway',      slug: 'takeaway',      color: '245, 158, 11', isSystem: true },
-                { name: 'Restaurant',    slug: 'restaurant',    color: '16, 185, 129', isSystem: true },
-                { name: 'Household',     slug: 'household',     color: '6, 182, 212',  isSystem: true },
-                { name: 'Subscriptions', slug: 'subscriptions', color: '168, 85, 247', isSystem: true },
-                { name: 'Other',         slug: 'other',         color: '100, 116, 139', isSystem: true },
-            ];
-
-            await tx.category.createMany({
-                data: defaults.map((c, i) => ({
-                    ...c,
-                    budgetId: budget.id,
-                    sortOrder: i,
-                })),
-                skipDuplicates: true, // relies on @@unique([budgetId, slug])
-            });
         });
 
-        return res.json({ ok: true, message: 'Email verified. You can sign in now.' });
+        return res.json({ ok: true, message: 'Email verified. Please sign in to start onboarding.' });
     } catch (err) {
-        // Map our thrown 400s cleanly
-        if (err?.status === 400) {
-            return res.status(400).json({ error: err.message });
-        }
-        if (err?.name === 'ZodError') {
-            return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
-        }
+        if (err?.status === 400) return res.status(400).json({ error: err.message });
+        if (err?.name === 'ZodError') return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
         next(err);
     }
 });
@@ -324,11 +291,14 @@ router.post('/login', async (req, res, next) => {
             maxAge,
         });
 
+        const onboarding = await needsOnboarding(user.id);
+
         res.json({
             id: user.id,
             username: user.username,
             email: user.email,
             displayName: user.displayName ?? null,
+            needsOnboarding: onboarding,
         });
     } catch (err) {
         if (err.name === 'ZodError') {
@@ -432,7 +402,12 @@ router.get('/me', async (req, res) => {
 
     if (!user) return res.json(null);
 
-    return res.json(user);
+    const onboarding = await needsOnboarding(user.id);
+
+    return res.json({
+        ...user,
+        needsOnboarding: onboarding,
+    });
 });
 
 // POST /api/auth/logout
@@ -453,6 +428,117 @@ router.get('/users', async (_req, res, next) => {
         });
         res.json(users);
     } catch (err) { next(err); }
+});
+
+const onboardingSchema = z.object({
+    budgetName: z.string().min(1).max(191),
+    categories: z.array(z.object({
+        name: z.string().min(1).max(80),
+        color: z.string().min(3).max(20), // "R, G, B"
+        planMonthly: z.number().min(0).max(99999999.99).default(0),
+    })).min(1).max(100)
+});
+
+function requireAuth(req) {
+    const payload = verifyJwtOrNull(readTokenFromReq(req));
+    if (!payload?.sub) {
+        const e = new Error('Not authenticated');
+        e.status = 401;
+        throw e;
+    }
+    return payload.sub;
+}
+
+function slugify(s) {
+    return s
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '')
+        .slice(0, 100);
+}
+
+function randomSlugSegment(length = 8) {
+    return crypto.randomBytes(length).toString('base64url').slice(0, length);
+}
+
+async function uniqueBudgetSlug(tx) {
+    let slug;
+    while (true) {
+        slug = randomSlugSegment(10);
+        const exists = await tx.budget.findUnique({ where: { slug } });
+        if (!exists) break;
+    }
+    return slug;
+}
+
+// POST /api/onboarding
+router.post('/onboarding', async (req, res, next) => {
+    try {
+        const userId = requireAuth(req);
+        const { budgetName, categories } = onboardingSchema.parse(req.body);
+
+        const already = await prisma.budget.count({ where: { ownerId: userId } });
+        if (already > 0) {
+            return res.status(409).json({ error: 'Onboarding already completed.' });
+        }
+
+        const budget = await prisma.$transaction(async (tx) => {
+            const slug = await uniqueBudgetSlug(tx);
+
+            const created = await tx.budget.create({
+                data: {
+                    ownerId: userId,
+                    name: budgetName,
+                    slug,
+                    members: { create: { userId, role: 'OWNER' } },
+                },
+                select: { id: true, slug: true }, // only what we need
+            });
+
+            const rows = categories.map((c, i) => ({
+                budgetId: created.id,
+                name: c.name.trim(),
+                slug: slugify(c.name),
+                color: c.color.trim(),
+                planMonthly: (c.planMonthly ?? 0).toFixed(2),
+                sortOrder: i,
+                isSystem: false,
+            }));
+
+            // ensure unique slugs within this budget’s categories
+            const seen = new Set();
+            rows.forEach(r => {
+                let s = r.slug || 'cat';
+                let k = s, n = 1;
+                while (seen.has(k)) { k = `${s}-${++n}`; }
+                r.slug = k.slice(0, 100);
+                seen.add(k);
+            });
+
+            await tx.category.createMany({ data: rows });
+
+            return created; // <-- return something!
+        });
+
+        res.json({ ok: true, slug: budget.slug, budgetId: budget.id });
+    } catch (err) {
+        if (err?.status === 401) return res.status(401).json({ error: err.message });
+        if (err?.name === 'ZodError') return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
+        next(err);
+    }
+});
+
+router.post('/onboarding/skip', async (req, res, next) => {
+    try {
+        const userId = requireAuth(req);
+        await prisma.user.update({
+            where: { id: userId },
+            data: { onboardingSkippedAt: new Date() },
+        });
+        return res.json({ ok: true });
+    } catch (err) {
+        next(err);
+    }
 });
 
 export default router;

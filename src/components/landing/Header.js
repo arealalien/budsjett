@@ -1,8 +1,8 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import Button from "../Button";
 
 export default function Header() {
+
     return (
         <header className="landing-header">
             <div className="landing-header-rim"></div>
@@ -13,10 +13,9 @@ export default function Header() {
             </div>
             <div className="landing-header-center">
                 <NavLink to="/register">
-                    <Button className="ba-purple" children="Try for free now" />
-                </NavLink>
-                <NavLink to="/signin">
-                    <Button className="ba-white" children="Sign in" />
+                    <button className="shiny-cta">
+                        <span>Try for free now</span>
+                    </button>
                 </NavLink>
             </div>
         </header>

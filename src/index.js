@@ -9,13 +9,18 @@ import { AuthProvider } from './components/AuthContext';
 import { ToastProvider } from './components/ToastContext';
 
 import App from './App';
-import Home from './Home';
-import Register from './Register';
-import SignIn from './SignIn';
-import Addpurchase from "./Addpurchase";
-import Purchases from "./Purchases";
-import Budget from "./Budget";
-import VerifyEmailPage from './VerifyEmailPage';
+import Home from './pages/Home';
+import Register from './pages/Register';
+import SignIn from './pages/SignIn';
+import Addpurchase from "./pages/Addpurchase";
+import Purchases from "./pages/Purchases";
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import RequireOnboarding, { RequireApp } from './components/RequireOnboarding';
+import OnboardingPage from './pages/OnboardingPage';
+import BudgetsIndex from './pages/BudgetsIndex';
+import BudgetLayout from './pages/BudgetLayout';
+import BudgetHome from './pages/BudgetHome';
+import BudgetEdit from './pages/BudgetEdit';
 
 const router = createBrowserRouter([
     {
@@ -24,12 +29,24 @@ const router = createBrowserRouter([
             { path: '/', element: <Home /> },
             { path: '/register', element: <Register /> },
             { path: '/signin', element: <SignIn /> },
-            { path: '/new', element: <Addpurchase /> },
-            { path: '/purchases', element: <Purchases /> },
-            { path: '/budget', element: <Budget /> },
             { path: '/verify', element: <VerifyEmailPage /> },
-        ]
-    }
+
+            { path: '/onboarding', element: <RequireOnboarding><OnboardingPage/></RequireOnboarding> },
+
+            { path: '/budgets', element: <RequireApp><BudgetsIndex /></RequireApp> },
+
+            {
+                path: '/:slug',
+                element: <RequireApp><BudgetLayout /></RequireApp>,
+                children: [
+                    { index: true, element: <BudgetHome /> },
+                    { path: 'new', element: <Addpurchase /> },
+                    { path: 'purchases', element: <Purchases /> },
+                    { path: 'edit', element: <BudgetEdit /> },
+                ],
+            },
+        ],
+    },
 ]);
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

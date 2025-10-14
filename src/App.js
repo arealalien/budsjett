@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from './components/AuthContext';
 import './css/main.css';
 import Button from "./components/Button";
+import NotificationBell from "./components/NotificationBell";
 
 function App() {
     const navigate = useNavigate();
@@ -11,7 +12,7 @@ function App() {
     const handleLogout = async () => {
         try {
             await logout();
-            navigate('/signin');
+            navigate('/');
         } catch (err) {
             console.error('Logout failed:', err);
         }
@@ -43,8 +44,9 @@ function App() {
                     </NavLink>
                 </div>
                 <div className="navbar-inner-center">
-                    {!loading && user && (
+                    {!loading && user && !user.needsOnboarding && (
                         <>
+                            <NotificationBell />
                             <NavLink
                                 to="/"
                                 end
@@ -125,20 +127,6 @@ function App() {
                     {!user && (
                         <>
                             <NavLink
-                                to="/register"
-                                end
-                                className={({isActive, isPending, isTransitioning}) =>
-                                    [
-                                        "",
-                                        isPending ? "pending" : "",
-                                        isActive ? "active" : "",
-                                        isTransitioning ? "transitioning" : "",
-                                    ].join(" ")
-                                }
-                            >
-                                <Button className="ba-purple" children="Register" type="button" />
-                            </NavLink>
-                            <NavLink
                                 to="/signin"
                                 end
                                 className={({isActive, isPending, isTransitioning}) =>
@@ -151,6 +139,20 @@ function App() {
                                 }
                             >
                                 <Button className="ba-white" children="Sign in" type="button" />
+                            </NavLink>
+                            <NavLink
+                                to="/register"
+                                end
+                                className={({isActive, isPending, isTransitioning}) =>
+                                    [
+                                        "",
+                                        isPending ? "pending" : "",
+                                        isActive ? "active" : "",
+                                        isTransitioning ? "transitioning" : "",
+                                    ].join(" ")
+                                }
+                            >
+                                <Button className="ba-purple" children="Register" type="button" />
                             </NavLink>
                         </>
                     )}

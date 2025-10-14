@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from "./components/AuthContext";
+import { useAuth } from "../components/AuthContext";
 
 export default function Budget() {
     const { user, loading } = useAuth();

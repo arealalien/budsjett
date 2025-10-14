@@ -40,9 +40,10 @@ router.patch('/:id/settle', verifyToken, canAccessPurchase, async (req, res, nex
         const updated = await prisma.purchase.findUnique({
             where: { id },
             include: {
-                paidBy: { select: { id: true, name: true } },
-                shares: { include: { user: { select: { id: true, name: true } } } },
-            },
+                paidBy:  { select: { id: true, username: true, displayName: true } },
+                shares:  { include: { user: { select: { id: true, username: true, displayName: true } } } },
+                category: { select: { id: true, name: true } }, // optional, if you want it
+            }
         });
 
         res.json(updated);

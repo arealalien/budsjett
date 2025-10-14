@@ -88,9 +88,22 @@
               border-color: mixins.hslac(colors.$clr-deeppink-500, 1);
             }
           }
-          &-text, &-icon {
+          &-text {
             right: 1em;
             position: absolute;
+          }
+          .password-icon {
+            width: 1.5em; height: 1.5em;
+            cursor: pointer;
+          }
+          &-icon {
+            right: 1.1em;
+            width: 1.25em; height: 1.25em;
+            position: absolute;
+
+            path {
+              stroke: mixins.hslac(colors.$clr-white, 1);
+            }
           }
         }
         &-checkbox {

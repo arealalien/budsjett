@@ -1,103 +1,95 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useOutletContext, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useAuth } from '../components/AuthContext';
 import Button from "./Button";
 
-const CATEGORIES = [
-    'FURNITURE', 'GROCERIES', 'TAKEAWAY', 'RESTAURANT',
-    'HOUSEHOLD', 'SUBSCRIPTIONS', 'OTHER'
-];
-
-const CATEGORY_LABELS = {
-    FURNITURE: 'Furniture',
-    GROCERIES: 'Groceries',
-    TAKEAWAY: 'Takeaway',
-    RESTAURANT: 'Restaurant',
-    HOUSEHOLD: 'Household',
-    SUBSCRIPTIONS: 'Subscriptions',
-    OTHER: 'Other',
-};
-
-const labelForCategory = (c) => CATEGORY_LABELS[c] ?? c;
-
 export default function PurchaseForm() {
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [err, setErr] = useState('');
+    const { slug } = useParams();
+    const { budget } = useOutletContext();           // from BudgetLayout (now includes categories, members)
+    const { user } = useAuth();
+
+    const members = useMemo(() => {
+        // members array should include the owner; our backend role tells us who’s who
+        const ids = new Set([budget.owner?.id, ...budget.members.map(m => m.userId)]);
+        // Build a nice list with displayName/username where available
+        const enriched = Array.from(ids).map(id => {
+            const m = budget.members.find(x => x.userId === id);
+            const u = m?.user || (budget.owner?.id === id ? budget.owner : null);
+            return { id, label: u?.displayName || u?.username || id };
+        });
+        // Ensure current user appears first by default
+        enriched.sort((a, b) => (a.id === user?.id ? -1 : b.id === user?.id ? 1 : 0));
+        return enriched;
+    }, [budget, user]);
+
+    const categories = budget.categories || [];
+
+    const singleMember = members.length <= 1;
+    const exactlyTwo   = members.length === 2;
+
     const [ok, setOk] = useState(false);
+    const [err, setErr] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const [form, setForm] = useState({
         itemName: '',
-        category: 'GROCERIES',
+        categoryId: categories[0]?.id || '',
         amount: '',
-        paidAt: new Date().toISOString().slice(0, 10),
-        paidById: '',
-        shared: true,
-        splitPercentForPayer: 50,
+        paidAt: new Date().toISOString().slice(0,10),
+        paidById: user?.id || '',
+        shared: !singleMember,            // hide in UI if singleMember, but keep state sane
+        splitPercentForPayer: 50,         // only used when exactlyTwo
         notes: ''
     });
 
+    // keep defaults in sync when budget loads
     useEffect(() => {
-        (async () => {
-            try {
-                const { data } = await api.get('/auth/users', { withCredentials: true });
-                setUsers(data);
-                if (data?.length && !form.paidById) {
-                    setForm(f => ({ ...f, paidById: data[0].id }));
-                }
-            } catch {}
-        })();
+        setForm(f => ({
+            ...f,
+            categoryId: f.categoryId || categories[0]?.id || '',
+            paidById: f.paidById || user?.id || members[0]?.id || '',
+            shared: singleMember ? false : f.shared,
+        }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [categories, members, singleMember, user?.id]);
 
     const onChange = e => {
         const { name, value, type, checked } = e.target;
-        setForm(f => ({
-            ...f,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
     };
 
-    const setShared = (isShared) => {
-        setForm(f => ({
-            ...f,
-            shared: isShared,
-            // keep last chosen split, but clamp
-            splitPercentForPayer: Math.min(100, Math.max(0, Number(f.splitPercentForPayer) || 50))
-        }));
+    const setShared = (v) => {
+        setForm(f => ({ ...f, shared: v }));
     };
 
-    const onSubmit = async e => {
+    const onSubmit = async (e) => {
         e.preventDefault();
         setErr('');
         setOk(false);
 
         if (!form.itemName.trim()) return setErr('Item name is required');
-        if (!form.paidById) return setErr('Select who paid');
+        if (!form.categoryId) return setErr('Choose a category');
+        if (!form.paidById) return setErr('Choose who paid');
         const amountNum = Number(form.amount);
         if (!Number.isFinite(amountNum) || amountNum <= 0) return setErr('Amount must be > 0');
 
         try {
             setLoading(true);
-
             const payload = {
                 itemName: form.itemName.trim(),
-                category: form.category,
+                categoryId: form.categoryId,
                 amount: amountNum,
                 paidAt: form.paidAt ? new Date(form.paidAt).toISOString() : undefined,
                 paidById: form.paidById,
-                shared: form.shared,
-                splitPercentForPayer: form.shared ? Number(form.splitPercentForPayer) : undefined,
-                notes: form.notes?.trim() || undefined
+                shared: singleMember ? false : form.shared,
+                splitPercentForPayer: exactlyTwo && (singleMember ? undefined : form.shared) ? Number(form.splitPercentForPayer) : undefined,
+                notes: form.notes?.trim() || undefined,
             };
 
-            await api.post('/purchases', payload, { withCredentials: true });
+            await api.post(`/budgets/${encodeURIComponent(slug)}/purchases`, payload);
             setOk(true);
-            setForm(f => ({
-                ...f,
-                itemName: '',
-                amount: '',
-                notes: ''
-            }));
+            setForm(f => ({ ...f, itemName: '', amount: '', notes: '' }));
         } catch (e) {
             setErr(e.response?.data?.error || e.message);
         } finally {
@@ -110,8 +102,8 @@ export default function PurchaseForm() {
 
     return (
         <form onSubmit={onSubmit} className="purchase-form">
-            <div className="purchase-form-rim"></div>
-            <div className="purchase-form-glow"></div>
+            <div className="purchase-form-rim" />
+            <div className="purchase-form-glow" />
             <div className="purchase-form-inner">
                 <div className="purchase-form-inner-header">
                     <h3>Add a purchase</h3>
@@ -136,13 +128,13 @@ export default function PurchaseForm() {
                     <label className="purchase-form-inner-grid-field">
                         <span className="purchase-form-inner-grid-field-label">Category</span>
                         <select
-                            name="category"
-                            value={form.category}
+                            name="categoryId"
+                            value={form.categoryId}
                             onChange={onChange}
                             className="purchase-form-inner-grid-field-input"
                         >
-                            {CATEGORIES.map(c => (
-                                <option key={c} value={c}>{labelForCategory(c)}</option>
+                            {categories.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
                         </select>
                     </label>
@@ -171,8 +163,8 @@ export default function PurchaseForm() {
                             required
                             className="purchase-form-inner-grid-field-input"
                         >
-                            {users.map(u => (
-                                <option key={u.id} value={u.id}>{u.name}</option>
+                            {members.map(m => (
+                                <option key={m.id} value={m.id}>{m.label}</option>
                             ))}
                         </select>
                     </label>
@@ -187,7 +179,7 @@ export default function PurchaseForm() {
                             <input
                                 name="amount"
                                 type="number"
-                                step="0.1"
+                                step="0.01"
                                 min="0"
                                 value={form.amount}
                                 onChange={onChange}
@@ -196,38 +188,40 @@ export default function PurchaseForm() {
                         </div>
                     </label>
 
-                    <div className="purchase-form-inner-grid-field">
-                        <span className="purchase-form-inner-grid-field-label">Type</span>
-                        <div className="purchase-form-inner-grid-field-seg">
-                            <button
-                                type="button"
-                                className={`purchase-form-inner-grid-field-seg-btn ${!form.shared ? 'active' : ''}`}
-                                onClick={() => setShared(false)}
-                                aria-pressed={!form.shared}
-                            >
-                                Personal
-                            </button>
-                            <button
-                                type="button"
-                                className={`purchase-form-inner-grid-field-seg-btn ${form.shared ? 'active' : ''}`}
-                                onClick={() => setShared(true)}
-                                aria-pressed={form.shared}
-                            >
-                                Shared
-                            </button>
+                    {!singleMember && (
+                        <div className="purchase-form-inner-grid-field">
+                            <span className="purchase-form-inner-grid-field-label">Type</span>
+                            <div className="purchase-form-inner-grid-field-seg">
+                                <button
+                                    type="button"
+                                    className={`purchase-form-inner-grid-field-seg-btn ${!form.shared ? 'active' : ''}`}
+                                    onClick={() => setShared(false)}
+                                    aria-pressed={!form.shared}
+                                >
+                                    Personal
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`purchase-form-inner-grid-field-seg-btn ${form.shared ? 'active' : ''}`}
+                                    onClick={() => setShared(true)}
+                                    aria-pressed={form.shared}
+                                >
+                                    Shared
+                                </button>
+                            </div>
+                            <small className="purchase-form-inner-grid-field-help">
+                                {form.shared ? (exactlyTwo ? 'Split between payer and the other member' : 'Split equally among all members') : 'Only the payer covers this expense'}
+                            </small>
                         </div>
-                        <small className="purchase-form-inner-grid-field-help">
-                            {form.shared ? 'Split between payer and the other user' : 'Only the payer covers this expense'}
-                        </small>
-                    </div>
+                    )}
 
-                    {form.shared && (
+                    {form.shared && exactlyTwo && (
                         <div className="purchase-form-inner-grid-field pf-col-span-2">
                             <div className="purchase-form-inner-grid-field-split-row">
                                 <span className="purchase-form-inner-grid-field-split-row-label">Split % (payer)</span>
                                 <span className="purchase-form-inner-grid-field-split-row-chip">
-                                Payer {payerSplit}% • Other {otherSplit}%
-                              </span>
+                  Payer {payerSplit}% • Other {otherSplit}%
+                </span>
                             </div>
 
                             <input

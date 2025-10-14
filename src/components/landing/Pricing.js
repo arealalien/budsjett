@@ -15,11 +15,14 @@ export default function Pricing() {
                         <div className="landing-section-content-pricing-card-glow tier-one"></div>
                         <div className="landing-section-content-pricing-card-inner">
                             <div className="landing-section-content-pricing-card-inner-top">
-                                <p className="tier-one">Tier 1</p>
+                                <div className="landing-section-content-pricing-card-inner-top-line">
+                                    <p className="tier-one">Tier 1</p>
+                                </div>
                                 <h3>Purple</h3>
                                 <ul>
                                     <li>Access to accounting app</li>
                                     <li>Invite 1 person to budget</li>
+                                    <li>Maximum 6 categories</li>
                                 </ul>
                             </div>
                             <div className="landing-section-content-pricing-card-inner-bottom">
@@ -33,11 +36,14 @@ export default function Pricing() {
                         <div className="landing-section-content-pricing-card-glow tier-two"></div>
                         <div className="landing-section-content-pricing-card-inner">
                             <div className="landing-section-content-pricing-card-inner-top">
-                                <p className="tier-two">Tier 2</p>
+                                <div className="landing-section-content-pricing-card-inner-top-line">
+                                    <p className="tier-two">Tier 2</p>
+                                </div>
                                 <h3>Blue</h3>
                                 <ul>
                                     <li>Access to accounting app</li>
                                     <li>Invite 3 people to each budget</li>
+                                    <li>Maximum 12 categories</li>
                                     <li>Ability to create more budgets</li>
                                 </ul>
                             </div>
@@ -52,11 +58,14 @@ export default function Pricing() {
                         <div className="landing-section-content-pricing-card-glow tier-three"></div>
                         <div className="landing-section-content-pricing-card-inner">
                             <div className="landing-section-content-pricing-card-inner-top">
-                                <p className="tier-three">Tier 3</p>
+                                <div className="landing-section-content-pricing-card-inner-top-line">
+                                    <p className="tier-three">Tier 3</p>
+                                </div>
                                 <h3>Pink</h3>
                                 <ul>
                                     <li>Access to accounting app</li>
                                     <li>Invite 10 people to each budget</li>
+                                    <li>Maximum 24 categories</li>
                                     <li>Ability to create more budgets</li>
                                     <li>More freedom</li>
                                 </ul>

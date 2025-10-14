@@ -16,6 +16,7 @@ export async function verifyToken(req, res, next) {
         if (!user) return res.status(401).json({ error: 'Invalid token user' });
 
         req.user = user;
+        req.userId = user.id;
         next();
     } catch {
         res.status(401).json({ error: 'Invalid token' });
@@ -26,6 +27,7 @@ export async function verifyTokenOptional(req, res, next) {
     const token = req.cookies.token;
     if (!token) {
         req.user = null;
+        req.userId = null;
         return next();
     }
 
@@ -38,8 +40,10 @@ export async function verifyTokenOptional(req, res, next) {
         });
 
         req.user = user || null;
+        req.userId = user?.id || null;
     } catch {
         req.user = null;
+        req.userId = null;
     }
 
     next();

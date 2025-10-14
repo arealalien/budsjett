@@ -30,7 +30,7 @@
       left: 50%;
       bottom: - calc($size / 1.5) + em;
       width: $size + em;
-      aspect-ratio: 1.2 / 1;
+      aspect-ratio: 1 / 1;
       position: absolute;
       background-color: mixins.hslac(colors.$clr-purple-500, 1);
       border-radius: 50%;
@@ -110,26 +110,27 @@
             opacity: .2;
           }
           &-glow {
-            $size: 30;
-            right: - calc($size / 3) + em;
-            bottom: - calc($size / 1.1) + em;
+            $size: 40;
+            left: 50%;
+            top: - calc($size / 1.9) + em;
             width: $size + em;
-            aspect-ratio: 1 / 1.5;
+            aspect-ratio: 1 / 1;
             position: absolute;
             background-color: mixins.hslac(colors.$clr-lime-500, 1);
             border-radius: 50%;
-            filter: blur(calc($size * 1.2) + rem);
+            filter: blur(calc($size * 1) + rem);
+            transform: translateX(-50%);
             pointer-events: none;
             opacity: .2;
           }
           &-glow.tier-one {
-            background-color: mixins.hslac(colors.$clr-purple-500, 1);
+            background: radial-gradient(circle, mixins.hslac(colors.$clr-purple-200, 1) 0, mixins.hslac(colors.$clr-purple-500, 1) 30%);
           }
           &-glow.tier-two {
-            background-color: mixins.hslac(colors.$clr-skyblue-400, 1);
+            background: radial-gradient(circle, mixins.hslac(colors.$clr-skyblue-200, 1) 0, mixins.hslac(colors.$clr-skyblue-400, 1) 30%);
           }
           &-glow.tier-three {
-            background-color: mixins.hslac(colors.$clr-deeppink-500, 1);
+            background: radial-gradient(circle, mixins.hslac(colors.$clr-deeppink-200, 1) 0, mixins.hslac(colors.$clr-deeppink-500, 1) 30%);
           }
           &-inner {
             padding: 2em;
@@ -157,26 +158,39 @@
                   color: mixins.hslac(colors.$clr-gray-300, 1);
                 }
               }
-              .tier-one {
-                padding: .3em .8em;
-                color: mixins.hslac(colors.$clr-purple-200, 1);
-                background-color: mixins.hslac(colors.$clr-purple-500, .15);
-                border: 1px solid mixins.hslac(colors.$clr-purple-500, 1);
-                border-radius: 5em;
-              }
-              .tier-two {
-                padding: .4em .8em;
-                color: mixins.hslac(colors.$clr-skyblue-200, 1);
-                background-color: mixins.hslac(colors.$clr-skyblue-500, .15);
-                border: 1px solid mixins.hslac(colors.$clr-skyblue-500, 1);
-                border-radius: 5em;
-              }
-              .tier-three {
-                padding: .4em .8em;
-                color: mixins.hslac(colors.$clr-deeppink-200, 1);
-                background-color: mixins.hslac(colors.$clr-deeppink-500, .15);
-                border: 1px solid mixins.hslac(colors.$clr-deeppink-500, 1);
-                border-radius: 5em;
+              &-line {
+                width: 100%;
+                @include mixins.flex-space-bet();
+
+                &-popular {
+                  padding: .3em .8em;
+                  color: mixins.hslac(colors.$clr-purple-200, 1);
+                  background-color: mixins.hslac(colors.$clr-purple-700, .5);
+                  border: 1px solid mixins.hslac(colors.$clr-purple-700, 1);
+                  backdrop-filter: blur(1.2rem);
+                  border-radius: 5em;
+                }
+                .tier-one {
+                  padding: .3em .8em;
+                  color: mixins.hslac(colors.$clr-purple-200, 1);
+                  background-color: mixins.hslac(colors.$clr-purple-500, .15);
+                  border: 1px solid mixins.hslac(colors.$clr-purple-500, 1);
+                  border-radius: 5em;
+                }
+                .tier-two {
+                  padding: .4em .8em;
+                  color: mixins.hslac(colors.$clr-skyblue-200, 1);
+                  background-color: mixins.hslac(colors.$clr-skyblue-500, .15);
+                  border: 1px solid mixins.hslac(colors.$clr-skyblue-500, 1);
+                  border-radius: 5em;
+                }
+                .tier-three {
+                  padding: .4em .8em;
+                  color: mixins.hslac(colors.$clr-deeppink-200, 1);
+                  background-color: mixins.hslac(colors.$clr-deeppink-500, .15);
+                  border: 1px solid mixins.hslac(colors.$clr-deeppink-500, 1);
+                  border-radius: 5em;
+                }
               }
             }
             &-bottom {
@@ -203,6 +217,7 @@
                   margin-bottom: .25em;
                   color: mixins.hslac(colors.$clr-gray-500, 1);
                   font-size: utilities.$paragraph-medium;
+                  font-weight: 400;
                 }
               }
             }

@@ -35,7 +35,7 @@ export default function LoginForm() {
             const { data } = await api.post('/auth/login', form);
             setSuccess(true);
             setUser(data);
-            navigate('/');
+            navigate(data.needsOnboarding ? '/onboarding' : '/');
             showToast('Logged in successfully', { type: 'success', duration: 2500 });
         } catch (err) {
             const msg = err.response?.data?.error || err.message;
@@ -48,7 +48,7 @@ export default function LoginForm() {
 
 
     return (
-        <form className="register-form signin-form" autocomplete="on" onSubmit={onSubmit}>
+        <form className="register-form signin-form" autoComplete="on" onSubmit={onSubmit}>
             <div className="register-form-rim"></div>
             <div className="register-form-glow"></div>
             <div className="register-form-inner">
@@ -69,7 +69,10 @@ export default function LoginForm() {
                                 autoComplete="email"
                                 required
                             />
-                            <p className="register-form-inner-field-input-text">@</p>
+                            <svg className="register-form-inner-field-input-icon" xmlns="http://www.w3.org/2000/svg" width="11.507" height="15.5" viewBox="0 0 11.507 15.5">
+                                <path id="Vector" d="M8,3A3,3,0,1,1,5,0,3,3,0,0,1,8,3Z" transform="translate(0.753 0.75)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                                <path id="Vector-2" data-name="Vector" d="M7.567,8H2.433a2.893,2.893,0,0,0-.948.161C-2.025,9.372,1.314,14,5,14s7.025-4.628,3.514-5.839A2.893,2.893,0,0,0,7.567,8Z" transform="translate(0.753 0.75)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                            </svg>
                         </div>
                     </label>
                     <label className="register-form-inner-field-label">
@@ -85,12 +88,12 @@ export default function LoginForm() {
                                 required
                             />
                             {showPassword ? (
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-field-input-icon" onClick={() => setShowPassword(!showPassword)}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-field-input-icon password-icon" onClick={() => setShowPassword(!showPassword)}>
                                     <path fillRule="evenodd" clipRule="evenodd" d="M15.1643 12.0522C15.1643 13.7982 13.7483 15.2142 12.0023 15.2142C10.2563 15.2142 8.84033 13.7982 8.84033 12.0522C8.84033 10.3052 10.2563 8.89023 12.0023 8.89023C13.7483 8.89023 15.1643 10.3052 15.1643 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                                     <path fillRule="evenodd" clipRule="evenodd" d="M2.75024 12.0522C2.75024 15.3322 6.89224 19.3542 12.0022 19.3542C17.1112 19.3542 21.2542 15.3352 21.2542 12.0522C21.2542 8.76921 17.1112 4.75021 12.0022 4.75021C6.89224 4.75021 2.75024 8.77221 2.75024 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                                 </svg>
                             ) : (
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-field-input-icon" onClick={() => setShowPassword(!showPassword)}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-field-input-icon password-icon" onClick={() => setShowPassword(!showPassword)}>
                                     <path d="M6.42 17.7299C4.19 16.2699 2.75 14.0699 2.75 12.1399C2.75 8.85994 6.89 4.83994 12 4.83994C14.09 4.83994 16.03 5.50994 17.59 6.54994" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                                     <path d="M19.8496 8.61032C20.7406 9.74032 21.2596 10.9903 21.2596 12.1403C21.2596 15.4203 17.1096 19.4403 11.9996 19.4403C11.0896 19.4403 10.2006 19.3103 9.36963 19.0803" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                                     <path d="M9.7656 14.3671C9.1706 13.7781 8.8376 12.9751 8.8406 12.1381C8.8366 10.3931 10.2486 8.97512 11.9946 8.97212C12.8346 8.97012 13.6406 9.30312 14.2346 9.89712" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
