@@ -37,6 +37,7 @@ const router = createBrowserRouter([
 
             {
                 path: '/:slug',
+                handle: { isBudgetRoute: true },
                 element: <RequireApp><BudgetLayout /></RequireApp>,
                 children: [
                     { index: true, element: <BudgetHome /> },

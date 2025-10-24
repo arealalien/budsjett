@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState, useId } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { api } from '../lib/api';
-import { LineChart, Line, AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import nb from 'date-fns/locale/nb';
 import Loader from "./Loader";
@@ -53,16 +53,68 @@ const formatCurrencyParts = (value) => {
     return { symbol, number };
 };
 
+// ------------ interpolation helpers ------------
+const lerp = (a, b, t) => a + (b - a) * t;
+const byDateKey = (a, b) => new Date(a) - new Date(b);
+
+// unify x-domain and return maps
+const mapByX = (rows, getVal) => {
+    const m = new Map();
+    rows?.forEach(r => m.set(r.x, getVal(r)));
+    return m;
+};
+
+// Build tween frames for single/combo (shape: [{x, y}])
+const buildFramesSingle = (fromPts, toPts, steps = 24) => {
+    const xs = Array.from(new Set([...(fromPts||[]).map(p=>p.x), ...(toPts||[]).map(p=>p.x)])).sort(byDateKey);
+    const fm = mapByX(fromPts||[], r => r.y ?? 0);
+    const tm = mapByX(toPts||[], r => r.y ?? 0);
+    const frames = [];
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        frames.push(xs.map(x => ({ x, y: +lerp(fm.get(x) ?? 0, tm.get(x) ?? 0, t).toFixed(2) })));
+    }
+    return frames;
+};
+
+const allSeriesKeys = (rows) => {
+    const set = new Set();
+    (rows||[]).forEach(r => Object.keys(r).forEach(k => { if (k !== 'x') set.add(k); }));
+    return Array.from(set).sort();
+};
+
+const buildFramesMulti = (fromRows, toRows, steps = 24) => {
+    const xs = Array.from(new Set([...(fromRows||[]).map(r=>r.x), ...(toRows||[]).map(r=>r.x)])).sort(byDateKey);
+    const keys = Array.from(new Set([...allSeriesKeys(fromRows), ...allSeriesKeys(toRows)])).sort();
+    const fMap = new Map(); (fromRows||[]).forEach(r => fMap.set(r.x, r));
+    const tMap = new Map(); (toRows||[]).forEach(r => tMap.set(r.x, r));
+    const frames = [];
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const frame = xs.map(x => {
+            const fr = fMap.get(x) || { x };
+            const tr = tMap.get(x) || { x };
+            const row = { x };
+            keys.forEach(k => {
+                const a = Number(fr[k] ?? 0);
+                const b = Number(tr[k] ?? 0);
+                row[k] = +lerp(a, b, t).toFixed(2);
+            });
+            return row;
+        });
+        frames.push(frame);
+    }
+    return frames;
+};
+
 export default function SpendingTrend() {
     const { slug } = useParams();
     const { budget } = useOutletContext();
     const [period, setPeriod] = useState('month');
     const [mode, setMode] = useState('single');
 
-    // single-mode category uses IDs
     const [category, setCategory] = useState('TOTAL');
 
-    // multiple-mode selection uses IDs
     const [selectedCats, setSelectedCats] = useState([]);
     const [combine, setCombine] = useState(false);
 
@@ -70,11 +122,9 @@ export default function SpendingTrend() {
     const [err, setErr] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const uid = useId();
-
-    const gradSingleId = `${uid}-area-total`;
-
-    const gradIdFor = (key) => `${uid}-area-${key}`;
+    const [displayData, setDisplayData] = useState(null);
+    const prevDataRef = useRef(null);
+    const rafRef = useRef();
 
     const catList = useMemo(() => {
         const list = [{ id: 'TOTAL', name: 'Total', color: 'var(--accent)' }];
@@ -111,6 +161,19 @@ export default function SpendingTrend() {
         };
         return combine ? { ...base, combine: 'true' } : base;
     }, [period, mode, category, selectedCats, combine]);
+
+    const chartKey = useMemo(
+        () =>
+            [
+                period,
+                mode,
+                combine ? 'combined' : 'separate',
+                category,
+                // keep order stable so the key doesn't churn unnecessarily
+                ...[...selectedCats].sort(),
+            ].join('|'),
+        [period, mode, combine, category, selectedCats]
+    );
 
     useEffect(() => {
         let ignore = false;
@@ -172,6 +235,152 @@ export default function SpendingTrend() {
         }
         return Array.from(map.values()).sort((a, b) => new Date(a.x) - new Date(b.x));
     }, [mode, data]);
+
+    const easeOutCubicBezier = (t) => {
+        return 1 - Math.pow(1 - t, 3);
+    };
+    const byDateKey = (a, b) => new Date(a) - new Date(b);
+
+    const valueAt = (map, x, xs) => {
+        if (map.has(x)) return Number(map.get(x)) || 0;
+        // find nearest previous x with a value
+        const i = xs.indexOf(x);
+        for (let j = i - 1; j >= 0; j--) {
+            const k = xs[j];
+            if (map.has(k)) return Number(map.get(k)) || 0;
+        }
+        // then look forward
+        for (let j = i + 1; j < xs.length; j++) {
+            const k = xs[j];
+            if (map.has(k)) return Number(map.get(k)) || 0;
+        }
+        return 0;
+    };
+
+    const unionDomain = (fromRows, toRows) => {
+        const xs = new Set();
+        (fromRows || []).forEach(r => xs.add(r.x));
+        (toRows   || []).forEach(r => xs.add(r.x));
+        return Array.from(xs).sort(byDateKey);
+    };
+
+    const mapByXSingle = rows => {
+        const m = new Map();
+        (rows || []).forEach(r => m.set(r.x, r.y ?? 0));
+        return m;
+    };
+
+    const seriesKeys = rows => {
+        const s = new Set();
+        (rows || []).forEach(r => Object.keys(r).forEach(k => { if (k !== 'x') s.add(k); }));
+        return Array.from(s).sort();
+    };
+
+    useEffect(() => {
+        if (!data) return;
+
+        const isMultiSeparate = (mode === 'multiple' && !data.combine && Array.isArray(data.series));
+        const next = isMultiSeparate ? mergedData : data.points;
+
+        // first paint
+        if (!prevDataRef.current) {
+            prevDataRef.current = next;
+            setDisplayData(next);
+            return;
+        }
+
+        // cancel in-flight
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+        // Prepare time-based tween
+        const duration = 450; // ms
+        const start = performance.now();
+
+        if (!isMultiSeparate) {
+            // SINGLE / COMBINED: shape [{x, y}]
+            const from = prevDataRef.current || [];
+            const to   = next || [];
+
+            const xs = unionDomain(from, to);
+            const fm = mapByXSingle(from);
+            const tm = mapByXSingle(to);
+
+            const tick = (now) => {
+                const rawt = Math.min(1, (now - start) / duration);
+                const t = easeOutCubicBezier(rawt);
+
+                const frame = xs.map(x => {
+                    const a = valueAt(fm, x, xs);
+                    const b = valueAt(tm, x, xs);
+                    return { x, y: a + (b - a) * t }; // no rounding
+                });
+
+                setDisplayData(frame);
+
+                if (rawt < 1) {
+                    rafRef.current = requestAnimationFrame(tick);
+                } else {
+                    prevDataRef.current = next;
+                    rafRef.current = null;
+                }
+            };
+            rafRef.current = requestAnimationFrame(tick);
+
+        } else {
+            // MULTI / SEPARATE: shape [{x, <id1>:num, <id2>:num, ...}]
+            const from = prevDataRef.current || [];
+            const to   = next || [];
+
+            const xs = unionDomain(from, to);
+            const keys = Array.from(new Set([...seriesKeys(from), ...seriesKeys(to)])).sort();
+
+            // maps per series per side
+            const mapSide = (rows) => {
+                const perKey = new Map();
+                keys.forEach(k => perKey.set(k, new Map()));
+                rows.forEach(r => {
+                    keys.forEach(k => {
+                        if (k in r) perKey.get(k).set(r.x, r[k]);
+                    });
+                });
+                return perKey;
+            };
+
+            const fm = mapSide(from);
+            const tm = mapSide(to);
+
+            const tick = (now) => {
+                const rawt = Math.min(1, (now - start) / duration);
+                const t = easeOutCubicBezier(rawt);
+
+                const frame = xs.map(x => {
+                    const row = { x };
+                    keys.forEach(k => {
+                        const fMap = fm.get(k);
+                        const tMap = tm.get(k);
+                        const a = valueAt(fMap, x, xs);
+                        const b = valueAt(tMap, x, xs);
+                        row[k] = a + (b - a) * t; // no rounding
+                    });
+                    return row;
+                });
+
+                setDisplayData(frame);
+
+                if (rawt < 1) {
+                    rafRef.current = requestAnimationFrame(tick);
+                } else {
+                    prevDataRef.current = next;
+                    rafRef.current = null;
+                }
+            };
+            rafRef.current = requestAnimationFrame(tick);
+        }
+
+        return () => {
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        };
+    }, [data, mode, mergedData]);
 
     return (
         <div
@@ -261,68 +470,48 @@ export default function SpendingTrend() {
                     ) : err ? (
                         <p style={{ color:'crimson' }}>{err}</p>
                     ) : !data ? null : (
-                        <div className="dashboard-trend-inner-center-graph" style={{ width:'100%', height:280 }}>
-                            <ResponsiveContainer>
-                                <AreaChart data={(mode === 'multiple' && !data.combine) ? mergedData : data.points}>
-                                    <XAxis
-                                        dataKey="x"
-                                        tickFormatter={(v) => fmtTick(v, data.period)}
-                                        minTickGap={24}
-                                        tickLine={false}
-                                        axisLine={{ stroke: '#666' }}
-                                        tick={{ fill: '#666', fontSize: 12 }}
-                                        tickMargin={8}
-                                    />
-                                    <Tooltip content={<TooltipContent />} wrapperStyle={{ backdropFilter: 'blur(.5rem)', borderRadius: '1em' }} />
+                            <div className="dashboard-trend-inner-center-graph" style={{ width:'100%', height:280 }}>
+                                <ResponsiveContainer>
+                                    <LineChart data={displayData}>
+                                        <XAxis
+                                            dataKey="x"
+                                            tickFormatter={(v) => fmtTick(v, data.period)}
+                                            minTickGap={24}
+                                            tickLine={false}
+                                            axisLine={{ stroke: '#666' }}
+                                            tick={{ fill: '#666', fontSize: 12 }}
+                                            tickMargin={8}
+                                        />
+                                        <Tooltip content={<TooltipContent />} wrapperStyle={{ backdropFilter: 'blur(.5rem)', borderRadius: '1em' }} />
 
-                                    <defs>
                                         {(mode === 'single' || (mode === 'multiple' && data.combine)) && (
-                                            <linearGradient id={gradSingleId} x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%"  stopColor={selectedColor} stopOpacity={0.3} />
-                                                <stop offset="100%" stopColor={selectedColor} stopOpacity={0} />
-                                            </linearGradient>
+                                            <Line
+                                                type="monotone"
+                                                dataKey="y"
+                                                name={mode === 'single' ? labelFor(category, catMap) : 'Combined'}
+                                                dot={false}
+                                                stroke={selectedColor}
+                                                strokeWidth={2}
+                                                isAnimationActive={false} // we handle animation via tweened data
+                                            />
                                         )}
 
-                                        {mode === 'multiple' && !data.combine && Array.isArray(data.series) && data.series.map((s) => (
-                                            <linearGradient key={s.key} id={gradIdFor(s.key)} x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%"  stopColor={lineStroke(s.key)} stopOpacity={0.3} />
-                                                <stop offset="100%" stopColor={lineStroke(s.key)} stopOpacity={0} />
-                                            </linearGradient>
+                                        {mode === 'multiple' && !data.combine && Array.isArray(data.series) && data.series.map(s => (
+                                            <Line
+                                                key={s.key}
+                                                type="monotone"
+                                                dataKey={s.key}
+                                                name={labelFor(s.key, catMap)}
+                                                dot={false}
+                                                stroke={lineStroke(s.key)}
+                                                strokeWidth={2}
+                                                isAnimationActive={false}
+                                                connectNulls
+                                            />
                                         ))}
-                                    </defs>
-
-                                    {(mode === 'single' || (mode === 'multiple' && data.combine)) && (
-                                        <Area
-                                            type="monotone"
-                                            dataKey="y"
-                                            name={mode === 'single' ? labelFor(category, catMap) : 'Combined'}
-                                            dot={false}
-                                            stroke={selectedColor}
-                                            strokeWidth={2}
-                                            fillOpacity={1}
-                                            fill={`url(#${gradSingleId})`}
-                                            isAnimationActive={false}
-                                        />
-                                    )}
-
-                                    {mode === 'multiple' && !data.combine && Array.isArray(data.series) && data.series.map((s) => (
-                                        <Area
-                                            key={s.key}
-                                            type="monotone"
-                                            dataKey={s.key}
-                                            name={labelFor(s.key, catMap)}
-                                            dot={false}
-                                            stroke={lineStroke(s.key)}
-                                            strokeWidth={2}
-                                            fillOpacity={1}
-                                            fill={`url(#${gradIdFor(s.key)})`}
-                                            isAnimationActive={false}
-                                            connectNulls
-                                        />
-                                    ))}
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
                     )}
                 </div>
 

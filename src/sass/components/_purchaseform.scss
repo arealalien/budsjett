@@ -82,6 +82,9 @@
 
           &-label {
             color: mixins.hslac(colors.$clr-gray-500, 1);
+            span {
+              margin-left: .3em;
+            }
           }
           &-input {
             padding: 1em 1.2em;
@@ -94,6 +97,15 @@
               outline: none;
               border-color: mixins.hslac(colors.$clr-purple-500, 1);
             }
+            &[type="number"] {
+              -moz-appearance: textfield;
+            }
+          }
+          &-checkbox {
+            padding: 1em 0;
+            gap: .6em;
+            cursor: pointer;
+            @include mixins.flex-left();
           }
           .pf-input-with-prefix {
             padding: 0 1em;

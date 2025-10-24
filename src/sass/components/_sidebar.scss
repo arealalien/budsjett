@@ -1,0 +1,392 @@
+@use "../abstracts/colors";
+@use "../abstracts/font-face";
+@use "../abstracts/mixins";
+@use "../abstracts/utilities";
+@use "sass:math";
+
+.sidebar {
+  top: 0;
+  height: 100dvh;
+  position: fixed;
+  background: mixins.hslac(colors.$clr-gray-900, 1);
+  border-right: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+  z-index: 100;
+  @include mixins.flex-left();
+
+  &-left {
+    --sb-margin: 6px;
+    margin: var(--sb-margin);
+    width: utilities.$sidebar-left-width; height: calc(100% - calc(var(--sb-margin) * 2));
+    background: mixins.hslac(colors.$clr-gray-900, 1);
+    border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+    border-radius: 1.2em;
+    &-inner {
+      padding: .75em;
+      width: 100%; height: 100%;
+      @include mixins.flex-space-bet-start-col();
+
+      &-top {
+        width: 100%;
+        @include mixins.flex-col();
+      }
+      &-icon {
+        margin-bottom: 1em;
+        padding: 1px;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        background: linear-gradient(45deg, mixins.hslac(colors.$clr-gray-900, 1) 0, mixins.hslac(colors.$clr-gray-700, 1) 100%);
+        border-radius: 1em;
+        @include mixins.flex-center();
+
+        &-inner {
+          width: 100%; height: 100%;
+          background: linear-gradient(-140deg, mixins.hslac(colors.$clr-gray-900, 1) 0, mixins.hslac(colors.$clr-gray-800, 1) 100%);
+          border-radius: calc(1em - 1px);
+          @include mixins.flex-center();
+
+          svg {
+            width: calc(utilities.$sidebar-left-width / 3.5);
+            path {
+              fill: mixins.hslac(colors.$clr-gray-100, 1);
+              stroke: mixins.hslac(colors.$clr-white, 1);
+              stroke-width: 1px;
+            }
+          }
+        }
+      }
+      &-list {
+        width: 100%;
+        list-style-type: none;
+        gap: .25em;
+        @include mixins.flex-col();
+
+        &-item {
+          width: 100%;
+          &-link.active {
+            background: mixins.hslac(colors.$clr-gray-800, 1);
+            &:hover {
+              background: mixins.hslac(colors.$clr-gray-800, 1);
+            }
+
+            svg {
+              path {
+                stroke: mixins.hslac(colors.$clr-white, 1);
+              }
+            }
+          }
+          &-link {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: mixins.hslac(colors.$clr-gray-800, 0);
+            border-radius: 1em;
+            transition: all .25s cubic-bezier(utilities.$transition-main, 1);
+            @include mixins.flex-center();
+
+            &:hover {
+              background: mixins.hslac(colors.$clr-gray-800, .6);
+              svg {
+                path {
+                  stroke: mixins.hslac(colors.$clr-white, 1);
+                }
+              }
+            }
+            &-icon {
+              width: calc(utilities.$sidebar-left-width / 2.5); height: calc(utilities.$sidebar-left-width / 2.5);
+              path {
+                stroke: mixins.hslac(colors.$clr-white, .6);
+                transition: all .25s cubic-bezier(utilities.$transition-main, 1);
+              }
+            }
+          }
+        }
+      }
+      &-bottom {
+        width: 100%;
+        @include mixins.flex-col();
+      }
+      &-button {
+        margin-top: 1em;
+        padding: 1px;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        background: linear-gradient(35deg, mixins.hslac(colors.$clr-gray-900, 1) 0, mixins.hslac(colors.$clr-gray-700, 1) 100%);
+        border-radius: 1em;
+        border: none;
+        cursor: pointer;
+        @include mixins.flex-center();
+
+        &-inner {
+          width: 100%; height: 100%;
+          background: linear-gradient(45deg, mixins.hslac(colors.$clr-gray-900, 1) 0, mixins.hslac(colors.$clr-gray-800, 1) 100%);
+          border-radius: calc(1em - 1px);
+          @include mixins.flex-center();
+
+          svg {
+            path {
+              stroke: mixins.hslac(colors.$clr-white, 1);
+            }
+          }
+        }
+      }
+      &-notifications {
+        position: relative;
+        &-button {
+          position: relative;
+          background-color: transparent;
+          border: none;
+          cursor: pointer;
+          svg {
+            path {
+              stroke: mixins.hslac(colors.$clr-white, 1);
+            }
+          }
+        }
+      }
+    }
+  }
+  &-right {
+    padding-right: 5px;
+    width: utilities.$sidebar-right-width; height: 100%;
+    &-inner {
+      width: 100%; height: 100%;
+      @include mixins.flex-col-space-bet();
+
+      &-top {
+        padding: .75em 1.25em;
+        width: 100%;
+        @include mixins.flex-col-start-center();
+        &-dock {
+          margin-top: 1.4em;
+          margin-bottom: 2em;
+          width: 100%;
+          @include mixins.flex-space-bet();
+
+          &-left {
+            &-title {
+              font-size: utilities.$paragraph-large;
+              font-weight: 600;
+            }
+          }
+          &-right {
+            &-button {
+              padding: 0;
+              background-color: transparent;
+              border: none;
+              cursor: pointer;
+              svg {
+                height: 100%;
+                aspect-ratio: 1 / 1;
+                path {
+                  fill: mixins.hslac(colors.$clr-gray-500, 1);
+                }
+              }
+            }
+          }
+        }
+        &-current {
+          margin-bottom: 1em;
+          width: 100%;
+          position: relative;
+          &-item {
+            padding: 1px;
+            width: 100%;
+            position: relative;
+            background-color: mixins.hslac(colors.$clr-gray-700, .8);
+            border-radius: 1em;
+            overflow: hidden;
+            cursor: pointer;
+            @include mixins.flex-center();
+
+            &-glow {
+              $size: 10;
+              left: - calc($size / 3) + em;
+              bottom: - calc($size / 1.1) + em;
+              width: $size + em;
+              aspect-ratio: 1 / 1.5;
+              position: absolute;
+              background-color: mixins.hslac(colors.$clr-purple-500, 1);
+              border-radius: 50%;
+              filter: blur(calc($size * 1.2) + rem);
+              pointer-events: none;
+              opacity: .5;
+            }
+            &-inner {
+              width: 100%;
+              padding: .6em;
+              background-color: mixins.hslac(colors.$clr-gray-800, 1);
+              border-radius: calc(1em - 1px);
+              @include mixins.flex-space-bet();
+            }
+            &-left {
+              gap: 1em;
+              @include mixins.flex-left();
+
+              &-icon {
+                padding: 1px;
+                width: 2.4em;
+                aspect-ratio: 1 / 1;
+                background: linear-gradient(45deg, mixins.hslac(colors.$clr-purple-400, 1) 0, mixins.hslac(colors.$clr-purple-300, 1) 100%);
+                box-shadow: 0 4px 8px -4px mixins.hslac(colors.$clr-purple-400, .6);
+                border-radius: .5em;
+                &-inner {
+                  width: 100%; height: 100%;
+                  color: mixins.hslac(colors.$clr-gray-800, 1);
+                  font-weight: 700;
+                  background: linear-gradient(-140deg, mixins.hslac(colors.$clr-purple-500, .8) 0, mixins.hslac(colors.$clr-purple-400, 1) 100%);
+                  border-radius: calc(.5em - 1px);
+                  @include mixins.flex-center();
+                }
+              }
+              &-title {
+                color: mixins.hslac(colors.$clr-gray-200, 1);
+                font-size: utilities.$paragraph-medium;
+              }
+            }
+            &-right {
+              &-button {
+                background-color: transparent;
+                border: none;
+                svg {
+                  width: 1.4em; height: 1.4em;
+                  path {
+                    stroke: mixins.hslac(colors.$clr-gray-500, 1);
+                  }
+                }
+              }
+            }
+          }
+          &-dropdown {
+            top: calc(100% + 1em);
+            padding: 1em;
+            width: 100%;
+            display: none !important;
+            position: absolute;
+            background: mixins.hslac(colors.$clr-gray-900, .62);
+            border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+            border-radius: 1em;
+            backdrop-filter: blur(1.2rem);
+            gap: 1em;
+            z-index: 100;
+            @include mixins.flex-col();
+
+            &-item {
+              width: 100%;
+              position: relative;
+              cursor: pointer;
+              @include mixins.flex-space-bet();
+
+              &-left {
+                gap: 1em;
+                @include mixins.flex-left();
+
+                &-icon {
+                  padding: 1px;
+                  width: 2.4em;
+                  aspect-ratio: 1 / 1;
+                  background: linear-gradient(45deg, mixins.hslac(colors.$clr-purple-400, 1) 0, mixins.hslac(colors.$clr-purple-300, 1) 100%);
+                  box-shadow: 0 4px 8px -4px mixins.hslac(colors.$clr-purple-400, .6);
+                  border-radius: .5em;
+                  &-inner {
+                    width: 100%; height: 100%;
+                    color: mixins.hslac(colors.$clr-gray-800, 1);
+                    font-weight: 700;
+                    background: linear-gradient(-140deg, mixins.hslac(colors.$clr-purple-500, .8) 0, mixins.hslac(colors.$clr-purple-400, 1) 100%);
+                    border-radius: calc(.5em - 1px);
+                    @include mixins.flex-center();
+                  }
+                }
+                &-title {
+                  color: mixins.hslac(colors.$clr-gray-200, 1);
+                  font-size: utilities.$paragraph-medium;
+                }
+              }
+              &-right {
+                &-button {
+                  padding: .3em;
+                  background-color: mixins.hslac(colors.$clr-white, 1);
+                  border: none;
+                  border-radius: 50%;
+                  svg {
+                    width: 1em; height: 1em;
+                    path {
+                      stroke: mixins.hslac(colors.$clr-black, 1);
+                      stroke-width: 4px;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        &-center {
+          width: 100%;
+          @include mixins.flex-col();
+        }
+        &-list {
+          width: 100%;
+          list-style-type: none;
+          gap: .25em;
+          @include mixins.flex-col();
+
+          &-item {
+            width: 100%;
+            @include mixins.flex-left();
+
+            &-link.active {
+              color: mixins.hslac(colors.$clr-white, 1);
+              background: mixins.hslac(colors.$clr-gray-800, 1);
+              &:hover {
+                background: mixins.hslac(colors.$clr-gray-800, 1);
+              }
+              svg {
+                path {
+                  stroke: mixins.hslac(colors.$clr-white, 1);
+                }
+              }
+            }
+            &-link {
+              padding: .8em 1em;
+              width: 100%;
+              color: mixins.hslac(colors.$clr-white, .6);
+              background: mixins.hslac(colors.$clr-gray-800, 0);
+              border-radius: 1em;
+              text-decoration: none;
+              gap: .5em;
+              transition: all .25s cubic-bezier(utilities.$transition-main, 1);
+              @include mixins.flex-left();
+
+              &:hover {
+                color: mixins.hslac(colors.$clr-white, 1);
+                background: mixins.hslac(colors.$clr-gray-800, .6);
+                svg {
+                  path {
+                    stroke: mixins.hslac(colors.$clr-white, 1);
+                  }
+                }
+              }
+              &-icon {
+                width: 1.8em; height: 1.8em;
+                path {
+                  stroke: mixins.hslac(colors.$clr-white, .6);
+                  transition: all .25s cubic-bezier(utilities.$transition-main, 1);
+                }
+              }
+            }
+          }
+        }
+      }
+      &-bottom {
+        padding: 1.25em;
+        width: 100%;
+        &-users {
+          width: 100%;
+          @include mixins.flex-center();
+
+          &-inner {
+            width: 100%;
+          }
+        }
+      }
+    }
+  }
+}

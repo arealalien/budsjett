@@ -30,6 +30,15 @@ main {
   @include mixins.flex-col();
 }
 
+.app-container.user {
+  > main {
+    --sb-margin: 6px;
+    margin-top: 0;
+    margin-left: calc(utilities.$sidebar-width + (var(--sb-margin) * 2));
+    width: calc(100% - (utilities.$sidebar-width + (var(--sb-margin) * 2)));
+  }
+}
+
 .round {
   aspect-ratio: 1 / 1;
   border-radius: 50%;

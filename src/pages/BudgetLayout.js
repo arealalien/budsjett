@@ -28,11 +28,10 @@ export default function BudgetLayout() {
     if (!budget) return <div className="page"><p>Not found.</p></div>;
 
     return (
-        <main className="budget-layout">
-            <header className="budget-header">
-                <h1 className="budget-title">{budget.name}</h1>
-            </header>
-            <Outlet context={{ budget, reloadBudget: load }} />
+        <main className="budget">
+            <div className="budget-window">
+                <Outlet context={{ budget, reloadBudget: load }} />
+            </div>
         </main>
     );
 }

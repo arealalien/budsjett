@@ -233,7 +233,6 @@
     }
   }
   &-trend {
-    --accent: #8b5cf6;
     padding: 1px;
     width: 35em;
     position: relative;
@@ -243,30 +242,6 @@
     overflow: hidden;
     @include mixins.flex-col();
 
-    &.total {
-      --accent: #8b5cf6;
-    }
-    &.furniture {
-      --accent: #3b82f6;
-    }
-    &.groceries {
-      --accent: #ef4444;
-    }
-    &.takeaway {
-      --accent: #f59e0b;
-    }
-    &.restaurant {
-      --accent: #10b981;
-    }
-    &.household {
-      --accent: #06b6d4;
-    }
-    &.subscriptions {
-      --accent: #a855f7;
-    }
-    &.other {
-      --accent: #64748b;
-    }
     &-rim {
       $size: 14;
       top: - calc($size / 1.2) + em;

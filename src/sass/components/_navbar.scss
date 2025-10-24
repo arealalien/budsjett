@@ -2,8 +2,12 @@
 @use "../abstracts/mixins";
 @use "../abstracts/utilities";
 
+.navbar.user {
+  left: utilities.$sidebar-width;
+  width: calc(100% - utilities.$sidebar-width);
+}
 .navbar {
-  top: 0;
+  top: 0; left: 0;
   width: 100%;
   position: fixed;
   background: mixins.hslac(colors.$clr-gray-900, .82);

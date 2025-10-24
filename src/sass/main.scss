@@ -6,6 +6,7 @@
 @use "base/global";
 
 @use "components/navbar";
+@use "components/sidebar";
 @use "components/purchases";
 @use "components/dashboard";
 @use "components/purchaseform";
@@ -14,3 +15,4 @@
 @use "components/landing";
 @use "components/colorpicker";
 @use "components/onboarding";
+@use "components/budget";

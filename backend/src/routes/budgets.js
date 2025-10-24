@@ -24,6 +24,23 @@ async function uniqueBudgetSlug(tx, base) {
     return slug;
 }
 
+function addInterval(date, recurrence, interval) {
+    const d = new Date(date);
+    const n = Math.max(1, Number(interval) || 1);
+    if (recurrence === 'DAILY')   d.setDate(d.getDate() + n);
+    if (recurrence === 'WEEKLY')  d.setDate(d.getDate() + 7 * n);
+    if (recurrence === 'MONTHLY') d.setMonth(d.getMonth() + n);
+    if (recurrence === 'YEARLY')  d.setFullYear(d.getFullYear() + n);
+    return d;
+}
+
+const recurringSchema = z.object({
+    recurrence: z.enum(['DAILY','WEEKLY','MONTHLY','YEARLY']),
+    interval: z.coerce.number().int().min(1).default(1),
+    startAt: z.coerce.date(),
+    timeZone: z.string().min(1).max(50).default('UTC'),
+}).optional();
+
 // ---------- schemas ----------
 const createBudgetSchema = z.object({
     name: z.string().min(1).max(191),
@@ -216,6 +233,22 @@ const createPurchaseInBudgetSchema = z.object({
     shared: z.boolean().optional(),
     splitPercentForPayer: z.number().min(0).max(100).optional(),
     notes: z.string().max(1000).optional(),
+    recurring: recurringSchema,
+    sharesOverride: z.array(
+        z.object({
+            userId: z.string().min(1),
+            percent: z.number().min(0).max(100),
+        })
+    ).optional(),
+});
+
+const createIncomeInBudgetSchema = z.object({
+    itemName: z.string().min(1).max(191),
+    amount: z.number().positive(),
+    receivedAt: z.coerce.date().optional(),
+    receivedById: z.string().min(1).optional(),
+    notes: z.string().max(1000).optional(),
+    recurring: recurringSchema, // same shape you already use
 });
 
 router.post('/:slug/purchases', async (req, res, next) => {
@@ -223,53 +256,47 @@ router.post('/:slug/purchases', async (req, res, next) => {
         const userId = req.userId;
         const { slug } = req.params;
 
-        // Load budget with members & categories to validate everything in one shot
         const budget = await prisma.budget.findFirst({
-            where: {
-                slug,
-                OR: [{ ownerId: userId }, { members: { some: { userId } } }],
-            },
-            include: {
-                members: true,
-                categories: { select: { id: true } },
-            },
+            where: { slug, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
+            include: { members: true, categories: { select: { id: true } } },
         });
-
         if (!budget) return res.status(404).json({ error: 'Budget not found' });
 
         const {
-            itemName,
-            categoryId,
-            amount,
-            paidAt,
-            paidById: paidByIdRaw,
-            shared: sharedRaw,
-            splitPercentForPayer: splitRaw,
-            notes,
+            itemName, categoryId, amount, paidAt, paidById: paidByIdRaw,
+            shared: sharedRaw, splitPercentForPayer: splitRaw, notes, recurring, sharesOverride
         } = createPurchaseInBudgetSchema.parse(req.body);
 
-        // Validate category belongs to this budget
-        const categoryOk = budget.categories.some(c => c.id === categoryId);
-        if (!categoryOk) return res.status(400).json({ error: 'Invalid categoryId for this budget' });
+        if (!budget.categories.some(c => c.id === categoryId))
+            return res.status(400).json({ error: 'Invalid categoryId for this budget' });
 
-        // Determine payer (default to current user)
-        const paidById = paidByIdRaw || userId;
-
-        // Validate payer is in this budget
         const memberIds = new Set([budget.ownerId, ...budget.members.map(m => m.userId)]);
-        if (!memberIds.has(paidById)) {
+        const paidById = paidByIdRaw || userId;
+        if (!memberIds.has(paidById))
             return res.status(400).json({ error: 'paidById is not a member of this budget' });
-        }
 
-        // Sharing rules
         const allMemberIds = Array.from(memberIds);
         let shared = sharedRaw;
-        if (allMemberIds.length === 1) shared = false; // single-member budget ⇒ personal
-        if (shared === undefined) shared = allMemberIds.length > 1; // default
+        if (allMemberIds.length === 1) shared = false;
+        if (shared === undefined) shared = allMemberIds.length > 1;
 
-        // Build shares
+        // build shares
         let sharesCreate = [];
-        if (!shared) {
+        if (Array.isArray(sharesOverride) && sharesOverride.length) {
+            // validate members & normalize to 100
+                const rows = sharesOverride.map(s => {
+                if (!memberIds.has(s.userId)) {
+                    throw Object.assign(new Error('sharesOverride contains non-member'), { status: 400 });
+                    }
+                return { userId: s.userId, percent: Math.round(s.percent) };
+                });
+            let sum = rows.reduce((a, b) => a + b.percent, 0);
+            if (sum !== 100 && rows.length) {
+                const idx = rows.reduce((imax, r, i, arr) => r.percent > arr[imax].percent ? i : imax, 0);
+                rows[idx].percent += (100 - sum);
+                }
+            sharesCreate = rows;
+        } else if (!shared) {
             sharesCreate = [{ userId: paidById, percent: 100 }];
         } else if (allMemberIds.length === 2) {
             const otherId = allMemberIds.find(id => id !== paidById) || paidById;
@@ -277,10 +304,9 @@ router.post('/:slug/purchases', async (req, res, next) => {
             const p2 = 100 - p1;
             sharesCreate = [
                 { userId: paidById, percent: p1 },
-                { userId: otherId, percent: p2 },
+                { userId: otherId,  percent: p2 },
             ];
         } else {
-            // 3+ members: equal split across all members
             const n = allMemberIds.length;
             const base = Math.floor(100 / n);
             let remainder = 100 - base * n;
@@ -290,41 +316,206 @@ router.post('/:slug/purchases', async (req, res, next) => {
             }));
         }
 
-        const purchase = await prisma.purchase.create({
-            data: {
-                itemName,
-                amount,
-                paidAt: paidAt ?? new Date(),
-                shared,
-                notes: notes ?? null,
-
-                budget: { connect: { id: budget.id } },
-                category: { connect: { id: categoryId } },
-                paidBy: { connect: { id: paidById } },
-                createdBy: { connect: { id: userId } },
-
-                shares: {
-                    create: sharesCreate.map(s => ({
-                        percent: s.percent,
-                        user: { connect: { id: s.userId } },
-                    })),
+        const result = await prisma.$transaction(async (tx) => {
+            // create the actual purchase now
+            const purchase = await tx.purchase.create({
+                data: {
+                    itemName,
+                    amount,
+                    paidAt: paidAt ?? new Date(),
+                    shared,
+                    notes: notes ?? null,
+                    budget:   { connect: { id: budget.id } },
+                    category: { connect: { id: categoryId } },
+                    paidBy:   { connect: { id: paidById } },
+                    createdBy:{ connect: { id: userId } },
+                    shares: {
+                        create: sharesCreate.map(s => ({
+                            percent: s.percent,
+                            user: { connect: { id: s.userId } },
+                        })),
+                    },
                 },
-            },
-            select: {
-                id: true,
-                itemName: true,
-                amount: true,
-                shared: true,
-                paidAt: true,
-            },
+                select: { id: true, itemName: true, amount: true, shared: true, paidAt: true },
+            });
+
+            // optionally create a RecurringRule for the future
+            if (recurring) {
+                const startAtUTC = recurring.startAt; // already parsed Date
+                const firstNext =
+                    startAtUTC > new Date() ? startAtUTC : addInterval(startAtUTC, recurring.recurrence, recurring.interval);
+
+                await tx.recurringRule.create({
+                    data: {
+                        budgetId: budget.id,
+                        kind: 'EXPENSE',
+                        categoryId,
+                        paidById,
+                        itemName,
+                        amount,
+                        notes: notes ?? null,
+                        recurrence: recurring.recurrence,
+                        interval: recurring.interval,
+                        timeZone: recurring.timeZone || 'UTC',
+                        startAt: startAtUTC,
+                        endAt: null,
+                        nextRunAt: firstNext,
+                        lastRunAt: null,
+                        active: true,
+                        createdById: userId,
+                    },
+                });
+            }
+
+            return purchase;
         });
 
-
-        res.status(201).json(purchase);
+        res.status(201).json(result);
     } catch (err) {
         if (err?.name === 'ZodError') {
             return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
         }
+        next(err);
+    }
+});
+
+router.post('/:slug/income', async (req, res, next) => {
+    try {
+        const userId = req.userId;
+        const { slug } = req.params;
+
+        const budget = await prisma.budget.findFirst({
+            where: { slug, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
+            select: { id: true, ownerId: true, members: { select: { userId: true } } },
+        });
+        if (!budget) return res.status(404).json({ error: 'Budget not found' });
+
+        const {
+            itemName, amount, receivedAt, receivedById: receivedByIdRaw, notes, recurring
+        } = createIncomeInBudgetSchema.parse(req.body);
+
+        const memberIds = new Set([budget.ownerId, ...budget.members.map(m => m.userId)]);
+        const receivedById = receivedByIdRaw || userId;
+        if (!memberIds.has(receivedById)) {
+            return res.status(400).json({ error: 'receivedById is not a member of this budget' });
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            // Create the income row
+            const income = await tx.income.create({
+                data: {
+                    itemName,
+                    amount,
+                    receivedAt: receivedAt ?? new Date(),
+                    notes: notes ?? null,
+                    budget:   { connect: { id: budget.id } },
+                    receivedBy:{ connect: { id: receivedById } },
+                    createdBy: { connect: { id: userId } },
+                },
+                select: { id: true, itemName: true, amount: true, receivedAt: true },
+            });
+
+            // Optional recurring rule for INCOME
+            if (recurring) {
+                const startAtUTC = recurring.startAt; // zod already coerced to Date
+                const firstNext =
+                    startAtUTC > new Date()
+                        ? startAtUTC
+                        : addInterval(startAtUTC, recurring.recurrence, recurring.interval);
+
+                await tx.recurringRule.create({
+                    data: {
+                        budgetId: budget.id,
+                        kind: 'INCOME',
+                        receivedById,
+                        itemName,
+                        amount,
+                        notes: notes ?? null,
+                        recurrence: recurring.recurrence,
+                        interval: recurring.interval,
+                        timeZone: recurring.timeZone || 'UTC',
+                        startAt: startAtUTC,
+                        endAt: null,
+                        nextRunAt: firstNext,
+                        lastRunAt: null,
+                        active: true,
+                        createdById: userId,
+                    },
+                });
+            }
+
+            return income;
+        });
+
+        res.status(201).json(result);
+    } catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
+        }
+        next(err);
+    }
+});
+
+router.post('/:slug/recurring/run-due-income', async (req, res, next) => {
+    try {
+        const userId = req.userId;
+        const { slug } = req.params;
+
+        const budget = await prisma.budget.findFirst({
+            where: { slug, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
+            select: { id: true },
+        });
+        if (!budget) return res.status(404).json({ error: 'Budget not found' });
+
+        const now = new Date();
+        const rules = await prisma.recurringRule.findMany({
+            where: {
+                budgetId: budget.id,
+                active: true,
+                kind: 'INCOME',
+                nextRunAt: { lte: now },
+                OR: [{ endAt: null }, { endAt: { gte: now } }],
+            },
+            select: {
+                id: true,
+                receivedById: true,
+                itemName: true,
+                amount: true,
+                notes: true,
+                recurrence: true,
+                interval: true,
+                nextRunAt: true,
+            },
+        });
+
+        const created = [];
+
+        await prisma.$transaction(async (tx) => {
+            for (const r of rules) {
+                const income = await tx.income.create({
+                    data: {
+                        itemName: r.itemName,
+                        amount: r.amount,
+                        receivedAt: r.nextRunAt,
+                        notes: r.notes ?? null,
+                        budget: { connect: { id: budget.id } },
+                        receivedBy: { connect: { id: r.receivedById } }, // ← no "!"
+                        createdBy: { connect: { id: userId } },
+                    },
+                    select: { id: true },
+                });
+                created.push(income.id);
+
+                const next = addInterval(r.nextRunAt, r.recurrence, r.interval);
+                await tx.recurringRule.update({
+                    where: { id: r.id },
+                    data: { lastRunAt: r.nextRunAt, nextRunAt: next },
+                });
+            }
+        });
+
+        res.json({ createdCount: created.length, incomeIds: created });
+    } catch (err) {
         next(err);
     }
 });
@@ -580,6 +771,98 @@ router.delete('/:slug/members/:userId', async (req, res, next) => {
                 user: m.user,
             })),
         });
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.post('/:slug/recurring/run-due', async (req, res, next) => {
+    try {
+        const userId = req.userId;
+        const { slug } = req.params;
+
+        const budget = await prisma.budget.findFirst({
+            where: { slug, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
+            select: {
+                id: true,
+                ownerId: true,
+                members: { select: { userId: true } },
+            },
+        });
+        if (!budget) return res.status(404).json({ error: 'Budget not found' });
+
+        const now = new Date();
+
+        const rules = await prisma.recurringRule.findMany({
+            where: {
+                budgetId: budget.id,
+                active: true,
+                kind: 'EXPENSE',
+                nextRunAt: { lte: now },
+                OR: [{ endAt: null }, { endAt: { gte: now } }],
+            },
+            select: {
+                id: true, categoryId: true, paidById: true,
+                itemName: true, amount: true, notes: true,
+                recurrence: true, interval: true,
+                nextRunAt: true,
+            },
+        });
+
+        const memberIds = new Set([budget.ownerId, ...budget.members.map(m => m.userId)]);
+        const allMemberIds = Array.from(memberIds);
+
+        const created = [];
+
+        await prisma.$transaction(async (tx) => {
+            for (const r of rules) {
+                // Create purchase with equal split (or 100% payer if solo/two you can adapt)
+                let shares = [];
+                if (allMemberIds.length <= 1) {
+                    shares = [{ userId: r.paidById, percent: 100 }];
+                } else {
+                    const n = allMemberIds.length;
+                    const base = Math.floor(100 / n);
+                    let rem = 100 - base * n;
+                    shares = allMemberIds.map(id => ({
+                        userId: id,
+                        percent: base + (rem-- > 0 ? 1 : 0),
+                    }));
+                }
+
+                const purchase = await tx.purchase.create({
+                    data: {
+                        itemName: r.itemName,
+                        amount: r.amount,
+                        paidAt: r.nextRunAt,      // run date
+                        shared: allMemberIds.length > 1,
+                        notes: r.notes ?? null,
+                        budget:   { connect: { id: budget.id } },
+                        category: { connect: { id: r.categoryId } },
+                        paidBy:   { connect: { id: r.paidById } },
+                        createdBy:{ connect: { id: userId } },
+                        shares: {
+                            create: shares.map(s => ({
+                                percent: s.percent,
+                                user: { connect: { id: s.userId } },
+                            })),
+                        },
+                    },
+                    select: { id: true },
+                });
+
+                created.push(purchase.id);
+
+                // advance rule
+                const next = addInterval(r.nextRunAt, r.recurrence, r.interval);
+                await tx.recurringRule.update({
+                    where: { id: r.id },
+                    data: { lastRunAt: r.nextRunAt, nextRunAt: next },
+                });
+            }
+        });
+
+        res.json({ createdCount: created.length, purchaseIds: created });
     } catch (err) {
         next(err);
     }

@@ -11,7 +11,9 @@ $paragraph-small: clamp(0.66rem, 0.778rem + 0.088vw, 0.75rem);
 $paragraph-xsmall: clamp(0.5rem, 0.578rem + 0.066vw, 0.66rem);
 $banner: clamp(2.8rem, 3.2399999999999998rem + 3.8vw, 8.9rem);
 $navbar-height: 4.5em;
-$sidebar-width: 18em;
+$sidebar-left-width: 5em;
+$sidebar-right-width: 20em;
+$sidebar-width: $sidebar-left-width + $sidebar-right-width;
 $profile-size: 16em;
 /* misc */
 $transition-main: .175, .685, .32;

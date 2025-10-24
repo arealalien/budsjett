@@ -1,22 +1,39 @@
 // BudgetHome.jsx
 import React, { useMemo, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import {NavLink, useOutletContext} from 'react-router-dom';
 import PurchasesTable from "../components/PurchasesTable";
 import { api } from '../lib/api';
 import Button from '../components/Button';
 import { useToast } from '../components/ToastContext';
+import SpendingTrend from "../components/SpendingTrend";
+import CurrentBalance from "../components/CurrentBalance";
+import CategoryTotals from "../components/CategoryTotals";
+import IncomeTotals from "../components/IncomeTotals";
 
 function canInvite(role) { return role === 'OWNER' || role === 'ADMIN'; }
+
+const toRgbTriplet = (color) => {
+    const m = String(color).match(/^\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*$/);
+    return m ? `${m[1]} ${m[2]} ${m[3]}` : color; // if already CSS color, leave as-is
+};
+
 
 export default function BudgetHome() {
     const { budget, reloadBudget } = useOutletContext();
     const role = budget.role || 'MEMBER';
 
+    // Publish variables like --cat-groceries: "34 197 94"
+    const catCssVars = (budget?.categories || []).reduce((vars, c) => {
+        if (c?.slug && c?.color) {
+            vars[`--cat-${c.slug}`] = toRgbTriplet(c.color);
+        }
+        return vars;
+    }, {});
+
     return (
-        <div className="budget-home" style={{ width: '100%' }}>
+        <div className="budget-home" style={{catCssVars, width: '100%'}}>
             <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
-                <h2 style={{ margin: 0 }}>Welcome to {budget.name}</h2>
-                <span>• Role: {role}</span>
+                <span>Role: {role}</span>
                 {canInvite(role) && <InviteInline slug={budget.slug} />}
             </div>
 
@@ -24,7 +41,11 @@ export default function BudgetHome() {
             <MembersSection budget={budget} myRole={role} onChanged={reloadBudget} />
 
             <div style={{ marginTop: 16 }}>
-                <PurchasesTable />
+                <PurchasesTable size="compact" />
+                <SpendingTrend />
+                <CurrentBalance />
+                <CategoryTotals />
+                <IncomeTotals />
             </div>
         </div>
     );

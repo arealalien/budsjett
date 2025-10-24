@@ -26,3 +26,5 @@ export const DEFAULT_CATEGORIES = [
   { name: 'Other',         slug: 'other',         color: '#64748b', sortOrder: 70 },
 ] as const;
 
+
+Make badgets page editable, draggable Components where you want them.

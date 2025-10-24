@@ -1,23 +1,15 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 /**
- * =========================
- * Auth & User
- * =========================
+ * ===== Enums =====
  */
 
 enum TokenType {
@@ -25,22 +17,48 @@ enum TokenType {
   PASSWORD_RESET
 }
 
+enum BudgetRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum NotificationType {
+  INVITE
+}
+
+enum EntryKind {
+  EXPENSE
+  INCOME
+}
+
+enum Recurrence {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+/**
+ * ===== User / Auth =====
+ */
+
 model User {
-  id String @id @default(cuid()) @db.Char(25)
-
-  // Auth identity
-  username     String @unique @db.VarChar(50)
-  email        String @unique @db.VarChar(191) // was 320 → 191 to fit utf8mb4 index limits
-  passwordHash String
-
-  // Email verification gate
+  id              String    @id @default(cuid()) @db.Char(25)
+  username        String    @unique @db.VarChar(50)
+  email           String    @unique @db.VarChar(191)
+  passwordHash    String
   emailVerifiedAt DateTime?
-
-  // Optional profile niceties
-  displayName String? @db.VarChar(100)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  displayName     String?   @db.VarChar(100)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Ownership & membership
   budgetsOwned      Budget[]       @relation("BudgetOwner")
@@ -58,23 +76,29 @@ model User {
   shares          PurchaseShare[] @relation("ShareUser")
   settlementsMade PurchaseShare[] @relation("SettledBy")
 
-  // Auth tokens (verification & reset)
-  tokens AuthToken[]
+  // Incomes (two distinct relations to Income)
+  incomesReceived Income[] @relation("IncomeReceivedBy")
+  incomesCreated  Income[] @relation("IncomeCreatedBy")
+
+  // RecurringRule relations (three distinct relations)
+  recurringRulesPaidBy     RecurringRule[] @relation("RecurringPaidBy")
+  recurringRulesReceivedBy RecurringRule[] @relation("RecurringReceivedBy")
+  recurringRulesCreated    RecurringRule[] @relation("RecurringCreatedBy")
+
+  // Auth tokens + notifications
+  tokens       AuthToken[]
+  Notification Notification[]
 
   onboardingSkippedAt DateTime?
-  Notification        Notification[]
 
   @@index([email])
   @@index([username])
 }
 
-/**
- * One table for both email verification and password-reset.
- */
 model AuthToken {
   id         String    @id @default(cuid()) @db.Char(25)
   userId     String    @db.Char(25)
-  token      String    @unique @db.VarChar(64) // was 200 → 64 (urlsafe tokens typically ~43; 64 is comfy)
+  token      String    @unique @db.VarChar(64)
   type       TokenType
   createdAt  DateTime  @default(now())
   expiresAt  DateTime
@@ -84,16 +108,6 @@ model AuthToken {
 
   @@index([userId, type])
   @@index([expiresAt])
-}
-
-/**
- * ==============
- * Notifications
- * ==============
- */
-
-enum NotificationType {
-  INVITE
 }
 
 model Notification {
@@ -114,23 +128,8 @@ model Notification {
 }
 
 /**
- * =========================
- * Budgets & Membership
- * =========================
+ * ===== Budgets & Membership =====
  */
-
-enum BudgetRole {
-  OWNER
-  ADMIN
-  MEMBER
-}
-
-enum InviteStatus {
-  PENDING
-  ACCEPTED
-  EXPIRED
-  REVOKED
-}
 
 model Budget {
   id   String @id @default(cuid()) @db.Char(25)
@@ -145,6 +144,10 @@ model Budget {
   categories Category[]
   purchases  Purchase[]
   invites    BudgetInvite[]
+
+  // new
+  RecurringRule RecurringRule[]
+  Income        Income[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -169,9 +172,9 @@ model BudgetMember {
 model BudgetInvite {
   id            String       @id @default(cuid()) @db.Char(25)
   budgetId      String       @db.Char(25)
-  invitedUserId String?      @db.Char(25) // if inviting existing
-  invitedEmail  String?      @db.VarChar(191) // was 320 → 191 to keep composite unique small
-  token         String       @unique @db.VarChar(64) // was 200 → 64
+  invitedUserId String?      @db.Char(25)
+  invitedEmail  String?      @db.VarChar(191)
+  token         String       @unique @db.VarChar(64)
   status        InviteStatus @default(PENDING)
   invitedById   String       @db.Char(25)
   createdAt     DateTime     @default(now())
@@ -183,16 +186,13 @@ model BudgetInvite {
 
   @@unique([budgetId, invitedEmail, status])
   @@unique([budgetId, invitedUserId, status])
-  // composite unique: budgetId(25) + invitedEmail(191) + status (enum)
   @@index([budgetId])
   @@index([invitedUserId])
   @@index([invitedById])
 }
 
 /**
- * =========
- * Category
- * =========
+ * ===== Category =====
  */
 
 model Category {
@@ -200,7 +200,7 @@ model Category {
   budgetId String @db.Char(25)
 
   name        String  @db.VarChar(80)
-  slug        String  @db.VarChar(100) // unique per budget (100 is fine)
+  slug        String  @db.VarChar(100)
   color       String  @db.VarChar(20)
   planMonthly Decimal @default(0.00) @db.Decimal(12, 2)
   sortOrder   Int     @default(0)
@@ -208,6 +208,9 @@ model Category {
 
   budget    Budget     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   purchases Purchase[]
+
+  // back relation from RecurringRule.category
+  RecurringRule RecurringRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -217,9 +220,7 @@ model Category {
 }
 
 /**
- * =========================
- * Purchases & Shares
- * =========================
+ * ===== Purchases & Shares =====
  */
 
 model Purchase {
@@ -230,15 +231,12 @@ model Purchase {
   shared   Boolean  @default(true)
   notes    String?  @db.Text
 
-  // Budget scoping
   budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   budgetId String @db.Char(25)
 
-  // Category (per-budget)
   category   Category @relation(fields: [categoryId], references: [id])
   categoryId String   @db.Char(25)
 
-  // Users
   paidBy   User   @relation("PaidBy", fields: [paidById], references: [id])
   paidById String @db.Char(25)
 
@@ -275,4 +273,75 @@ model PurchaseShare {
   @@id([purchaseId, userId])
   @@index([userId])
   @@index([isSettled, settledAt])
+}
+
+/**
+ * ===== Incomes =====
+ */
+
+model Income {
+  id           String   @id @default(cuid()) @db.Char(25)
+  budgetId     String   @db.Char(25)
+  itemName     String   @db.VarChar(191)
+  amount       Decimal  @db.Decimal(12, 2)
+  receivedAt   DateTime @default(now())
+  receivedById String   @db.Char(25)
+  notes        String?  @db.Text
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  // two relations to User need names
+  receivedBy  User   @relation("IncomeReceivedBy", fields: [receivedById], references: [id])
+  createdBy   User   @relation("IncomeCreatedBy", fields: [createdById], references: [id])
+  createdById String @db.Char(25)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([budgetId, receivedAt])
+}
+
+/**
+ * ===== Recurring Rules (expense + income) =====
+ */
+
+model RecurringRule {
+  id       String    @id @default(cuid()) @db.Char(25)
+  budgetId String    @db.Char(25)
+  kind     EntryKind @default(EXPENSE)
+
+  // EXPENSE
+  categoryId String? @db.Char(25)
+  paidById   String? @db.Char(25)
+
+  // INCOME
+  receivedById String? @db.Char(25)
+
+  itemName String  @db.VarChar(191)
+  amount   Decimal @db.Decimal(12, 2)
+  notes    String? @db.VarChar(191)
+
+  recurrence Recurrence
+  interval   Int        @default(1)
+  timeZone   String     @default("UTC") @db.VarChar(50)
+  startAt    DateTime?
+  endAt      DateTime?
+  nextRunAt  DateTime
+  lastRunAt  DateTime?
+  active     Boolean    @default(true)
+
+  budget   Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  // three relations to User need names
+  paidBy      User?  @relation("RecurringPaidBy", fields: [paidById], references: [id])
+  receivedBy  User?  @relation("RecurringReceivedBy", fields: [receivedById], references: [id])
+  createdBy   User   @relation("RecurringCreatedBy", fields: [createdById], references: [id])
+  createdById String @db.Char(25)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([budgetId, active, nextRunAt])
+  @@index([nextRunAt, active])
 }

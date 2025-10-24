@@ -1,11 +1,9 @@
+// src/routes/reports.currentBalance.js
 import { Router } from 'express';
 import { z } from 'zod';
 import { verifyToken } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
-// If you generate Prisma client to a custom path, keep this import:
-import { Prisma } from '../../generated/prisma/index.js';
-// If you use the default output, use this instead:
-// import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/index.js'; // adjust if you use default output
 
 const router = Router();
 
@@ -14,9 +12,28 @@ const querySchema = z.object({
     dateTo: z.coerce.date().optional(),
 });
 
-router.get('/current-balance', verifyToken, async (req, res, next) => {
+const userName = (u) => u?.displayName ?? u?.username ?? 'Unknown';
+
+router.get('/:slug/reports/current-balance', verifyToken, async (req, res, next) => {
     try {
+        const { slug } = req.params;
         const { dateFrom, dateTo } = querySchema.parse(req.query);
+
+        // 1) Find budget + confirm membership
+        const budget = await prisma.budget.findUnique({
+            where: { slug },
+            select: {
+                id: true,
+                members: { select: { userId: true } },
+            },
+        });
+        if (!budget) return res.status(404).json({ error: 'Budget not found' });
+
+        const requesterId = req.user?.id;
+        const memberIds = new Set(budget.members.map(m => m.userId));
+        if (!requesterId || !memberIds.has(requesterId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
         const paidAtFilter =
             dateFrom || dateTo
@@ -28,47 +45,52 @@ router.get('/current-balance', verifyToken, async (req, res, next) => {
                 }
                 : {};
 
-        // A) Sum FULL amounts paid by each payer in the period
+        // 2) Sum full amounts paid by each payer in the period (within budget)
         const totals = await prisma.purchase.groupBy({
             by: ['paidById'],
             _sum: { amount: true },
             where: {
+                budgetId: budget.id,
                 deletedAt: null,
                 ...paidAtFilter,
             },
         });
 
-        // B) Get unsettled shares (who owes whom how much)
+        // 3) Unsettled shares → who owes whom (within budget)
         const shares = await prisma.purchaseShare.findMany({
             where: {
                 isSettled: false,
                 percent: { gt: 0 },
                 purchase: {
+                    budgetId: budget.id,
                     deletedAt: null,
                     ...paidAtFilter,
                 },
             },
             include: {
-                user: { select: { id: true, name: true } }, // debtor
+                user: {                       // debtor
+                    select: { id: true, displayName: true, username: true },
+                },
                 purchase: {
                     select: {
                         id: true,
                         amount: true,
                         paidById: true,
-                        paidBy: { select: { id: true, name: true } }, // payer
+                        paidBy: {                 // payer
+                            select: { id: true, displayName: true, username: true },
+                        },
                     },
                 },
             },
         });
 
-        // C) Build debts map: (debtor -> payer) -> amount
+        // 4) Debts (debtor -> payer) using Decimal
         const Decimal = Prisma.Decimal;
-        const key = (debtorId, payerId) => `${debtorId}__${payerId}`;
-        const debts = new Map(); // key -> Decimal amount
+        const debts = new Map(); // key: "debtorId__payerId" -> Decimal
 
         for (const s of shares) {
             const debtorId = s.user.id;
-            const payerId = s.purchase.paidById;
+            const payerId  = s.purchase.paidById;
             if (debtorId === payerId) continue;
 
             const base =
@@ -76,74 +98,77 @@ router.get('/current-balance', verifyToken, async (req, res, next) => {
                     ? new Decimal(s.fixedAmount)
                     : new Decimal(s.purchase.amount).mul(s.percent).div(100);
 
-            const k = key(debtorId, payerId);
-            debts.set(k, (debts.get(k) || new Decimal(0)).add(base));
+            const key = `${debtorId}__${payerId}`;
+            debts.set(key, (debts.get(key) || new Decimal(0)).add(base));
         }
 
-        // D) Convert debts to rows + also accumulate "owed to payer"
+        // 5) Sum what is owed to each payer
         const owedToPayer = new Map(); // payerId -> Decimal
-        const pairs = [];
-
-        for (const [k, amountDec] of debts.entries()) {
-            const [debtorId, payerId] = k.split('__');
-            pairs.push({
-                debtorId,
-                payerId,
-                amount: amountDec.toNumber(),
-            });
-            owedToPayer.set(
-                payerId,
-                (owedToPayer.get(payerId) || new Decimal(0)).add(amountDec)
-            );
+        for (const [key, amountDec] of debts.entries()) {
+            const [, payerId] = key.split('__');
+            owedToPayer.set(payerId, (owedToPayer.get(payerId) || new Decimal(0)).add(amountDec));
         }
 
-        // E) Gather payer/user info for display + attach totals and names
-        const payerIdsFromTotals = totals.map(t => t.paidById);
-        const payerIdsFromDebts = pairs.map(p => p.payerId);
-        const allPayerIds = [...new Set([...payerIdsFromTotals, ...payerIdsFromDebts])];
-
-        const users = await prisma.user.findMany({
-            select: { id: true, name: true },
+        // 6) Fetch member names for display
+        const memberIdList = Array.from(memberIds);
+        const members = await prisma.user.findMany({
+            where: { id: { in: memberIdList } },
+            select: { id: true, displayName: true, username: true },
         });
-        const userMap = new Map(users.map(u => [u.id, u]));
+        const userMap = new Map(members.map(u => [u.id, u]));
 
-        // Build "payers" array for UI with full paid and owed (optional)
-        const payersSummary = allPayerIds.map(payerId => {
-            const u = userMap.get(payerId) || { id: payerId, name: 'Unknown' };
-            const totalPaid = Number(
-                totals.find(t => t.paidById === payerId)?._sum.amount ?? 0
-            );
-            const owed = Number((owedToPayer.get(payerId) || new Decimal(0)).toNumber());
-            return {
-                payer: { id: u.id, name: u.name },
-                totalPaid,
-                // Keeping "amount" for unsettled owed-to-payer if you want to show it too
-                amount: owed,
-            };
-        }).sort((a, b) => b.totalPaid - a.totalPaid);
+        // Union of payers who paid anything or are owed anything
+        const allPayerIds = Array.from(
+            new Set([
+                ...totals.map(t => t.paidById),
+                ...Array.from(owedToPayer.keys()),
+            ])
+        ).filter(id => memberIds.has(id)); // keep only budget members
 
-        // F) Net between two users (if exactly two in system)
+        const payers = allPayerIds
+            .map(payerId => {
+                const u = userMap.get(payerId);
+                const totalPaid = Number(totals.find(t => t.paidById === payerId)?._sum.amount ?? 0);
+                const owedTo = Number((owedToPayer.get(payerId) || new Decimal(0)).toNumber());
+                return {
+                    payer: { id: payerId, name: userName(u) },
+                    totalPaid,
+                    owedToPayer: owedTo,
+                };
+            })
+            .sort((a, b) => b.totalPaid - a.totalPaid);
+
+        // 7) Net between two users (if the budget has exactly two members)
         let netBetweenTwoUsers = null;
-        if (users.length === 2) {
-            const [u1, u2] = users;
-            const aToB =
-                pairs.find(p => p.debtorId === u1.id && p.payerId === u2.id)?.amount ?? 0;
-            const bToA =
-                pairs.find(p => p.debtorId === u2.id && p.payerId === u1.id)?.amount ?? 0;
+        if (memberIds.size === 2) {
+            const [u1, u2] = members; // exactly two
+            const aToB = Number(debts.get(`${u1.id}__${u2.id}`)?.toNumber() ?? 0);
+            const bToA = Number(debts.get(`${u2.id}__${u1.id}`)?.toNumber() ?? 0);
 
             const net = bToA - aToB; // positive => u2 owes u1
             if (net > 0) {
-                netBetweenTwoUsers = { from: u2, to: u1, amount: net };
+                netBetweenTwoUsers = {
+                    from: { id: u2.id, name: userName(u2) },
+                    to:   { id: u1.id, name: userName(u1) },
+                    amount: net,
+                };
             } else if (net < 0) {
-                netBetweenTwoUsers = { from: u1, to: u2, amount: Math.abs(net) };
+                netBetweenTwoUsers = {
+                    from: { id: u1.id, name: userName(u1) },
+                    to:   { id: u2.id, name: userName(u2) },
+                    amount: Math.abs(net),
+                };
             } else {
-                netBetweenTwoUsers = { from: u1, to: u2, amount: 0 };
+                netBetweenTwoUsers = {
+                    from: { id: u1.id, name: userName(u1) },
+                    to:   { id: u2.id, name: userName(u2) },
+                    amount: 0,
+                };
             }
         }
 
         res.json({
-            // payersSummary: array per payer with full period total
-            pairs: payersSummary,
+            payers,
             netBetweenTwoUsers,
         });
     } catch (err) {

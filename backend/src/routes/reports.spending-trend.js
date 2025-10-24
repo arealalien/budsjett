@@ -5,60 +5,98 @@ import { prisma } from '../lib/prisma.js';
 
 const router = Router();
 
-const CategoryEnum = z.enum([
-    'FURNITURE','GROCERIES','TAKEAWAY','RESTAURANT','HOUSEHOLD','SUBSCRIPTIONS','OTHER'
-]);
-
 const querySchema = z.object({
     period: z.enum(['week','month','year']).default('month'),
     mode: z.enum(['single','multiple']).default('single'),
-    category: z.union([CategoryEnum, z.literal('TOTAL')]).default('TOTAL'),
-    categories: z.string().optional(), // CSV for multiple
+    category: z.string().optional().default('TOTAL'), // categoryId or 'TOTAL'
+    categories: z.string().optional(), // CSV of categoryIds
     combine: z.coerce.boolean().optional().default(false),
 });
 
-router.get('/', verifyToken, async (req, res, next) => {
+function keyForDate(d, step){
+    if (step === 'month') {
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function buildBuckets(from, to, step){
+    const buckets = [];
+    if (step === 'month'){
+        const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+        const limit  = new Date(to.getFullYear(),   to.getMonth(),   1);
+        while (cursor <= limit){
+            buckets.push({ key: keyForDate(cursor, 'month'), date: new Date(cursor) });
+            cursor.setMonth(cursor.getMonth()+1);
+        }
+    } else {
+        let cursor = new Date(from); cursor.setHours(0,0,0,0);
+        const limit = new Date(to);  limit.setHours(0,0,0,0);
+        while (cursor <= limit){
+            buckets.push({ key: keyForDate(cursor, 'day'), date: new Date(cursor) });
+            cursor.setDate(cursor.getDate()+1);
+        }
+    }
+    return buckets;
+}
+
+// budget-scoped
+router.get('/:slug/reports/spending-trend', verifyToken, async (req, res, next) => {
     try {
         const { period, mode, category, categories, combine } = querySchema.parse(req.query);
+        const userId = req.userId || req.user?.id; // depending on your auth middleware
+        const { slug } = req.params;
 
-        const selectedCats = mode === 'multiple'
+        // Check access + get budget + categories
+        const budget = await prisma.budget.findFirst({
+            where: { slug, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
+            select: { id: true, categories: { select: { id: true, name: true } } },
+        });
+        if (!budget) return res.status(404).json({ error: 'Budget not found' });
+
+        const selectedIds = mode === 'multiple'
             ? (categories ? categories.split(',').map(s => s.trim()).filter(Boolean) : [])
             : (category === 'TOTAL' ? [] : [category]);
+
+        // Validate that selected category IDs belong to this budget
+        const budgetCatIds = new Set(budget.categories.map(c => c.id));
+        if (selectedIds.some(id => !budgetCatIds.has(id))) {
+            return res.status(400).json({ error: 'Invalid category in selection' });
+        }
 
         const now = new Date();
         const { from, to, prevFrom, prevTo, step } = computeRanges(period, now);
 
-        // Pull once across both ranges; filter by categories if not TOTAL / not empty
         const whereCategory =
             mode === 'single' && category === 'TOTAL'
                 ? {}
-                : (selectedCats.length ? { category: { in: selectedCats } } : {});
+                : (selectedIds.length ? { categoryId: { in: selectedIds } } : {});
 
+        // Pull once across both ranges for efficiency
         const purchases = await prisma.purchase.findMany({
             where: {
+                budgetId: budget.id,
                 deletedAt: null,
                 paidAt: { gte: prevFrom, lte: to },
                 ...whereCategory,
             },
-            select: { amount: true, paidAt: true, category: true },
+            select: { amount: true, paidAt: true, categoryId: true },
             orderBy: { paidAt: 'asc' },
         });
 
         const buckets = buildBuckets(from, to, step);
-        const prevBuckets = buildBuckets(prevFrom, prevTo, step);
-
-        // Helpers to sum for arbitrary subset
-        const sumFor = (items, cats) => {
-            const filtered = cats?.length ? items.filter(p => cats.includes(p.category)) : items;
-            return sumIntoBuckets(filtered, step);
-        };
-
         const curr = purchases.filter(p => p.paidAt >= from && p.paidAt <= to);
         const prev = purchases.filter(p => p.paidAt >= prevFrom && p.paidAt <= prevTo);
 
+        // sum helper
+        const sumFor = (items, ids) => {
+            const filtered = ids?.length ? items.filter(p => p.categoryId && ids.includes(p.categoryId)) : items;
+            return sumIntoBuckets(filtered, step);
+        };
+
         if (mode === 'single') {
-            const currByKey = sumFor(curr, selectedCats);
-            const prevByKey = sumFor(prev, selectedCats);
+            const currByKey = sumFor(curr, selectedIds);
+            const prevByKey = sumFor(prev, selectedIds);
             const points = toPerPeriodSeries(buckets, currByKey);
 
             const currentTotal = sumMap(currByKey);
@@ -66,23 +104,15 @@ router.get('/', verifyToken, async (req, res, next) => {
             const change = buildChange(currentTotal, previousTotal);
 
             return res.json({
-                mode,
-                period,
-                category,
-                range: { from, to },
-                prevRange: { from: prevFrom, to: prevTo },
-                points,
-                currentTotal,
-                previousTotal,
-                change,
+                mode, period, category, range: { from, to }, prevRange: { from: prevFrom, to: prevTo },
+                points, currentTotal, previousTotal, change,
             });
         }
 
-        // mode === 'multiple'
+        // multiple
         if (combine) {
-            // Treat as one combined series
-            const currByKey = sumFor(curr, selectedCats);
-            const prevByKey = sumFor(prev, selectedCats);
+            const currByKey = sumFor(curr, selectedIds);
+            const prevByKey = sumFor(prev, selectedIds);
             const points = toPerPeriodSeries(buckets, currByKey);
 
             const currentTotal = sumMap(currByKey);
@@ -90,49 +120,34 @@ router.get('/', verifyToken, async (req, res, next) => {
             const change = buildChange(currentTotal, previousTotal);
 
             return res.json({
-                mode,
-                period,
-                categories: selectedCats,
-                combine: true,
-                range: { from, to },
-                prevRange: { from: prevFrom, to: prevTo },
-                points,
-                currentTotal,
-                previousTotal,
-                change,
+                mode, period, categories: selectedIds, combine: true,
+                range: { from, to }, prevRange: { from: prevFrom, to: prevTo },
+                points, currentTotal, previousTotal, change,
             });
         }
 
-        // Separate lines per category (even if only one)
-        const series = selectedCats.map(cat => {
-            const currByKey = sumFor(curr, [cat]);
-            const prevByKey = sumFor(prev, [cat]);
+        // separate lines
+        const series = selectedIds.map(id => {
+            const currByKey = sumFor(curr, [id]);
+            const prevByKey = sumFor(prev, [id]);
             const points = toPerPeriodSeries(buckets, currByKey);
             return {
-                key: cat,
-                label: cat,
+                key: id,
+                label: budget.categories.find(c => c.id === id)?.name || id,
                 points,
                 currentTotal: sumMap(currByKey),
                 previousTotal: sumMap(prevByKey),
             };
         });
 
-        // Combined totals for footer change
         const currentTotal = series.reduce((s, srs) => s + srs.currentTotal, 0);
         const previousTotal = series.reduce((s, srs) => s + srs.previousTotal, 0);
         const change = buildChange(currentTotal, previousTotal);
 
         return res.json({
-            mode,
-            period,
-            categories: selectedCats,
-            combine: false,
-            range: { from, to },
-            prevRange: { from: prevFrom, to: prevTo },
-            series, // one or more items
-            currentTotal,
-            previousTotal,
-            change,
+            mode, period, categories: selectedIds, combine: false,
+            range: { from, to }, prevRange: { from: prevFrom, to: prevTo },
+            series, currentTotal, previousTotal, change,
         });
     } catch (err) {
         if (err.name === 'ZodError') {
@@ -144,7 +159,7 @@ router.get('/', verifyToken, async (req, res, next) => {
 
 export default router;
 
-/* ---------- helpers ---------- */
+/* ---------- helpers (unchanged from your version) ---------- */
 function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
 function endOfDay(d){ const x=new Date(d); x.setHours(23,59,59,999); return x; }
 function startOfWeek(d){ const x=startOfDay(d); const day=x.getDay(); const diff=(day===0?-6:1)-day; x.setDate(x.getDate()+diff); return x; }
@@ -174,31 +189,6 @@ function computeRanges(period, now){
         step = 'month';
     }
     return { from, to, prevFrom, prevTo, step };
-}
-
-function keyForDate(d, step){
-    if (step === 'month') return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function buildBuckets(from, to, step){
-    const buckets = [];
-    if (step === 'month'){
-        const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
-        const limit = new Date(to.getFullYear(), to.getMonth(), 1);
-        while (cursor <= limit){
-            buckets.push({ key: keyForDate(cursor, 'month'), date: new Date(cursor) });
-            cursor.setMonth(cursor.getMonth()+1);
-        }
-    } else {
-        let cursor = startOfDay(from);
-        const limit = startOfDay(to);
-        while (cursor <= limit){
-            buckets.push({ key: keyForDate(cursor, 'day'), date: new Date(cursor) });
-            cursor = addDays(cursor, 1);
-        }
-    }
-    return buckets;
 }
 
 function sumIntoBuckets(purchases, step){

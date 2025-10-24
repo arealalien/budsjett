@@ -12,6 +12,7 @@ import trendRoute from './src/routes/reports.spending-trend.js';
 import budgetsRoute from './src/routes/budgets.js';
 import invitesRoute from './src/routes/invites.js';
 import notificationsRoute from './src/routes/notifications.js';
+import incomeTotalsRoutes from './src/routes/reports.incomeTotals.js';
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
@@ -26,7 +27,8 @@ app.use('/api/purchases', purchasesListRoutes);
 app.use('/api/purchases', purchasesSettleRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/reports', categoryTotalsRoutes);
-app.use('/api/reports/spending-trend', trendRoute);
+app.use('/api/reports', incomeTotalsRoutes);
+app.use('/api/budgets', trendRoute);
 app.use('/api/budgets', budgetsRoute);
 app.use('/api/invites', invitesRoute);
 app.use('/api/notifications', notificationsRoute);

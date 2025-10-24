@@ -42,8 +42,9 @@ export default function NotificationBell() {
     };
 
     return (
-        <div style={{ position: 'relative' }}>
+        <div className="sidebar-left-inner-notifications">
             <button
+                className="sidebar-left-inner-notifications-button"
                 type="button"
                 onClick={async () => {
                     const next = !open;
@@ -51,9 +52,11 @@ export default function NotificationBell() {
                     if (next) await load(false);
                 }}
                 aria-label="Notifications"
-                style={{ position: 'relative' }}
             >
-                🔔
+                <svg id="Xnix_Line_Notification_13" data-name="Xnix/Line/Notification 13" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                    <path id="Vector" d="M1.474,7.963A5.757,5.757,0,0,1,7,2a5.757,5.757,0,0,1,5.526,5.963c0,1.317,1.431,2.6,1.473,3.92q0,.028,0,.056a1.535,1.535,0,0,1-1.474,1.59H9.333a2.546,2.546,0,0,1-.683,1.747,2.243,2.243,0,0,1-3.3,0,2.546,2.546,0,0,1-.683-1.747H1.474A1.535,1.535,0,0,1,0,11.939q0-.028,0-.056C.043,10.567,1.474,9.281,1.474,7.963Z" transform="translate(5 4)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                    <path id="Vector-2" data-name="Vector" d="M4.667,13.529H9.333M8,0H6" transform="translate(5 4)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                </svg>
                 {unread > 0 && (
                     <span style={{
                         position: 'absolute', top: -4, right: -6, background: 'crimson',
