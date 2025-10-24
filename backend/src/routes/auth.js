@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { prisma } from '../lib/prisma.js';
+import { verifyEmailTemplate, resetPasswordTemplate } from '../lib/emails.js';
 
 // If you already have verifyToken for protected endpoints, keep it; not needed here.
 const router = Router();
@@ -32,25 +33,33 @@ function signSession(userId, remember=false) {
     return { token, maxAge };
 }
 
-function urlSafeToken(bytes = 32) {
-    return crypto.randomBytes(bytes).toString('base64url'); // ~43–86 chars; we store in VarChar(64)
+
+// --- Email transport (Domeneshop in prod, Mailtrap in dev, console fallback) ---
+const MAIL_FROM =
+    process.env.MAIL_FROM || '"Astrae" <noreply@astrae.no>';
+
+function makeTransport() {
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        const port = Number(process.env.SMTP_PORT || 587);
+        const secure = port === 465; // true for 465, false for 587/25
+        return nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port,
+            secure,
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+            },
+        });
+    }
+
+    return null;
 }
 
-const hasMailtrap = !!(process.env.MAILTRAP_USER && process.env.MAILTRAP_PASS);
-
-const transport = hasMailtrap
-    ? nodemailer.createTransport({
-        host: 'sandbox.smtp.mailtrap.io',
-        port: 2525,
-        auth: {
-            user: process.env.MAILTRAP_USER,
-            pass: process.env.MAILTRAP_PASS,
-        },
-    })
-    : null;
+const transport = makeTransport();
 
 function extractFirstHref(html) {
-    const m = html.match(/href="([^"]+)"/i);
+    const m = html?.match?.(/href="([^"]+)"/i);
     return m ? m[1] : null;
 }
 
@@ -65,8 +74,20 @@ async function sendEmail({ to, subject, html }) {
         console.log('--------------------------------------');
         return { devLink: url };
     }
-    await transport.sendMail({ from: '"Budsjett" <no-reply@budsjett.local>', to, subject, html });
+
+    await transport.sendMail({
+        from: MAIL_FROM,
+        to,
+        subject,
+        html,
+    });
+
     return {};
+}
+
+
+function urlSafeToken(bytes = 32) {
+    return crypto.randomBytes(bytes).toString('base64url');
 }
 
 // For links in emails
@@ -156,15 +177,13 @@ router.post('/register', async (req, res, next) => {
         });
 
         const verifyLink = appUrl(`/verify?token=${encodeURIComponent(token)}`);
+        const tpl = verifyEmailTemplate({ username: user.username, verifyUrl: verifyLink });
+
         const emailResult = await sendEmail({
             to: user.email,
-            subject: 'Verify your account',
-            html: `
-        <p>Hi ${user.username},</p>
-        <p>Thanks for signing up! Please verify your email by clicking the link below:</p>
-        <p><a href="${verifyLink}">Verify my account</a></p>
-        <p>This link expires in 24 hours.</p>
-      `
+            subject: tpl.subject,
+            html: tpl.html,
+            text: tpl.text,
         });
 
         // Return dev link only when we didn't actually send an email
