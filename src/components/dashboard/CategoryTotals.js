@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { api } from '../lib/api';
+import { api } from '../../lib/api';
 import { format } from 'date-fns';
 import nb from 'date-fns/locale/nb';
-import Loader from "./Loader";
+import Loader from "../Loader";
 import { useParams } from 'react-router-dom';
 
 const fmtCurrency = (n) =>

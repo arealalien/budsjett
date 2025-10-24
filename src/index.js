@@ -6,7 +6,7 @@ import {
 } from 'react-router-dom';
 import reportWebVitals from './reportWebVitals';
 import { AuthProvider } from './components/AuthContext';
-import { ToastProvider } from './components/ToastContext';
+import { ToastProvider } from './components/utils/ToastContext';
 
 import App from './App';
 import Home from './pages/Home';

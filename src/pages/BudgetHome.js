@@ -1,14 +1,14 @@
 // BudgetHome.jsx
 import React, { useMemo, useState } from 'react';
-import {NavLink, useOutletContext} from 'react-router-dom';
-import PurchasesTable from "../components/PurchasesTable";
+import { useOutletContext } from 'react-router-dom';
+import PurchasesTable from "../components/dashboard/PurchasesTable";
 import { api } from '../lib/api';
 import Button from '../components/Button';
-import { useToast } from '../components/ToastContext';
-import SpendingTrend from "../components/SpendingTrend";
-import CurrentBalance from "../components/CurrentBalance";
-import CategoryTotals from "../components/CategoryTotals";
-import IncomeTotals from "../components/IncomeTotals";
+import { useToast } from '../components/utils/ToastContext';
+import SpendingTrend from "../components/dashboard/SpendingTrend";
+import CurrentBalance from "../components/dashboard/CurrentBalance";
+import CategoryTotals from "../components/dashboard/CategoryTotals";
+import IncomeTotals from "../components/dashboard/IncomeTotals";
 
 function canInvite(role) { return role === 'OWNER' || role === 'ADMIN'; }
 

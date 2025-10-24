@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api } from '../../lib/api';
 import { format } from 'date-fns';
 import nb from 'date-fns/locale/nb';
-import Button from "./Button";
-import Loader from "./Loader";
+import Button from "../Button";
+import Loader from "../Loader";
 
 const fmtCurrency = (n) =>
     (Number.isFinite(n) ? n : Number(n))

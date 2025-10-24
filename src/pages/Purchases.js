@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from "../components/AuthContext";
-import PurchasesTable from "../components/PurchasesTable";
+import PurchasesTable from "../components/dashboard/PurchasesTable";
 
 export default function Purchases() {
     const { user, loading } = useAuth();

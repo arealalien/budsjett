@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/AuthContext';
-import { useToast } from '../components/ToastContext';
+import { useToast } from '../components/utils/ToastContext';
 import Button from '../components/Button';
 import ColorPicker from '../components/ColorPicker';
 

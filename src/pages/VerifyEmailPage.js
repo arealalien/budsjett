@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useSearchParams, NavLink } from 'react-router-dom';
 import Button from "../components/Button";
-import { useToast } from '../components/ToastContext';
+import { useToast } from '../components/utils/ToastContext';
 
 export default function VerifyEmailPage() {
     const [sp] = useSearchParams();

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
-import { api } from '../lib/api';
-import { useAuth } from '../components/AuthContext';
-import Button from './Button';
+import { api } from '../../lib/api';
+import { useAuth } from '../AuthContext';
+import Button from '../Button';
 
 const tzGuess = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const ENTRY_KINDS = { EXPENSE: 'EXPENSE', INCOME: 'INCOME' };

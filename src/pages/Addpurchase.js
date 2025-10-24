@@ -1,5 +1,5 @@
 import React from 'react';
-import PurchaseForm from "../components/PurchaseForm";
+import PurchaseForm from "../components/dashboard/PurchaseForm";
 
 export default function Addpurchase() {
     return (

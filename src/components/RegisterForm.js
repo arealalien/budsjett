@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink } from "react-router-dom";
 import { api } from '../lib/api';
 import Button from './Button';
-import { useToast } from './ToastContext';
+import { useToast } from './utils/ToastContext';
 
 const RESEND_COOLDOWN_SEC = 60;
 

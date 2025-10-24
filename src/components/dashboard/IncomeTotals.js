@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { api } from '../lib/api';
+import { api } from '../../lib/api';
 import { useParams, useOutletContext } from 'react-router-dom';
-import Loader from './Loader';
+import Loader from '../Loader';
 
 const fmtCurrency = (n) =>
     (Number(n) || 0).toLocaleString(undefined, { style: 'currency', currency: 'EUR' });

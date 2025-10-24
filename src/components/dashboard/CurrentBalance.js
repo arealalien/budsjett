@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { api } from '../lib/api';
-import Loader from "./Loader";
+import { api } from '../../lib/api';
+import Loader from "../Loader";
 import { useParams, useOutletContext } from 'react-router-dom';
 
 const fmtCurrency = (n) =>

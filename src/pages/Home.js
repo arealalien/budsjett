@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from "../components/AuthContext";
 import Header from "../components/landing/Header";
 import Pricing from "../components/landing/Pricing";
+import DocumentTitle from "../components/utils/DocumentTitle";
 
 export default function Home() {
     const { user, loading } = useAuth();
@@ -11,15 +12,21 @@ export default function Home() {
     return (
         <>
             {!loading && user && (
-                <main className="dashboard">
+                <>
+                    <DocumentTitle title="Astrae | Dashboard" />
+                    <main className="dashboard">
 
-                </main>
+                    </main>
+                </>
             )}
             {!loading && !user && (
-                <main className="landing">
-                    <Header/>
-                    <Pricing/>
-                </main>
+                <>
+                    <DocumentTitle title="Archive | Your Personal Accountant"/>
+                    <main className="landing">
+                        <Header/>
+                        <Pricing/>
+                    </main>
+                </>
             )}
         </>
     );

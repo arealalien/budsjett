@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import Button from '../components/Button';
-import { useToast } from '../components/ToastContext';
+import { useToast } from '../components/utils/ToastContext';
 
 function RoleBadge({ role }) {
     const cls =
