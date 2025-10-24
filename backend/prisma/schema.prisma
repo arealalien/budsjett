@@ -51,7 +51,7 @@ enum Recurrence {
  */
 
 model User {
-  id              String    @id @default(cuid()) @db.Char(25)
+  id              String    @id @default(cuid()) @db.VarChar(25)
   username        String    @unique @db.VarChar(50)
   email           String    @unique @db.VarChar(191)
   passwordHash    String
@@ -96,8 +96,8 @@ model User {
 }
 
 model AuthToken {
-  id         String    @id @default(cuid()) @db.Char(25)
-  userId     String    @db.Char(25)
+  id         String    @id @default(cuid()) @db.VarChar(25)
+  userId     String    @db.VarChar(25)
   token      String    @unique @db.VarChar(64)
   type       TokenType
   createdAt  DateTime  @default(now())
@@ -111,14 +111,14 @@ model AuthToken {
 }
 
 model Notification {
-  id        String           @id @default(cuid()) @db.Char(25)
-  userId    String           @db.Char(25)
+  id        String           @id @default(cuid()) @db.VarChar(25)
+  userId    String           @db.VarChar(25)
   type      NotificationType
   data      Json
   readAt    DateTime?
   createdAt DateTime         @default(now())
 
-  inviteId String? @db.Char(25)
+  inviteId String? @db.VarChar(25)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -132,11 +132,11 @@ model Notification {
  */
 
 model Budget {
-  id   String @id @default(cuid()) @db.Char(25)
+  id   String @id @default(cuid()) @db.VarChar(25)
   name String @db.VarChar(191)
 
   owner   User   @relation("BudgetOwner", fields: [ownerId], references: [id])
-  ownerId String @db.Char(25)
+  ownerId String @db.VarChar(25)
 
   slug String @unique @db.VarChar(100)
 
@@ -157,8 +157,8 @@ model Budget {
 }
 
 model BudgetMember {
-  budgetId String     @db.Char(25)
-  userId   String     @db.Char(25)
+  budgetId String     @db.VarChar(25)
+  userId   String     @db.VarChar(25)
   role     BudgetRole @default(MEMBER)
   joinedAt DateTime   @default(now())
 
@@ -170,13 +170,13 @@ model BudgetMember {
 }
 
 model BudgetInvite {
-  id            String       @id @default(cuid()) @db.Char(25)
-  budgetId      String       @db.Char(25)
-  invitedUserId String?      @db.Char(25)
+  id            String       @id @default(cuid()) @db.VarChar(25)
+  budgetId      String       @db.VarChar(25)
+  invitedUserId String?      @db.VarChar(25)
   invitedEmail  String?      @db.VarChar(191)
   token         String       @unique @db.VarChar(64)
   status        InviteStatus @default(PENDING)
-  invitedById   String       @db.Char(25)
+  invitedById   String       @db.VarChar(25)
   createdAt     DateTime     @default(now())
   expiresAt     DateTime?
 
@@ -196,8 +196,8 @@ model BudgetInvite {
  */
 
 model Category {
-  id       String @id @default(cuid()) @db.Char(25)
-  budgetId String @db.Char(25)
+  id       String @id @default(cuid()) @db.VarChar(25)
+  budgetId String @db.VarChar(25)
 
   name        String  @db.VarChar(80)
   slug        String  @db.VarChar(100)
@@ -224,7 +224,7 @@ model Category {
  */
 
 model Purchase {
-  id       String   @id @default(cuid()) @db.Char(25)
+  id       String   @id @default(cuid()) @db.VarChar(25)
   itemName String   @db.VarChar(191)
   amount   Decimal  @db.Decimal(12, 2)
   paidAt   DateTime @default(now())
@@ -232,16 +232,16 @@ model Purchase {
   notes    String?  @db.Text
 
   budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  budgetId String @db.Char(25)
+  budgetId String @db.VarChar(25)
 
   category   Category @relation(fields: [categoryId], references: [id])
-  categoryId String   @db.Char(25)
+  categoryId String   @db.VarChar(25)
 
   paidBy   User   @relation("PaidBy", fields: [paidById], references: [id])
-  paidById String @db.Char(25)
+  paidById String @db.VarChar(25)
 
   createdBy   User   @relation("CreatedBy", fields: [createdById], references: [id])
-  createdById String @db.Char(25)
+  createdById String @db.VarChar(25)
 
   shares PurchaseShare[]
 
@@ -257,14 +257,14 @@ model Purchase {
 }
 
 model PurchaseShare {
-  purchaseId  String   @db.Char(25)
-  userId      String   @db.Char(25)
+  purchaseId  String   @db.VarChar(25)
+  userId      String   @db.VarChar(25)
   percent     Int
   fixedAmount Decimal? @db.Decimal(12, 2)
 
   isSettled   Boolean   @default(false)
   settledAt   DateTime?
-  settledById String?   @db.Char(25)
+  settledById String?   @db.VarChar(25)
 
   user      User     @relation("ShareUser", fields: [userId], references: [id], onDelete: Cascade)
   settledBy User?    @relation("SettledBy", fields: [settledById], references: [id])
@@ -280,12 +280,12 @@ model PurchaseShare {
  */
 
 model Income {
-  id           String   @id @default(cuid()) @db.Char(25)
-  budgetId     String   @db.Char(25)
+  id           String   @id @default(cuid()) @db.VarChar(25)
+  budgetId     String   @db.VarChar(25)
   itemName     String   @db.VarChar(191)
   amount       Decimal  @db.Decimal(12, 2)
   receivedAt   DateTime @default(now())
-  receivedById String   @db.Char(25)
+  receivedById String   @db.VarChar(25)
   notes        String?  @db.Text
 
   budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
@@ -293,7 +293,7 @@ model Income {
   // two relations to User need names
   receivedBy  User   @relation("IncomeReceivedBy", fields: [receivedById], references: [id])
   createdBy   User   @relation("IncomeCreatedBy", fields: [createdById], references: [id])
-  createdById String @db.Char(25)
+  createdById String @db.VarChar(25)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -306,16 +306,16 @@ model Income {
  */
 
 model RecurringRule {
-  id       String    @id @default(cuid()) @db.Char(25)
-  budgetId String    @db.Char(25)
+  id       String    @id @default(cuid()) @db.VarChar(25)
+  budgetId String    @db.VarChar(25)
   kind     EntryKind @default(EXPENSE)
 
   // EXPENSE
-  categoryId String? @db.Char(25)
-  paidById   String? @db.Char(25)
+  categoryId String? @db.VarChar(25)
+  paidById   String? @db.VarChar(25)
 
   // INCOME
-  receivedById String? @db.Char(25)
+  receivedById String? @db.VarChar(25)
 
   itemName String  @db.VarChar(191)
   amount   Decimal @db.Decimal(12, 2)
@@ -337,7 +337,7 @@ model RecurringRule {
   paidBy      User?  @relation("RecurringPaidBy", fields: [paidById], references: [id])
   receivedBy  User?  @relation("RecurringReceivedBy", fields: [receivedById], references: [id])
   createdBy   User   @relation("RecurringCreatedBy", fields: [createdById], references: [id])
-  createdById String @db.Char(25)
+  createdById String @db.VarChar(25)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
