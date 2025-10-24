@@ -49,16 +49,25 @@
 
       &-header {
         width: 100%;
-        @include mixins.flex-space-bet();
+        @include mixins.flex-col-left-ns();
 
         h3 {
           font-weight: 700;
+        }
+        p {
+          span {
+            font-weight: 600;
+          }
         }
       }
       .rfi-double {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 1em;
+
+        @media (max-width: utilities.$layout-breakpoint-small) {
+          grid-template-columns: 1fr;
+        }
       }
       &-field {
         margin-bottom: .4em;
@@ -190,6 +199,101 @@
       }
       &-subtitle {
         color: mixins.hslac(colors.$clr-gray-300, 1);
+      }
+    }
+  }
+}
+.success-panel {
+  padding: 1px; height: 100%;
+  position: relative;
+  background-color: mixins.hslac(colors.$clr-gray-800, 1);
+  border-radius: 1.6em;
+  gap: 1em;
+  overflow: hidden;
+  @include mixins.flex-col();
+
+  &-rim {
+    $size: 15;
+    top: - calc($size / 1.5) + em;
+    right: - calc($size / 2.5) + em;
+    width: $size + em;
+    aspect-ratio: 1 / 1;
+    position: absolute;
+    background-color: mixins.hslac(colors.$clr-white, 1);
+    border-radius: 50%;
+    filter: blur(calc($size / 1.5) + rem);
+    pointer-events: none;
+    opacity: .15;
+  }
+  &-glow {
+    $size: 30;
+    left: - calc($size / 3) + em;
+    bottom: - calc($size / 1.1) + em;
+    width: $size + em;
+    aspect-ratio: 1 / 1.5;
+    position: absolute;
+    background-color: mixins.hslac(colors.$clr-purple-500, 1);
+    border-radius: 50%;
+    filter: blur(calc($size * 1.2) + rem);
+    pointer-events: none;
+    opacity: .15;
+  }
+  &-inner {
+    padding: 2em;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    background-color: mixins.hslac(colors.$clr-gray-900, 1);
+    border-radius: 1.6em;
+    gap: 2em;
+
+    &-header {
+      width: 100%;
+      gap: .5em;
+      @include mixins.flex-col();
+
+      h3 {
+        font-weight: 700;
+      }
+
+      p {
+        span {
+          font-weight: 600;
+        }
+      }
+    }
+    &-content {
+      width: 100%;
+      gap: 1em;
+      @include mixins.flex-col();
+
+      p {
+        max-width: 45ch;
+        text-align: center;
+        color: mixins.hslac(colors.$clr-gray-100, 1);
+        font-weight: 300;
+      }
+      &-mail {
+        padding: 1em 1.8em;
+        color: mixins.hslac(colors.$clr-white, 1);
+        background-color: mixins.hslac(colors.$clr-gray-900, .5);
+        border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+        backdrop-filter: blur(1rem);
+        text-decoration: none;
+        border-radius: 1em;
+        gap: 1em;
+        @include mixins.flex-center();
+
+        img {
+          width: 1em;
+        }
+      }
+      &-receive {
+        color: mixins.hslac(colors.$clr-white, 1);
+        span {
+          color: mixins.hslac(colors.$clr-purple-500, 1);
+          cursor: pointer;
+        }
       }
     }
   }

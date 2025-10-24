@@ -8,7 +8,7 @@ export default function Header() {
             <div className="landing-header-rim"></div>
             <div className="landing-header-glow"></div>
             <div className="landing-header-top">
-                <h1 className="landing-header-top-title">Budget is <span>your personal</span> accountant</h1>
+                <h1 className="landing-header-top-title">Astrae is <span>your personal</span> accountant</h1>
                 <p className="landing-header-top-subtitle">The accountant program for you</p>
             </div>
             <div className="landing-header-center">

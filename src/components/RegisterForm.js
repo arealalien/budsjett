@@ -155,46 +155,27 @@ export default function RegisterForm() {
     // Success state: replace form UI completely so they can’t re-submit
     if (success) {
         return (
-            <section className="register-form success-panel">
-                <div className="register-form-rim"></div>
-                <div className="register-form-glow"></div>
-                <div className="register-form-inner">
-                    <div className="register-form-inner-header">
-                        <h3>Check your email</h3>
-                        <p>We sent a verification link to <strong>{form.email}</strong>. You need to verify before signing in.</p>
+            <form className="success-panel">
+                <div className="success-panel-rim"></div>
+                <div className="success-panel-glow"></div>
+                <div className="success-panel-inner">
+                    <div className="success-panel-inner-header">
+                        <h3>You're ready to go!</h3>
+                        <h3>Check your email to begin.</h3>
                     </div>
 
-                    <div>
-                        <Button
-                            className="ba-deeppink"
-                            onClick={resend}
-                            disabled={!canResend}
-                        >
-                            {resendLoading ? 'Sending...' : secondsLeft > 0 ? `Resend in ${secondsLeft}s` : 'Resend email'}
-                        </Button>
-
-                        <NavLink to="/signin">
-                            <Button className="ba-white reversed">Back to sign in</Button>
-                        </NavLink>
+                    <div className="success-panel-inner-content">
+                        <p>Please check your email '<span>{form.email}</span>' and click '<span>Verify my account</span>' button to complete your signup.</p>
+                        <a className="success-panel-inner-content-mail" href="https://gmail.com" target="_blank" rel="noopener noreferrer">
+                            <img src={process.env.PUBLIC_URL + `google.svg`} alt="" />
+                            <span>Open Gmail</span>
+                        </a>
+                        <p className="success-panel-inner-content-receive">Didn't receive the email? {secondsLeft > 0 ? `Resend code - ${secondsLeft}s` : <span onClick={resend}>Resend email</span>}</p>
                     </div>
 
                     {resendError && <p style={{ color: 'crimson', marginTop: '.75rem' }}>{resendError}</p>}
-
-                    {verifyLink && (
-                        <>
-                            <strong>Dev verify link: </strong>
-                            <a href={verifyLink}>{verifyLink}</a>
-                            <button
-                                type="button"
-                                style={{ marginLeft: '.5rem' }}
-                                onClick={() => navigator.clipboard.writeText(verifyLink)}
-                            >
-                                Copy
-                            </button>
-                        </>
-                    )}
                 </div>
-            </section>
+            </form>
         );
     }
 
