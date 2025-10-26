@@ -1,229 +1,106 @@
-@use "../abstracts/colors";
-@use "../abstracts/mixins";
-@use "../abstracts/utilities";
+@use "../abstracts/colors" as c;
+@use "../abstracts/mixins" as m;
+@use "../abstracts/utilities" as u;
 
 .landing {
   &-header {
     width: 100%; height: 100vh;
     position: relative;
-    background-color: mixins.hslac(colors.$clr-gray-900, 1);
+    background-color: m.hslac(c.$clr-black, 1);
     gap: 2em;
     overflow: hidden;
-    @include mixins.flex-col();
+    @include m.flex-col();
 
-    &-rim {
-      $size: 25;
-      top: - calc($size / 1.5) + em;
-      left: 50%;
-      width: $size + em;
-      aspect-ratio: 1 / 1;
+    &-transition {
+      bottom: 0;
+      width: 100%; height: 2em;
       position: absolute;
-      background-color: mixins.hslac(colors.$clr-white, 1);
+      background-color: m.hslac(c.$clr-black, 1);
+      box-shadow: 0 0 100px 80px m.hslac(c.$clr-black, 1);
+      z-index: 15;
+    }
+    &-rim {
+      top: - calc(50vw / 3);
+      left: 30%;
+      width:  55vw;
+      aspect-ratio: 2 / 1;
+      position: absolute;
+      background-color: m.hslac(c.$clr-white, 1);
       border-radius: 50%;
-      filter: blur(calc($size / 1.5) + rem);
+      filter: blur(40rem);
       transform: translateX(-50%);
       pointer-events: none;
       opacity: .15;
     }
     &-glow {
-      $size: 130;
-      left: 50%;
-      bottom: - calc($size / 1.5) + em;
-      width: $size + em;
       aspect-ratio: 1 / 1;
       position: absolute;
-      background-color: mixins.hslac(colors.$clr-purple-500, 1);
       border-radius: 50%;
-      filter: blur(calc($size * 1.2) + rem);
-      transform: translateX(-50%);
       pointer-events: none;
-      opacity: .15;
+    }
+    .header-glow-primary {
+      left: 50%; bottom: 10%;
+      width: 42vw;
+      background-color: m.hslac(c.$clr-purple-500, 1);
+      filter: blur(40rem);
+      opacity: .3;
+      z-index: 3;
+    }
+    .header-glow-secondary {
+      left: 38%; bottom: 30%;
+      width: 40vw;
+      background-color: m.hslac(c.$clr-skyblue-400, 1);
+      filter: blur(40rem);
+      opacity: .2;
+      z-index: 2;
+    }
+    .header-glow-tertiary {
+      left: 35%; bottom: 0;
+      width: 38vw;
+      background-color: m.hslac(c.$clr-orange-400, 1);
+      filter: blur(40rem);
+      opacity: .25;
+      z-index: 1;
+    }
+    &-grid {
+      width: 100%; height: 100%;
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      &-box {
+        width: 100%; height: 100%;
+        border: 1px solid m.hslac(c.$clr-white, .04);
+      }
     }
     &-top {
-      max-width: 70vw;
+      margin-bottom: 14em;
       gap: 1em;
-      @include mixins.flex-col();
+      z-index: 6;
+      @include m.flex-left();
 
       &-title {
-        font-size: utilities.$heading-xlarge;
-        font-weight: 800;
-        text-align: center;
+        position: relative;
+        font-size: u.$heading-xlarge;
+        font-family: u.$font-title;
+        font-weight: 600;
+        text-align: left;
         line-height: 1;
-        span {
-          background: -webkit-linear-gradient(185deg, mixins.hslac(colors.$clr-purple-400, 1), mixins.hslac(colors.$clr-purple-500, 1));
+        z-index: 10;
+        .header-fade {
+          margin-left: 1em;
+          background: -webkit-linear-gradient(45deg, m.hslac(c.$clr-purple-300, 1), m.hslac(c.$clr-purple-600, 1));
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
         }
-      }
-      &-subtitle {
-        color: mixins.hslac(colors.$clr-gray-300, 1);
-        font-size: utilities.$paragraph-large;
-        font-weight: 400;
+        .header-indent {
+          margin-left: .5em;
+        }
       }
     }
     &-center {
       gap: 1em;
-      @include mixins.flex-center();
-    }
-  }
-  &-section {
-    padding: 2em;
-    width: 100%;
-    gap: 2em;
-    @include mixins.flex-col();
-
-    &-header {
-      width: 100%;
-      &-title {
-        font-weight: 700;
-      }
-    }
-    &-content {
-      width: 100%;
-      &-pricing {
-        width: 100%;
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        place-items: flex-start;
-        gap: 2em;
-        &-card {
-          padding: 1px;
-          width: 100%; height: 100%;
-          position: relative;
-          background-color: mixins.hslac(colors.$clr-gray-800, 1);
-          border-radius: 1.6em;
-          gap: 1em;
-          overflow: hidden;
-          @include mixins.flex-col();
-
-          &-rim {
-            $size: 14;
-            top: - calc($size / 1.5) + em;
-            left: - calc($size / 2.5) + em;
-            width: $size + em;
-            aspect-ratio: 1 / 1;
-            position: absolute;
-            background-color: mixins.hslac(colors.$clr-white, 1);
-            border-radius: 50%;
-            filter: blur(calc($size / 1.5) + rem);
-            pointer-events: none;
-            opacity: .2;
-          }
-          &-glow {
-            $size: 40;
-            left: 50%;
-            top: - calc($size / 1.9) + em;
-            width: $size + em;
-            aspect-ratio: 1 / 1;
-            position: absolute;
-            background-color: mixins.hslac(colors.$clr-lime-500, 1);
-            border-radius: 50%;
-            filter: blur(calc($size * 1) + rem);
-            transform: translateX(-50%);
-            pointer-events: none;
-            opacity: .2;
-          }
-          &-glow.tier-one {
-            background: radial-gradient(circle, mixins.hslac(colors.$clr-purple-200, 1) 0, mixins.hslac(colors.$clr-purple-500, 1) 30%);
-          }
-          &-glow.tier-two {
-            background: radial-gradient(circle, mixins.hslac(colors.$clr-skyblue-200, 1) 0, mixins.hslac(colors.$clr-skyblue-400, 1) 30%);
-          }
-          &-glow.tier-three {
-            background: radial-gradient(circle, mixins.hslac(colors.$clr-deeppink-200, 1) 0, mixins.hslac(colors.$clr-deeppink-500, 1) 30%);
-          }
-          &-inner {
-            padding: 2em;
-            width: 100%; height: 100%;
-            background-color: mixins.hslac(colors.$clr-gray-900, 1);
-            border-radius: 1.6em;
-            gap: 4em;
-            @include mixins.flex-col-space-bet();
-
-            &-top {
-              width: 100%;
-              gap: .5em;
-              @include mixins.flex-col-left-ns();
-
-              h3 {
-                font-size: utilities.$heading-medium;
-                font-weight: 700;
-              }
-              ul {
-                list-style-type: none;
-                gap: .4em;
-                @include mixins.flex-col-left-ns();
-
-                li {
-                  color: mixins.hslac(colors.$clr-gray-300, 1);
-                }
-              }
-              &-line {
-                width: 100%;
-                @include mixins.flex-space-bet();
-
-                &-popular {
-                  padding: .3em .8em;
-                  color: mixins.hslac(colors.$clr-purple-200, 1);
-                  background-color: mixins.hslac(colors.$clr-purple-700, .5);
-                  border: 1px solid mixins.hslac(colors.$clr-purple-700, 1);
-                  backdrop-filter: blur(1.2rem);
-                  border-radius: 5em;
-                }
-                .tier-one {
-                  padding: .3em .8em;
-                  color: mixins.hslac(colors.$clr-purple-200, 1);
-                  background-color: mixins.hslac(colors.$clr-purple-500, .15);
-                  border: 1px solid mixins.hslac(colors.$clr-purple-500, 1);
-                  border-radius: 5em;
-                }
-                .tier-two {
-                  padding: .4em .8em;
-                  color: mixins.hslac(colors.$clr-skyblue-200, 1);
-                  background-color: mixins.hslac(colors.$clr-skyblue-500, .15);
-                  border: 1px solid mixins.hslac(colors.$clr-skyblue-500, 1);
-                  border-radius: 5em;
-                }
-                .tier-three {
-                  padding: .4em .8em;
-                  color: mixins.hslac(colors.$clr-deeppink-200, 1);
-                  background-color: mixins.hslac(colors.$clr-deeppink-500, .15);
-                  border: 1px solid mixins.hslac(colors.$clr-deeppink-500, 1);
-                  border-radius: 5em;
-                }
-              }
-            }
-            &-bottom {
-              width: 100%;
-              gap: 1em;
-              @include mixins.flex-col-left-ns();
-
-              p {
-                font-size: utilities.$heading-medium;
-                font-weight: 700;
-                gap: .2em;
-                @include mixins.flex-left-end();
-
-                span.tier-one {
-                  color: mixins.hslac(colors.$clr-purple-500, 1);
-                }
-                span.tier-two {
-                  color: mixins.hslac(colors.$clr-skyblue-400, 1);
-                }
-                span.tier-three {
-                  color: mixins.hslac(colors.$clr-deeppink-500, 1);
-                }
-                sub {
-                  margin-bottom: .25em;
-                  color: mixins.hslac(colors.$clr-gray-500, 1);
-                  font-size: utilities.$paragraph-medium;
-                  font-weight: 400;
-                }
-              }
-            }
-          }
-        }
-      }
+      @include m.flex-center();
     }
   }
 }

@@ -1,13 +1,20 @@
 import React from 'react';
 import { NavLink } from "react-router-dom";
+import { motion } from 'framer-motion';
 import Button from "./Button";
+import WordsPullUp from "./utils/WordsPullUp";
 
 export default function Navbar({ loading, user, onboarding = false, handleLogout }) {
 
     return (
         !loading && !user && (
             <nav className="navbar">
-                <div className="navbar-inner view-width">
+                <motion.div
+                    className="navbar-inner view-width-home"
+                    initial={{ y: '-10em' }}
+                    animate={{ y: 0 }}
+                    transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                >
                     <div className="navbar-inner-left">
                         <NavLink
                             to="/"
@@ -40,46 +47,94 @@ export default function Navbar({ loading, user, onboarding = false, handleLogout
                         </NavLink>
                     </div>
                     <div className="navbar-inner-center">
-
+                        <NavLink
+                            to="/signin"
+                            end
+                            className={({isActive, isPending, isTransitioning}) =>
+                                [
+                                    "",
+                                    isPending ? "pending" : "",
+                                    isActive ? "active" : "",
+                                    isTransitioning ? "transitioning" : "",
+                                ].join(" ")
+                            }
+                        >
+                            <WordsPullUp text="Product" />
+                        </NavLink>
+                        <NavLink
+                            to="/signin"
+                            end
+                            className={({isActive, isPending, isTransitioning}) =>
+                                [
+                                    "",
+                                    isPending ? "pending" : "",
+                                    isActive ? "active" : "",
+                                    isTransitioning ? "transitioning" : "",
+                                ].join(" ")
+                            }
+                        >
+                            <WordsPullUp text="Solutions" delay={0.1} />
+                        </NavLink>
+                        <NavLink
+                            to="/signin"
+                            end
+                            className={({isActive, isPending, isTransitioning}) =>
+                                [
+                                    "",
+                                    isPending ? "pending" : "",
+                                    isActive ? "active" : "",
+                                    isTransitioning ? "transitioning" : "",
+                                ].join(" ")
+                            }
+                        >
+                            <WordsPullUp text="Pricing" delay={0.15} />
+                        </NavLink>
+                        <NavLink
+                            to="/signin"
+                            end
+                            className={({isActive, isPending, isTransitioning}) =>
+                                [
+                                    "",
+                                    isPending ? "pending" : "",
+                                    isActive ? "active" : "",
+                                    isTransitioning ? "transitioning" : "",
+                                ].join(" ")
+                            }
+                        >
+                            <WordsPullUp text="Development" delay={0.2} />
+                        </NavLink>
                     </div>
                     <div className="navbar-inner-right">
-                        {!user && (
-                            <>
-                                <NavLink
-                                    to="/signin"
-                                    end
-                                    className={({isActive, isPending, isTransitioning}) =>
-                                        [
-                                            "",
-                                            isPending ? "pending" : "",
-                                            isActive ? "active" : "",
-                                            isTransitioning ? "transitioning" : "",
-                                        ].join(" ")
-                                    }
-                                >
-                                    <Button className="ba-white" children="Sign in" type="button" />
-                                </NavLink>
-                                <NavLink
-                                    to="/register"
-                                    end
-                                    className={({isActive, isPending, isTransitioning}) =>
-                                        [
-                                            "",
-                                            isPending ? "pending" : "",
-                                            isActive ? "active" : "",
-                                            isTransitioning ? "transitioning" : "",
-                                        ].join(" ")
-                                    }
-                                >
-                                    <Button className="ba-purple" children="Register" type="button" />
-                                </NavLink>
-                            </>
-                        )}
-                        {!loading && user && (
-                            <Button className="ba-white" children="Sign out" type="submit" onClick={handleLogout} />
-                        )}
+                        <NavLink
+                            to="/signin"
+                            end
+                            className={({isActive, isPending, isTransitioning}) =>
+                                [
+                                    "",
+                                    isPending ? "pending" : "",
+                                    isActive ? "active" : "",
+                                    isTransitioning ? "transitioning" : "",
+                                ].join(" ")
+                            }
+                        >
+                            Register
+                        </NavLink>
+                        <NavLink
+                            to="/register"
+                            end
+                            className={({isActive, isPending, isTransitioning}) =>
+                                [
+                                    "",
+                                    isPending ? "pending" : "",
+                                    isActive ? "active" : "",
+                                    isTransitioning ? "transitioning" : "",
+                                ].join(" ")
+                            }
+                        >
+                            <Button className="ba-glow" children="Sign in" type="button" />
+                        </NavLink>
                     </div>
-                </div>
+                </motion.div>
             </nav>
         )
     );

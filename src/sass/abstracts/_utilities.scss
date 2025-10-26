@@ -1,5 +1,5 @@
 /* Sizes */
-$heading-xlarge: clamp(4.2rem, 3.2399999999999998rem + 3.8vw, 5.6rem);
+$heading-xlarge: clamp(2.2rem, 3.2399999999999998rem + 3.8vw, 5.6rem);
 $heading-large: clamp(2.5rem, 2.2399999999999998rem + 2.8vw, 4.2rem);
 $heading-medium: clamp(1.4rem, 1.68rem + 1.6vw, 2rem);
 $heading-small: clamp(1.2rem, 1.578rem + 0.59vw, 1.5rem);
@@ -21,10 +21,10 @@ $transition-smooth: .175, .285, .32;
 $transition-menu: .75, .185, .144032;
 $view-width-padding: 3rem;
 $view-width: calc(100% - $view-width-padding);
-$max-view-width: 1496px;
+$max-view-width: 1440px;
 /* Fonts */
 $font-main: "Sora", system-ui, sans-serif;
-$font-title: "Playfair Display", serif;
+$font-title: "Recoleta", serif;
 /* Breakpoints */
 $layout-breakpoint-large: 1920px;
 $layout-breakpoint-medium: 1440px;

@@ -21,7 +21,7 @@ export default function Home() {
             )}
             {!loading && !user && (
                 <>
-                    <DocumentTitle title="Archive | Your Personal Accountant"/>
+                    <DocumentTitle title="Astrae | Your Personal Accountant"/>
                     <main className="landing">
                         <Header/>
                         <Pricing/>

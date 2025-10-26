@@ -1,22 +1,26 @@
-@use "../abstracts/colors";
+@use "../abstracts/colors" as c;
 @use "../abstracts/font-face";
-@use "../abstracts/mixins";
-@use "../abstracts/utilities";
+@use "../abstracts/mixins" as m;
+@use "../abstracts/utilities" as u;
 @use "sass:math";
 
 body {
   width: 100%;
-  color: mixins.hslac(colors.$clr-white, 1);
-  font-family: utilities.$font-main;
+  color: m.hslac(c.$clr-white, 1);
+  font-family: u.$font-main;
   font-size: .85rem;
-  background: mixins.hslac(colors.$clr-black, 1);
-  @include mixins.lightMode {
-    color: mixins.hslac(colors.$clr-black, 1);
-    background-color: mixins.hslac(colors.$clr-white, 1);
+  background: m.hslac(c.$clr-black, 1);
+  @include m.lightMode {
+    color: m.hslac(c.$clr-black, 1);
+    background-color: m.hslac(c.$clr-white, 1);
   }
 }
 .view-width {
-  width: utilities.$view-width !important;
+  width: u.$view-width !important;
+}
+.view-width-home {
+  max-width: u.$max-view-width;
+  width: u.$view-width !important;
 }
 
 em {
@@ -24,18 +28,17 @@ em {
 }
 
 main {
-  margin-top: utilities.$navbar-height;
   position: relative;
   gap: 1em;
-  @include mixins.flex-col();
+  @include m.flex-col();
 }
 
 .app-container.user {
   > main {
     --sb-margin: 6px;
     margin-top: 0;
-    margin-left: calc(utilities.$sidebar-width + (var(--sb-margin) * 2));
-    width: calc(100% - (utilities.$sidebar-width + (var(--sb-margin) * 2)));
+    margin-left: calc(u.$sidebar-width + (var(--sb-margin) * 2));
+    width: calc(100% - (u.$sidebar-width + (var(--sb-margin) * 2)));
   }
 }
 
@@ -48,15 +51,15 @@ main {
   --font-size: .9rem;
   font-size: var(--font-size);
   padding: 1em 1.5em;
-  color: mixins.hslac(colors.$clr-white, 1);
-  background-color: mixins.hslac(colors.$clr-primary-500, 1);
+  color: m.hslac(c.$clr-white, 1);
+  background-color: m.hslac(c.$clr-primary-500, 1);
   border: none;
   text-decoration: none;
   border-radius: 5em;
   gap: .5em;
   cursor: pointer;
-  transition: opacity .15s cubic-bezier(utilities.$transition-smooth, 1);
-  @include mixins.flex-center();
+  transition: opacity .15s cubic-bezier(u.$transition-smooth, 1);
+  @include m.flex-center();
 
   &:disabled {
     opacity: .5;
@@ -69,7 +72,7 @@ main {
     width: 1.3em; height: 1.3em;
     path {
       stroke-width: .9;
-      stroke: mixins.hslac(colors.$clr-white, 1);
+      stroke: m.hslac(c.$clr-white, 1);
     }
   }
 }
@@ -77,15 +80,15 @@ main {
   --font-size: .9rem;
   font-size: var(--font-size);
   padding: 1em 1.5em;
-  color: mixins.hslac(colors.$clr-black, 1);
-  background-color: mixins.hslac(colors.$clr-white, 1);
+  color: m.hslac(c.$clr-black, 1);
+  background-color: m.hslac(c.$clr-white, 1);
   border: none;
   text-decoration: none;
   border-radius: 5em;
   gap: .5em;
   cursor: pointer;
-  transition: opacity .15s cubic-bezier(utilities.$transition-smooth, 1);
-  @include mixins.flex-center();
+  transition: opacity .15s cubic-bezier(u.$transition-smooth, 1);
+  @include m.flex-center();
 
   &:disabled {
     opacity: .5;
@@ -98,7 +101,7 @@ main {
     width: 1.3em; height: 1.3em;
     path {
       stroke-width: .9;
-      stroke: mixins.hslac(colors.$clr-black, 1);
+      stroke: m.hslac(c.$clr-black, 1);
     }
   }
 }
@@ -106,16 +109,16 @@ main {
   --font-size: .9rem;
   font-size: var(--font-size);
   padding: 1em 1.5em;
-  color: mixins.hslac(colors.$clr-white, 1);
-  background-color: mixins.hslac(colors.$clr-gray-800, .6);
+  color: m.hslac(c.$clr-white, 1);
+  background-color: m.hslac(c.$clr-gray-800, .6);
   border: none;
   backdrop-filter: blur(3rem);
   text-decoration: none;
   border-radius: 5em;
   gap: .5em;
   cursor: pointer;
-  transition: opacity .15s cubic-bezier(utilities.$transition-smooth, 1);
-  @include mixins.flex-center();
+  transition: opacity .15s cubic-bezier(u.$transition-smooth, 1);
+  @include m.flex-center();
 
   &:disabled {
     opacity: .5;
@@ -128,58 +131,67 @@ main {
     width: 1.3em; height: 1.3em;
     path {
       stroke-width: .9;
-      stroke: mixins.hslac(colors.$clr-white, 1);
+      stroke: m.hslac(c.$clr-white, 1);
     }
   }
 }
 
 .ba-primary {
-  background: mixins.hslac(colors.$clr-skyblue-500, 1);
-  color: mixins.hslac(colors.$clr-white, 1);
+  background: m.hslac(c.$clr-skyblue-500, 1);
+  color: m.hslac(c.$clr-white, 1);
   div {
-    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
   }
 }
 .ba-white {
-  background: mixins.hslac(colors.$clr-white, 1);
-  color: mixins.hslac(colors.$clr-black, 1);
+  background: m.hslac(c.$clr-white, 1);
+  color: m.hslac(c.$clr-black, 1);
   div {
-    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-black, 1);
+    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-black, 1);
   }
 }
 .ba-gray {
-  background: mixins.hslac(colors.$clr-gray-900, 1);
-  color: mixins.hslac(colors.$clr-white, 1);
+  background: m.hslac(c.$clr-gray-900, 1);
+  color: m.hslac(c.$clr-white, 1);
   div {
-    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
   }
 }
 .ba-purple {
-  background: mixins.hslac(colors.$clr-purple-500, 1);
-  color: mixins.hslac(colors.$clr-white, 1);
+  background: m.hslac(c.$clr-purple-500, 1);
+  color: m.hslac(c.$clr-white, 1);
   div {
-    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
   }
 }
 .ba-yellow {
-  background: mixins.hslac(colors.$clr-yellow-500, 1);
-  color: mixins.hslac(colors.$clr-white, 1);
+  background: m.hslac(c.$clr-yellow-500, 1);
+  color: m.hslac(c.$clr-white, 1);
   div {
-    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
   }
 }
 .ba-deeppink {
-  background: mixins.hslac(colors.$clr-deeppink-500, 1);
-  color: mixins.hslac(colors.$clr-white, 1);
+  background: m.hslac(c.$clr-deeppink-500, 1);
+  color: m.hslac(c.$clr-white, 1);
   div {
-    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
   }
 }
 .ba-green {
-  background: mixins.hslac(colors.$clr-lime-500, 1);
-  color: mixins.hslac(colors.$clr-white, 1);
+  background: m.hslac(c.$clr-lime-500, 1);
+  color: m.hslac(c.$clr-white, 1);
   div {
-    text-shadow: 0 var(--font-shadow) 0 mixins.hslac(colors.$clr-white, 1);
+    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
+  }
+}
+.ba-glow {
+  background: m.hslac(c.$clr-white, .1);
+  color: m.hslac(c.$clr-white, 1);
+  backdrop-filter: blur(2rem);
+  box-shadow: 0 0 4px 0 m.hslac(c.$clr-white, .2) inset;
+  div {
+    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
   }
 }
 .button-animated {
@@ -198,7 +210,7 @@ main {
   border: none;
   cursor: pointer;
   transform: translateY(var(--y)) translateZ(0);
-  transition: transform var(--duration) cubic-bezier(utilities.$transition-smooth, 1), box-shadow var(--duration) cubic-bezier(utilities.$transition-smooth, 1), opacity .15s cubic-bezier(utilities.$transition-smooth, 1);
+  transition: transform var(--duration) cubic-bezier(u.$transition-smooth, 1), box-shadow var(--duration) cubic-bezier(u.$transition-smooth, 1), opacity .15s cubic-bezier(u.$transition-smooth, 1);
   &:disabled {
     opacity: .5;
     pointer-events: none;
@@ -235,263 +247,67 @@ main {
   }
 }
 
-
-$shiny-cta-bg: mixins.hslac(colors.$clr-purple-900, 1);
-$shiny-cta-bg-subtle: mixins.hslac(colors.$clr-purple-800, 1);
-$shiny-cta-fg: mixins.hslac(colors.$clr-white, 1);
-$shiny-cta-highlight: mixins.hslac(colors.$clr-purple-700, 1);
-$shiny-cta-highlight-subtle: mixins.hslac(colors.$clr-purple-200, 1);
-
-:root {
-  --shiny-cta-bg: #{$shiny-cta-bg};
-  --shiny-cta-bg-subtle: #{$shiny-cta-bg-subtle};
-  --shiny-cta-fg: #{$shiny-cta-fg};
-  --shiny-cta-highlight: #{$shiny-cta-highlight};
-  --shiny-cta-highlight-subtle: #{$shiny-cta-highlight-subtle};
-}
-
-@property --gradient-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@property --gradient-angle-offset {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@property --gradient-percent {
-  syntax: "<percentage>";
-  initial-value: 5%;
-  inherits: false;
-}
-
-@property --gradient-shine {
-  syntax: "<color>";
-  initial-value: white;
-  inherits: false;
-}
-
-.shiny-cta {
-  --animation: gradient-angle linear infinite;
-  --duration: 3s;
-  --shadow-size: 2px;
-  isolation: isolate;
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-  outline-offset: 4px;
-  padding: 1.25rem 2.5rem;
-  font-family: inherit;
-  font-size: utilities.$paragraph;
-  line-height: 1.2;
-  border: 1px solid transparent;
-  border-radius: 1.2em;
-  color: var(--shiny-cta-fg);
-  background: linear-gradient(var(--shiny-cta-bg), var(--shiny-cta-bg))
-  padding-box,
-  conic-gradient(
-          from calc(var(--gradient-angle) - var(--gradient-angle-offset)),
-          transparent,
-          var(--shiny-cta-highlight) var(--gradient-percent),
-          var(--gradient-shine) calc(var(--gradient-percent) * 2),
-          var(--shiny-cta-highlight) calc(var(--gradient-percent) * 3),
-          transparent calc(var(--gradient-percent) * 4)
-  )
-  border-box;
-  box-shadow: inset 0 0 0 1px var(--shiny-cta-bg-subtle);
-
-  &::before,
-  &::after,
-  span::before {
-    content: "";
-    pointer-events: none;
-    position: absolute;
-    inset-inline-start: 50%;
-    inset-block-start: 50%;
-    translate: -50% -50%;
-    z-index: -1;
-  }
-
-  &:active {
-    translate: 0 1px;
-  }
-}
-
-.shiny-cta::before {
-  --size: calc(100% - var(--shadow-size) * 3);
-  --position: 2px;
-  --space: calc(var(--position) * 2);
-  width: var(--size);
-  height: var(--size);
-  background: radial-gradient(
-          circle at var(--position) var(--position),
-          white calc(var(--position) / 4),
-          transparent 0
-  )
-  padding-box;
-  background-size: var(--space) var(--space);
-  background-repeat: space;
-  mask-image: conic-gradient(
-          from calc(var(--gradient-angle) + 45deg),
-          black,
-          transparent 10% 90%,
-          black
-  );
-  border-radius: inherit;
-  opacity: 0.4;
-  z-index: -1;
-}
-
-.shiny-cta::after {
-  --animation: shimmer linear infinite;
-  width: 100%;
-  aspect-ratio: 1;
-  background: linear-gradient(
-          -50deg,
-          transparent,
-          var(--shiny-cta-highlight),
-          transparent
-  );
-  mask-image: radial-gradient(circle at bottom, transparent 40%, black);
-  opacity: 0.6;
-}
-
-.shiny-cta span {
-  z-index: 1;
-
-  &::before {
-    --size: calc(100% + 1rem);
-    width: var(--size);
-    height: var(--size);
-    box-shadow: inset 0 -1ex 2rem 4px var(--shiny-cta-highlight);
-    opacity: 0;
-  }
-}
-
-/* Animate */
-.shiny-cta {
-  --transition: 800ms cubic-bezier(0.25, 1, 0.5, 1);
-  transition: var(--transition);
-  transition-property: --gradient-angle-offset, --gradient-percent,
-  --gradient-shine;
-
-  &,
-  &::before,
-  &::after {
-    animation: var(--animation) var(--duration),
-    var(--animation) calc(var(--duration) / 0.4) reverse paused;
-    animation-composition: add;
-  }
-
-  span::before {
-    transition: opacity var(--transition);
-    animation: calc(var(--duration) * 1.5) breathe linear infinite;
-  }
-}
-
-.shiny-cta:is(:hover, :focus-visible) {
-  --gradient-percent: 20%;
-  --gradient-angle-offset: 95deg;
-  --gradient-shine: var(--shiny-cta-highlight-subtle);
-
-  &,
-  &::before,
-  &::after {
-    animation-play-state: running;
-  }
-
-  span::before {
-    opacity: 1;
-  }
-}
-
-@keyframes gradient-angle {
-  to {
-    --gradient-angle: 360deg;
-  }
-}
-
-@keyframes shimmer {
-  to {
-    rotate: 360deg;
-  }
-}
-
-@keyframes breathe {
-  from,
-  to {
-    scale: 1;
-  }
-  50% {
-    scale: 1.2;
-  }
-}
-
-
 @supports (-webkit-appearance: none) or (-moz-appearance: none) {
   input[type='checkbox'].check-purple, input[type='radio'].check-purple {
-    --active: #{mixins.hslac(colors.$clr-purple-500, 1)};
-    --focus: 2px #{mixins.hslac(colors.$clr-purple-500, 0.3)};
-    --border-hover: #{mixins.hslac(colors.$clr-purple-500, 1)};
+    --active: #{m.hslac(c.$clr-purple-500, 1)};
+    --focus: 2px #{m.hslac(c.$clr-purple-500, 0.3)};
+    --border-hover: #{m.hslac(c.$clr-purple-500, 1)};
   }
   input[type='checkbox'].check-yellow, input[type='radio'].check-yellow {
-    --active: #{mixins.hslac(colors.$clr-yellow-500, 1)};
-    --focus: 2px #{mixins.hslac(colors.$clr-yellow-500, 0.3)};
-    --border-hover: #{mixins.hslac(colors.$clr-yellow-500, 1)};
+    --active: #{m.hslac(c.$clr-yellow-500, 1)};
+    --focus: 2px #{m.hslac(c.$clr-yellow-500, 0.3)};
+    --border-hover: #{m.hslac(c.$clr-yellow-500, 1)};
   }
   input[type='checkbox'].check-deeppink, input[type='radio'].check-deeppink {
-    --active: #{mixins.hslac(colors.$clr-deeppink-500, 1)};
-    --focus: 2px #{mixins.hslac(colors.$clr-deeppink-500, 0.3)};
-    --border-hover: #{mixins.hslac(colors.$clr-deeppink-500, 1)};
+    --active: #{m.hslac(c.$clr-deeppink-500, 1)};
+    --focus: 2px #{m.hslac(c.$clr-deeppink-500, 0.3)};
+    --border-hover: #{m.hslac(c.$clr-deeppink-500, 1)};
   }
   input[type='checkbox'].check-FURNITURE, input[type='radio'].check-FURNITURE {
-    --active: #{colors.$clr-furniture};
-    --focus: 2px #{rgba(colors.$clr-furniture, 0.3)};
-    --border-hover: #{colors.$clr-furniture};
+    --active: #{c.$clr-furniture};
+    --focus: 2px #{rgba(c.$clr-furniture, 0.3)};
+    --border-hover: #{c.$clr-furniture};
   }
   input[type='checkbox'].check-GROCERIES, input[type='radio'].check-GROCERIES {
-    --active: #{colors.$clr-groceries};
-    --focus: 2px #{rgba(colors.$clr-groceries, 0.3)};
-    --border-hover: #{colors.$clr-groceries};
+    --active: #{c.$clr-groceries};
+    --focus: 2px #{rgba(c.$clr-groceries, 0.3)};
+    --border-hover: #{c.$clr-groceries};
   }
   input[type='checkbox'].check-TAKEAWAY, input[type='radio'].check-TAKEAWAY {
-    --active: #{colors.$clr-takeaway};
-    --focus: 2px #{rgba(colors.$clr-takeaway, 0.3)};
-    --border-hover: #{colors.$clr-takeaway};
+    --active: #{c.$clr-takeaway};
+    --focus: 2px #{rgba(c.$clr-takeaway, 0.3)};
+    --border-hover: #{c.$clr-takeaway};
   }
   input[type='checkbox'].check-RESTAURANT, input[type='radio'].check-RESTAURANT {
-    --active: #{colors.$clr-restaurant};
-    --focus: 2px #{rgba(colors.$clr-restaurant, 0.3)};
-    --border-hover: #{colors.$clr-restaurant};
+    --active: #{c.$clr-restaurant};
+    --focus: 2px #{rgba(c.$clr-restaurant, 0.3)};
+    --border-hover: #{c.$clr-restaurant};
   }
   input[type='checkbox'].check-HOUSEHOLD, input[type='radio'].check-HOUSEHOLD {
-    --active: #{colors.$clr-household};
-    --focus: 2px #{rgba(colors.$clr-household, 0.3)};
-    --border-hover: #{colors.$clr-household};
+    --active: #{c.$clr-household};
+    --focus: 2px #{rgba(c.$clr-household, 0.3)};
+    --border-hover: #{c.$clr-household};
   }
   input[type='checkbox'].check-SUBSCRIPTIONS, input[type='radio'].check-SUBSCRIPTIONS {
-    --active: #{colors.$clr-subscriptions};
-    --focus: 2px #{rgba(colors.$clr-subscriptions, 0.3)};
-    --border-hover: #{colors.$clr-subscriptions};
+    --active: #{c.$clr-subscriptions};
+    --focus: 2px #{rgba(c.$clr-subscriptions, 0.3)};
+    --border-hover: #{c.$clr-subscriptions};
   }
   input[type='checkbox'].check-OTHER, input[type='radio'].check-OTHER {
-    --active: #{colors.$clr-other};
-    --focus: 2px #{rgba(colors.$clr-other, 0.3)};
-    --border-hover: #{colors.$clr-other};
+    --active: #{c.$clr-other};
+    --focus: 2px #{rgba(c.$clr-other, 0.3)};
+    --border-hover: #{c.$clr-other};
   }
   input[type='checkbox'],
   input[type='radio'] {
-    --active: #{mixins.hslac(colors.$clr-skyblue-500, 1)};
-    --active-inner: #{mixins.hslac(colors.$clr-white, 1)};
-    --focus: 2px #{mixins.hslac(colors.$clr-skyblue-500, 0.3)};
-    --border: #{mixins.hslac(colors.$clr-gray-700, 1)};
-    --border-hover: #{mixins.hslac(colors.$clr-skyblue-500, 1)};
-    --background: #{mixins.hslac(colors.$clr-black, .5)};
-    --disabled: #{mixins.hslac(colors.$clr-gray-900, 1)};
-    --disabled-inner: #{mixins.hslac(colors.$clr-gray-800, 1)};
+    --active: #{m.hslac(c.$clr-skyblue-500, 1)};
+    --active-inner: #{m.hslac(c.$clr-white, 1)};
+    --focus: 2px #{m.hslac(c.$clr-skyblue-500, 0.3)};
+    --border: #{m.hslac(c.$clr-gray-700, 1)};
+    --border-hover: #{m.hslac(c.$clr-skyblue-500, 1)};
+    --background: #{m.hslac(c.$clr-black, .5)};
+    --disabled: #{m.hslac(c.$clr-gray-900, 1)};
+    --disabled-inner: #{m.hslac(c.$clr-gray-800, 1)};
     -webkit-appearance: none;
     -moz-appearance: none;
     height: 21px;
@@ -510,7 +326,7 @@ $shiny-cta-highlight-subtle: mixins.hslac(colors.$clr-purple-200, 1);
       left: 0;
       top: 0;
       position: absolute;
-      transition: transform var(--d-t, .3s) cubic-bezier(utilities.$transition-smooth, 1),
+      transition: transform var(--d-t, .3s) cubic-bezier(u.$transition-smooth, 1),
       opacity var(--d-o, .2s);
     }
     &:checked {
@@ -622,12 +438,12 @@ label {
 }
 
 .error {
-  color: mixins.hslac(colors.$clr-red-500, 1);
+  color: m.hslac(c.$clr-red-500, 1);
 }
 
 .loader {
-  width: 100%; height: calc(100vh - utilities.$navbar-height);
-  @include mixins.flex-center();
+  width: 100%; height: calc(100vh - u.$navbar-height);
+  @include m.flex-center();
 }
 .spinner svg {
   animation: loading-rotate 2.2s linear infinite;
@@ -638,7 +454,7 @@ label {
   stroke-dasharray: 90, 150;
   stroke-dashoffset: 0;
   stroke-width: 3;
-  stroke: mixins.hslac(colors.$clr-white, 1);
+  stroke: m.hslac(c.$clr-white, 1);
   stroke-linecap: round;
   animation: loading-dash 1.6s ease-in-out infinite;
 }
@@ -663,21 +479,21 @@ label {
 }
 
 ::selection {
-  color: mixins.hslac(colors.$clr-black, 1);
-  background: mixins.hslac(colors.$clr-white, 1);
+  color: m.hslac(c.$clr-black, 1);
+  background: m.hslac(c.$clr-white, 1);
 }
 
 ::-webkit-scrollbar-track {
-  background-color: mixins.hslac(colors.$clr-black, 1);
+  background-color: m.hslac(c.$clr-black, 1);
 }
 ::-webkit-scrollbar {
   width: 8px;
-  background-color: mixins.hslac(colors.$clr-black, 1);
+  background-color: m.hslac(c.$clr-black, 1);
 }
 ::-webkit-scrollbar-thumb {
-  background-color: mixins.hslac(colors.$clr-white, .7);
+  background-color: m.hslac(c.$clr-white, .7);
   border-radius: 1em;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: mixins.hslac(colors.$clr-white, .9);
+  background-color: m.hslac(c.$clr-white, .9);
 }
