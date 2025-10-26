@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { api } from '../lib/api';
 import Button from './Button';
 import { useToast } from './utils/ToastContext';
+import { useAvailability } from './hooks/useAvailability';
 
 const RESEND_COOLDOWN_SEC = 60;
 
@@ -29,6 +30,27 @@ export default function RegisterForm() {
     const [cooldownEnd, setCooldownEnd] = useState(0);
 
     const { showToast } = useToast();
+
+    const usernameStatus    = useAvailability('username', form.username, 450);
+    const displayNameStatus = useAvailability('displayName', form.displayName, 450);
+    const emailStatus       = useAvailability('email', form.email, 450);
+
+    const cls = (base, s) =>
+        [base, s === 'taken' && 'register-taken', s === 'free' && 'register-free']
+            .filter(Boolean).join(' ');
+
+    const TakenIcon = () => (
+        <svg className="register-form-inner-content-field-input-icon register-taken-icon" width="11" height="11" viewBox="0 0 11 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 9.5L9.5 1" stroke="#E67B4D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M9.5 9.5L1 1" stroke="#E67B4D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+    );
+
+    const FreeIcon = () => (
+        <svg className="register-form-inner-content-field-input-icon register-free-icon" width="12" height="11" viewBox="0 0 12 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 6.41676L4.75 9.75009L11 1.00009" stroke="#8A4DE6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+    );
 
     const onChange = e => {
         const { name, value } = e.target;
@@ -151,183 +173,191 @@ export default function RegisterForm() {
     };
 
     // --- RENDER ---
-
-    // Success state: replace form UI completely so they can’t re-submit
     if (success) {
         return (
-            <form className="success-panel">
-                <div className="success-panel-rim"></div>
-                <div className="success-panel-glow"></div>
+            <form className="success-panel view-width-home">
                 <div className="success-panel-inner">
-                    <div className="success-panel-inner-header">
-                        <h3>You're ready to go!</h3>
-                        <h3>Check your email to begin.</h3>
+                    <div className="success-panel-inner-left">
+                        <div className="success-panel-inner-left-background">
+                            <div className="success-panel-inner-left-background-glow register-form-glow-primary"></div>
+                            <div className="success-panel-inner-left-background-glow register-form-glow-secondary"></div>
+                            <div className="success-panel-inner-left-background-glow register-form-glow-tertiary"></div>
+                        </div>
                     </div>
+                    <div className="success-panel-inner-right">
+                        <div className="success-panel-inner-header">
+                            <h3>You’re good to go!</h3>
+                            <h4>Check your email to begin.</h4>
+                        </div>
 
-                    <div className="success-panel-inner-content">
-                        <p>Please check your email '<span>{form.email}</span>' and click '<span>Verify my account</span>' button to complete your signup.</p>
-                        <a className="success-panel-inner-content-mail" href="https://gmail.com" target="_blank" rel="noopener noreferrer">
-                            <img src={process.env.PUBLIC_URL + `google.svg`} alt="" />
-                            <span>Open Gmail</span>
-                        </a>
-                        <p className="success-panel-inner-content-receive">Didn't receive the email? {secondsLeft > 0 ? `Resend code - ${secondsLeft}s` : <span onClick={resend}>Resend email</span>}</p>
+                        <div className="success-panel-inner-content">
+                            <p>Please check your email '<span>{form.email}</span>' and click '<span>Verify my account</span>' button to complete your signup.</p>
+                            <a className="success-panel-inner-content-mail" href="https://gmail.com" target="_blank" rel="noopener noreferrer">
+                                <img src={process.env.PUBLIC_URL + `google.svg`} alt="" />
+                                <span>Open Gmail</span>
+                            </a>
+                            <p className="success-panel-inner-content-receive">Didn't receive the email? {secondsLeft > 0 ? `Resend code - ${secondsLeft}s` : <span onClick={resend}>Resend email</span>}</p>
+                        </div>
+
+                        {resendError && <p style={{ color: 'crimson', marginTop: '.75rem' }}>{resendError}</p>}
                     </div>
-
-                    {resendError && <p style={{ color: 'crimson', marginTop: '.75rem' }}>{resendError}</p>}
                 </div>
             </form>
         );
     }
 
-    // Normal registration form
     return (
-        <form className="register-form" autoComplete="on" onSubmit={onSubmit}>
-            <div className="register-form-rim"></div>
-            <div className="register-form-glow"></div>
+        <form className="register-form view-width-home" autoComplete="on" onSubmit={onSubmit}>
             <div className="register-form-inner">
-                <div className="register-form-inner-header">
-                    <h3>Register</h3>
+                <div className="register-form-inner-left">
+                    <div className="register-form-inner-left-background">
+                        <h3 className="register-form-inner-left-background-title">Sign up to<br/> Astrae today!</h3>
+                        <div className="register-form-inner-left-background-glow register-form-glow-primary"></div>
+                        <div className="register-form-inner-left-background-glow register-form-glow-secondary"></div>
+                        <div className="register-form-inner-left-background-glow register-form-glow-tertiary"></div>
+                    </div>
                 </div>
+                <div className="register-form-inner-right">
+                    <div className="register-form-inner-header">
+                        <h3>Register</h3>
+                        <p>Register your account to get access to all features.</p>
+                        <p>All fields marked “<span>*</span>“ are required.</p>
+                    </div>
 
-                <fieldset className="register-form-inner-field rfi-double">
-                    <label className="register-form-inner-field-label">
-                        <span className="register-form-inner-field-label-name">Username</span>
-                        <div className="register-form-inner-field-input">
-                            <input
-                                className="register-form-inner-field-input-field"
-                                name="username"
-                                type="text"
-                                placeholder="Username"
-                                value={form.username}
-                                onChange={onChange}
-                                required
-                            />
-                            <svg className="register-form-inner-field-input-icon" xmlns="http://www.w3.org/2000/svg" width="11.507" height="15.5" viewBox="0 0 11.507 15.5">
-                                <path id="Vector" d="M8,3A3,3,0,1,1,5,0,3,3,0,0,1,8,3Z" transform="translate(0.753 0.75)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
-                                <path id="Vector-2" data-name="Vector" d="M7.567,8H2.433a2.893,2.893,0,0,0-.948.161C-2.025,9.372,1.314,14,5,14s7.025-4.628,3.514-5.839A2.893,2.893,0,0,0,7.567,8Z" transform="translate(0.753 0.75)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
-                            </svg>
-                        </div>
-                    </label>
-                    <label className="register-form-inner-field-label">
-                        <span className="register-form-inner-field-label-name">Display name</span>
-                        <div className="register-form-inner-field-input">
-                            <input
-                                className="register-form-inner-field-input-field"
-                                type="text"
-                                name="displayName"
-                                placeholder="Display name"
-                                value={form.displayName}
-                                onChange={onChange}
-                                required
-                            />
-                            <svg className="register-form-inner-field-input-icon" xmlns="http://www.w3.org/2000/svg" width="15.5" height="17.5" viewBox="0 0 15.5 17.5">
-                                <path id="Vector" d="M9,7.5a2,2,0,1,1-2-2A2,2,0,0,1,9,7.5Z" transform="translate(0.75 0.75)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
-                                <path id="Vector-2" data-name="Vector" d="M9,2h1a4,4,0,0,1,4,4v6a4,4,0,0,1-4,4H4a4,4,0,0,1-4-4V6A4,4,0,0,1,4,2H5M9,2V3M9,2V0M9,2H5M5,2V3M5,2V0M1,14.5a10.024,10.024,0,0,1,12,0" transform="translate(0.75 0.75)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
-                            </svg>
-                        </div>
-                    </label>
-                </fieldset>
+                    <div className="register-form-inner-content">
+                        <fieldset className="register-form-inner-content-field rfi-double">
+                            <label className="register-form-inner-content-field-label">
+                                <span className="register-form-inner-content-field-label-name">Username <span>*</span></span>
+                                <div className="register-form-inner-content-field-input">
+                                    <input
+                                        className={cls("register-form-inner-content-field-input-field", usernameStatus)}
+                                        name="username"
+                                        type="text"
+                                        placeholder="Username"
+                                        value={form.username}
+                                        onChange={onChange}
+                                        required
+                                    />
+                                    {usernameStatus === 'taken' && <TakenIcon />}
+                                    {usernameStatus === 'free'  && <FreeIcon  />}
+                                </div>
+                            </label>
+                            <label className="register-form-inner-content-field-label">
+                                <span className="register-form-inner-content-field-label-name">Display name <span>*</span></span>
+                                <div className="register-form-inner-content-field-input">
+                                    <input
+                                        className={cls("register-form-inner-content-field-input-field", displayNameStatus)}
+                                        type="text"
+                                        name="displayName"
+                                        placeholder="Display name"
+                                        value={form.displayName}
+                                        onChange={onChange}
+                                        required
+                                    />
+                                    {displayNameStatus === 'taken' && <TakenIcon />}
+                                    {displayNameStatus === 'free'  && <FreeIcon  />}
+                                </div>
+                            </label>
+                        </fieldset>
 
-                <fieldset className="register-form-inner-field">
-                    <label className="register-form-inner-field-label">
-                        <span className="register-form-inner-field-label-name">Email</span>
-                        <div className="register-form-inner-field-input">
-                            <input
-                                className="register-form-inner-field-input-field"
-                                type="text"
-                                name="email"
-                                placeholder="Email"
-                                value={form.email}
-                                onChange={onChange}
-                                autoComplete="email"
-                                required
-                            />
-                            <svg className="register-form-inner-field-input-icon" xmlns="http://www.w3.org/2000/svg" width="14.552" height="15.52" viewBox="0 0 14.552 15.52">
-                                <path id="Vector" d="M9.452,7a2.752,2.752,0,0,1-2.7,2.8A2.752,2.752,0,0,1,4.051,7a2.752,2.752,0,0,1,2.7-2.8A2.752,2.752,0,0,1,9.452,7Z" transform="translate(0.75 0.762)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
-                                <path id="Vector-2" data-name="Vector" d="M12.828,9.683a6.894,6.894,0,0,1-2.971,3.465,6.4,6.4,0,0,1-4.385.738,6.6,6.6,0,0,1-3.854-2.315,7.272,7.272,0,0,1-.274-8.786A6.658,6.658,0,0,1,5.046.21,6.38,6.38,0,0,1,9.467.646,6.831,6.831,0,0,1,12.647,3.9l.047.1c.714,1.629.172,4.4-1.554,4.4A1.727,1.727,0,0,1,9.452,6.637" transform="translate(0.75 0.762)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
-                            </svg>
-                        </div>
-                    </label>
-                </fieldset>
+                        <fieldset className="register-form-inner-content-field">
+                            <label className="register-form-inner-content-field-label">
+                                <span className="register-form-inner-content-field-label-name">Email <span>*</span></span>
+                                <div className="register-form-inner-content-field-input">
+                                    <input
+                                        className={cls("register-form-inner-content-field-input-field", emailStatus)}
+                                        type="text"
+                                        name="email"
+                                        placeholder="Email"
+                                        value={form.email}
+                                        onChange={onChange}
+                                        autoComplete="email"
+                                        required
+                                    />
+                                    {emailStatus === 'taken' && <TakenIcon />}
+                                    {emailStatus === 'free'  && <FreeIcon  />}
+                                </div>
+                            </label>
+                        </fieldset>
 
-                <fieldset className="register-form-inner-field rfi-double">
-                    <label className="register-form-inner-field-label">
-                        <span className="register-form-inner-field-label-name">Password</span>
-                        <div className="register-form-inner-field-input">
-                            <input
-                                className="register-form-inner-field-input-field"
-                                name="password"
-                                type={showPassword ? 'text' : 'password'}
-                                placeholder="Password (min 8 chars)"
-                                value={form.password}
-                                onChange={onChange}
-                                required
-                            />
-                            {showPassword ? (
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-field-input-icon password-icon" onClick={() => setShowPassword(!showPassword)}>
-                                    <path fillRule="evenodd" clipRule="evenodd" d="M15.1643 12.0522C15.1643 13.7982 13.7483 15.2142 12.0023 15.2142C10.2563 15.2142 8.84033 13.7982 8.84033 12.0522C8.84033 10.3052 10.2563 8.89023 12.0023 8.89023C13.7483 8.89023 15.1643 10.3052 15.1643 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path fillRule="evenodd" clipRule="evenodd" d="M2.75024 12.0522C2.75024 15.3322 6.89224 19.3542 12.0022 19.3542C17.1112 19.3542 21.2542 15.3352 21.2542 12.0522C21.2542 8.76921 17.1112 4.75021 12.0022 4.75021C6.89224 4.75021 2.75024 8.77221 2.75024 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                            ) : (
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-field-input-icon password-icon" onClick={() => setShowPassword(!showPassword)}>
-                                    <path d="M6.42 17.7299C4.19 16.2699 2.75 14.0699 2.75 12.1399C2.75 8.85994 6.89 4.83994 12 4.83994C14.09 4.83994 16.03 5.50994 17.59 6.54994" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M19.8496 8.61032C20.7406 9.74032 21.2596 10.9903 21.2596 12.1403C21.2596 15.4203 17.1096 19.4403 11.9996 19.4403C11.0896 19.4403 10.2006 19.3103 9.36963 19.0803" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M9.7656 14.3671C9.1706 13.7781 8.8376 12.9751 8.8406 12.1381C8.8366 10.3931 10.2486 8.97512 11.9946 8.97212C12.8346 8.97012 13.6406 9.30312 14.2346 9.89712" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M15.1095 12.6992C14.8755 13.9912 13.8645 15.0042 12.5725 15.2412" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M19.8917 4.25003L4.11768 20.024" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                            )}
-                        </div>
-                    </label>
-                    <label className="register-form-inner-field-label">
-                        <span className="register-form-inner-field-label-name">Confirm Password</span>
-                        <div className="register-form-inner-field-input">
-                            <input
-                                className="register-form-inner-field-input-field"
-                                name="confirmPassword"
-                                type={showConfirmPassword ? 'text' : 'password'}
-                                placeholder="Confirm Password"
-                                value={form.confirmPassword}
-                                onChange={onChange}
-                                autoComplete="new-password"
-                                required
-                            />
-                            {showConfirmPassword ? (
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-field-input-icon password-icon" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                                    <path fillRule="evenodd" clipRule="evenodd" d="M15.1643 12.0522C15.1643 13.7982 13.7483 15.2142 12.0023 15.2142C10.2563 15.2142 8.84033 13.7982 8.84033 12.0522C8.84033 10.3052 10.2563 8.89023 12.0023 8.89023C13.7483 8.89023 15.1643 10.3052 15.1643 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path fillRule="evenodd" clipRule="evenodd" d="M2.75024 12.0522C2.75024 15.3322 6.89224 19.3542 12.0022 19.3542C17.1112 19.3542 21.2542 15.3352 21.2542 12.0522C21.2542 8.76921 17.1112 4.75021 12.0022 4.75021C6.89224 4.75021 2.75024 8.77221 2.75024 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                            ) : (
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-field-input-icon password-icon" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                                    <path d="M6.42 17.7299C4.19 16.2699 2.75 14.0699 2.75 12.1399C2.75 8.85994 6.89 4.83994 12 4.83994C14.09 4.83994 16.03 5.50994 17.59 6.54994" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M19.8496 8.61032C20.7406 9.74032 21.2596 10.9903 21.2596 12.1403C21.2596 15.4203 17.1096 19.4403 11.9996 19.4403C11.0896 19.4403 10.2006 19.3103 9.36963 19.0803" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M9.7656 14.3671C9.1706 13.7781 8.8376 12.9751 8.8406 12.1381C8.8366 10.3931 10.2486 8.97512 11.9946 8.97212C12.8346 8.97012 13.6406 9.30312 14.2346 9.89712" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M15.1095 12.6992C14.8755 13.9912 13.8645 15.0042 12.5725 15.2412" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M19.8917 4.25003L4.11768 20.024" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                            )}
-                        </div>
-                    </label>
-                </fieldset>
+                        <fieldset className="register-form-inner-content-field rfi-double">
+                            <label className="register-form-inner-content-field-label">
+                                <span className="register-form-inner-content-field-label-name">Password <span>*</span></span>
+                                <div className="register-form-inner-content-field-input">
+                                    <input
+                                        className="register-form-inner-content-field-input-field"
+                                        name="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        placeholder="Password (min 8 chars)"
+                                        value={form.password}
+                                        onChange={onChange}
+                                        required
+                                    />
+                                    {showPassword ? (
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-content-field-input-icon password-icon" onClick={() => setShowPassword(!showPassword)}>
+                                            <path fillRule="evenodd" clipRule="evenodd" d="M15.1643 12.0522C15.1643 13.7982 13.7483 15.2142 12.0023 15.2142C10.2563 15.2142 8.84033 13.7982 8.84033 12.0522C8.84033 10.3052 10.2563 8.89023 12.0023 8.89023C13.7483 8.89023 15.1643 10.3052 15.1643 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path fillRule="evenodd" clipRule="evenodd" d="M2.75024 12.0522C2.75024 15.3322 6.89224 19.3542 12.0022 19.3542C17.1112 19.3542 21.2542 15.3352 21.2542 12.0522C21.2542 8.76921 17.1112 4.75021 12.0022 4.75021C6.89224 4.75021 2.75024 8.77221 2.75024 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    ) : (
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-content-field-input-icon password-icon" onClick={() => setShowPassword(!showPassword)}>
+                                            <path d="M6.42 17.7299C4.19 16.2699 2.75 14.0699 2.75 12.1399C2.75 8.85994 6.89 4.83994 12 4.83994C14.09 4.83994 16.03 5.50994 17.59 6.54994" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M19.8496 8.61032C20.7406 9.74032 21.2596 10.9903 21.2596 12.1403C21.2596 15.4203 17.1096 19.4403 11.9996 19.4403C11.0896 19.4403 10.2006 19.3103 9.36963 19.0803" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M9.7656 14.3671C9.1706 13.7781 8.8376 12.9751 8.8406 12.1381C8.8366 10.3931 10.2486 8.97512 11.9946 8.97212C12.8346 8.97012 13.6406 9.30312 14.2346 9.89712" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M15.1095 12.6992C14.8755 13.9912 13.8645 15.0042 12.5725 15.2412" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M19.8917 4.25003L4.11768 20.024" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    )}
+                                </div>
+                            </label>
+                            <label className="register-form-inner-content-field-label">
+                                <span className="register-form-inner-content-field-label-name">Confirm Password <span>*</span></span>
+                                <div className="register-form-inner-content-field-input">
+                                    <input
+                                        className="register-form-inner-content-field-input-field"
+                                        name="confirmPassword"
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        placeholder="Confirm Password"
+                                        value={form.confirmPassword}
+                                        onChange={onChange}
+                                        autoComplete="new-password"
+                                        required
+                                    />
+                                    {showConfirmPassword ? (
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-content-field-input-icon password-icon" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                            <path fillRule="evenodd" clipRule="evenodd" d="M15.1643 12.0522C15.1643 13.7982 13.7483 15.2142 12.0023 15.2142C10.2563 15.2142 8.84033 13.7982 8.84033 12.0522C8.84033 10.3052 10.2563 8.89023 12.0023 8.89023C13.7483 8.89023 15.1643 10.3052 15.1643 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path fillRule="evenodd" clipRule="evenodd" d="M2.75024 12.0522C2.75024 15.3322 6.89224 19.3542 12.0022 19.3542C17.1112 19.3542 21.2542 15.3352 21.2542 12.0522C21.2542 8.76921 17.1112 4.75021 12.0022 4.75021C6.89224 4.75021 2.75024 8.77221 2.75024 12.0522Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    ) : (
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="register-form-inner-content-field-input-icon password-icon" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                            <path d="M6.42 17.7299C4.19 16.2699 2.75 14.0699 2.75 12.1399C2.75 8.85994 6.89 4.83994 12 4.83994C14.09 4.83994 16.03 5.50994 17.59 6.54994" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M19.8496 8.61032C20.7406 9.74032 21.2596 10.9903 21.2596 12.1403C21.2596 15.4203 17.1096 19.4403 11.9996 19.4403C11.0896 19.4403 10.2006 19.3103 9.36963 19.0803" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M9.7656 14.3671C9.1706 13.7781 8.8376 12.9751 8.8406 12.1381C8.8366 10.3931 10.2486 8.97512 11.9946 8.97212C12.8346 8.97012 13.6406 9.30312 14.2346 9.89712" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M15.1095 12.6992C14.8755 13.9912 13.8645 15.0042 12.5725 15.2412" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M19.8917 4.25003L4.11768 20.024" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    )}
+                                </div>
+                            </label>
+                        </fieldset>
 
-                {form.password && (
-                    <fieldset className="register-form-inner-field pass-strength">
-                        <p className="register-form-inner-field-indicator" style={{ color: strengthColor, backgroundColor: strengthColorAlpha, borderColor: strengthColor }}>{strengthText}</p>
-                        <div className="register-form-inner-field-line">
-                            <div className="register-form-inner-field-line-inner" style={{ width: `${(strength / 5) * 100}%`, background: strengthColor }} />
-                        </div>
-                    </fieldset>
-                )}
+                        {form.password && (
+                            <fieldset className="register-form-inner-content-field pass-strength">
+                                <p className="register-form-inner-content-field-indicator" style={{ color: strengthColor }}>{strengthText}</p>
+                                <div className="register-form-inner-content-field-line">
+                                    <div className="register-form-inner-content-field-line-inner" style={{ width: `${(strength / 5) * 100}%`, background: strengthColor }} />
+                                </div>
+                            </fieldset>
+                        )}
+                    </div>
 
-                {error && <p style={{ color: 'crimson' }}>{error}</p>}
+                    {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
-                <div className="register-form-inner-bottom">
-                    <Button className="ba-deeppink" type="submit" disabled={loading}>
-                        {loading ? 'Registering…' : 'Register'}
-                    </Button>
-                    <NavLink to="/signin">
-                        <Button className="ba-white reversed">Sign in</Button>
-                    </NavLink>
+                    <div className="register-form-inner-bottom">
+                        <Button className="ba-purple" type="submit" disabled={loading}>
+                            {loading ? 'Register' : 'Register'}
+                        </Button>
+                        <p>Already have an account? <NavLink to="/signin">Sign in</NavLink></p>
+                    </div>
                 </div>
             </div>
         </form>

@@ -398,6 +398,41 @@ router.post('/password/reset', async (req, res, next) => {
     }
 });
 
+router.get('/availability', async (req, res, next) => {
+    try {
+        const { username, email, displayName } = req.query;
+        const out = {};
+
+        if (typeof username === 'string' && username.trim() !== '') {
+            const exists = await prisma.user.findFirst({
+                where: { username: { equals: username.trim(), mode: 'insensitive' } },
+                select: { id: true },
+            });
+            out.username = !exists; // true means FREE
+        }
+
+        if (typeof email === 'string' && email.trim() !== '') {
+            const exists = await prisma.user.findFirst({
+                where: { email: { equals: email.trim(), mode: 'insensitive' } },
+                select: { id: true },
+            });
+            out.email = !exists;
+        }
+
+        if (typeof displayName === 'string' && displayName.trim() !== '') {
+            const exists = await prisma.user.findFirst({
+                where: { displayName: { equals: displayName.trim(), mode: 'insensitive' } },
+                select: { id: true },
+            });
+            out.displayName = !exists;
+        }
+
+        res.json({ ok: true, ...out });
+    } catch (err) {
+        next(err);
+    }
+});
+
 // GET /api/auth/me
 router.get('/me', async (req, res) => {
     const token = readTokenFromReq(req);

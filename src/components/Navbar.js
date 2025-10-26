@@ -106,7 +106,7 @@ export default function Navbar({ loading, user, onboarding = false, handleLogout
                     </div>
                     <div className="navbar-inner-right">
                         <NavLink
-                            to="/signin"
+                            to="/register"
                             end
                             className={({isActive, isPending, isTransitioning}) =>
                                 [
@@ -120,7 +120,7 @@ export default function Navbar({ loading, user, onboarding = false, handleLogout
                             Register
                         </NavLink>
                         <NavLink
-                            to="/register"
+                            to="/signin"
                             end
                             className={({isActive, isPending, isTransitioning}) =>
                                 [
