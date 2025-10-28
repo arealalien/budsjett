@@ -156,6 +156,19 @@ export default function PurchasesTable({ size = 'full' }) {
         } catch {}
     }
 
+    async function deletePurchase(id) {
+        const ok = window.confirm('Are you sure you want to delete this purchase?');
+        if (!ok) return;
+        try {
+            setRows(prev => prev.filter(r => r.id !== id));
+            setTotal(t => Math.max(0, t - 1));
+
+            await api.delete(`/budgets/purchases/${id}`, { withCredentials: true });
+        } catch (e) {
+            alert(e.response?.data?.error || e.message);
+        }
+    }
+
     return (
         <div className={`purchases-wrap ${isCompact ? 'compact' : ''}`}>
             {!isCompact && (
@@ -318,15 +331,16 @@ export default function PurchasesTable({ size = 'full' }) {
                         <Th>Shared</Th>
                         <Th>Notes</Th>
                         <Th>Settled</Th>
+                        <Th>Delete</Th>
                     </tr>
                     </thead>
                     <tbody>
                     {loading ? (
-                        <tr><td colSpan={8} style={{padding:16}}><Loader/></td></tr>
+                        <tr><td colSpan={9} style={{padding:16}}><Loader/></td></tr>
                     ) : err ? (
-                        <tr><td colSpan={8} style={{padding:16, color:'crimson'}}>{err}</td></tr>
+                        <tr><td colSpan={9} style={{padding:16, color:'crimson'}}>{err}</td></tr>
                     ) : rows.length === 0 ? (
-                        <tr><td colSpan={8} style={{padding:16}}>No purchases found</td></tr>
+                        <tr><td colSpan={9} style={{padding:16}}>No purchases found</td></tr>
                     ) : rows.map(r => {
                         const paidByIdRow = r.paidBy?.id;
                         const debtor = (r.shares || []).find(s => s.userId !== paidByIdRow && s.percent > 0);
@@ -361,6 +375,16 @@ export default function PurchasesTable({ size = 'full' }) {
                                                 : 'Toggle settled state'}
                                         />
                                     ) : '—'}
+                                </td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        className="purchases-delete-btn"
+                                        onClick={() => deletePurchase(r.id)}
+                                        title="Delete this purchase"
+                                    >
+                                        Delete
+                                    </button>
                                 </td>
                             </tr>
                         );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './components/AuthContext';
 import './css/main.css';
 import Navbar from "./components/Navbar";
@@ -7,6 +7,7 @@ import Sidebar from "./components/Sidebar";
 
 function App() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user, loading, logout } = useAuth();
 
     const handleLogout = async () => {
@@ -19,6 +20,10 @@ function App() {
     };
 
     const needsOnboarding = !!user?.needsOnboarding;
+
+    React.useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [location.pathname]);
 
   return (
     <div className={!loading && user && !user.needsOnboarding ? "app-container user" : "app-container"}>

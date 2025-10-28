@@ -31,13 +31,31 @@ export default function RegisterForm() {
 
     const { showToast } = useToast();
 
-    const usernameStatus    = useAvailability('username', form.username, 450);
-    const displayNameStatus = useAvailability('displayName', form.displayName, 450);
-    const emailStatus       = useAvailability('email', form.email, 450);
+    const usernameOk = v => v.length >= 8 && /^[A-Za-z0-9_]+$/.test(v);
+    const emailOk    = v => /\S+@\S+\.\S+/.test(v);
+    const displayOk  = v => v.trim().length >= 2;
+
+    const usernameStatus    = useAvailability('username', form.username, 450, usernameOk);
+    const displayNameStatus = useAvailability('displayName', form.displayName, 450, displayOk);
+    const emailStatus       = useAvailability('email', form.email, 450, emailOk);
 
     const cls = (base, s) =>
-        [base, s === 'taken' && 'register-taken', s === 'free' && 'register-free']
-            .filter(Boolean).join(' ');
+        [base,
+            s === 'taken'   && 'register-taken',
+            s === 'free'    && 'register-free',
+            s === 'invalid' && 'register-invalid',
+            s === 'checking' && 'register-checking'
+        ].filter(Boolean).join(' ');
+
+    const CheckingIcon = () => (
+        <svg
+            className="register-form-inner-content-field-input-icon register-checking-icon"
+            viewBox="0 0 50 50"
+            aria-hidden="true"
+        >
+            <circle className="path" cx="25" cy="25" r="20" fill="none" strokeWidth="5" />
+        </svg>
+    );
 
     const TakenIcon = () => (
         <svg className="register-form-inner-content-field-input-icon register-taken-icon" width="11" height="11" viewBox="0 0 11 11" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -238,6 +256,7 @@ export default function RegisterForm() {
                                         onChange={onChange}
                                         required
                                     />
+                                    {usernameStatus === 'checking' && <CheckingIcon />}
                                     {usernameStatus === 'taken' && <TakenIcon />}
                                     {usernameStatus === 'free'  && <FreeIcon  />}
                                 </div>
@@ -254,6 +273,7 @@ export default function RegisterForm() {
                                         onChange={onChange}
                                         required
                                     />
+                                    {displayNameStatus === 'checking' && <CheckingIcon />}
                                     {displayNameStatus === 'taken' && <TakenIcon />}
                                     {displayNameStatus === 'free'  && <FreeIcon  />}
                                 </div>
@@ -274,6 +294,7 @@ export default function RegisterForm() {
                                         autoComplete="email"
                                         required
                                     />
+                                    {emailStatus === 'checking' && <CheckingIcon />}
                                     {emailStatus === 'taken' && <TakenIcon />}
                                     {emailStatus === 'free'  && <FreeIcon  />}
                                 </div>
@@ -348,6 +369,17 @@ export default function RegisterForm() {
                                 </div>
                             </fieldset>
                         )}
+
+                        <fieldset className="register-form-inner-content-field">
+                            <label className="register-form-inner-content-field-checkbox">
+                                <input
+                                    className="check-purple"
+                                    name="remember"
+                                    type="checkbox"
+                                />
+                                I confirm that i have read and agree to the Client agreement, Terms of Service and legal policies.
+                            </label>
+                        </fieldset>
                     </div>
 
                     {error && <p style={{ color: 'crimson' }}>{error}</p>}

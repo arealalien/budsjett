@@ -1,32 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 
-// Simple in-memory cache to avoid refetching same value
-const cache = new Map(); // key: `${field}:${value}` -> 'free' | 'taken'
+const cache = new Map();
 
-export function useAvailability(field, rawValue, delay = 400) {
+export function useAvailability(field, rawValue, delay = 400, shouldCheck = () => true) {
     const value = (rawValue || '').trim();
-    const [status, setStatus] = useState('idle'); // 'idle' | 'checking' | 'free' | 'taken' | 'error'
+
+    const [status, setStatus] = useState('idle');
+
     const ctrlRef = useRef(null);
 
-    // Unique key for this field+value
-    const key = useMemo(() => `${field}:${value.toLowerCase()}`, [field, value]);
+    const norm = field === 'email' || field === 'username'
+        ? value.toLowerCase()
+        : value;
+
+    const key = useMemo(() => `${field}:${norm}`, [field, norm]);
 
     useEffect(() => {
-        // nothing entered => idle
         if (!value) {
             setStatus('idle');
             return;
         }
 
-        // cached?
+        if (!shouldCheck(value)) {
+            setStatus('invalid');
+            return;
+        }
+
         const cached = cache.get(key);
         if (cached) {
             setStatus(cached);
             return;
         }
 
-        // start debounced check
         setStatus('checking');
 
         if (ctrlRef.current) ctrlRef.current.abort();
@@ -37,8 +43,7 @@ export function useAvailability(field, rawValue, delay = 400) {
             try {
                 const params = { [field]: value };
                 const { data } = await api.get('/auth/availability', { params, signal: ctrl.signal });
-
-                const isFree = data && data[field]; // backend returns true when FREE
+                const isFree = data && data[field];
                 const next = isFree ? 'free' : 'taken';
                 cache.set(key, next);
                 setStatus(next);
@@ -52,7 +57,7 @@ export function useAvailability(field, rawValue, delay = 400) {
             clearTimeout(t);
             ctrl.abort();
         };
-    }, [key, field, value, delay]);
+    }, [key, field, value, delay, shouldCheck]);
 
     return status;
 }

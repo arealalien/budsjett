@@ -48,7 +48,7 @@ export default function Navbar({ loading, user, onboarding = false, handleLogout
                     </div>
                     <div className="navbar-inner-center">
                         <NavLink
-                            to="/signin"
+                            to="/"
                             end
                             className={({isActive, isPending, isTransitioning}) =>
                                 [
@@ -62,7 +62,7 @@ export default function Navbar({ loading, user, onboarding = false, handleLogout
                             <WordsPullUp text="Product" />
                         </NavLink>
                         <NavLink
-                            to="/signin"
+                            to="/"
                             end
                             className={({isActive, isPending, isTransitioning}) =>
                                 [
@@ -76,7 +76,7 @@ export default function Navbar({ loading, user, onboarding = false, handleLogout
                             <WordsPullUp text="Solutions" delay={0.1} />
                         </NavLink>
                         <NavLink
-                            to="/signin"
+                            to="/"
                             end
                             className={({isActive, isPending, isTransitioning}) =>
                                 [
@@ -90,7 +90,7 @@ export default function Navbar({ loading, user, onboarding = false, handleLogout
                             <WordsPullUp text="Pricing" delay={0.15} />
                         </NavLink>
                         <NavLink
-                            to="/signin"
+                            to="/"
                             end
                             className={({isActive, isPending, isTransitioning}) =>
                                 [

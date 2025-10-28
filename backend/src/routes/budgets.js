@@ -561,6 +561,7 @@ router.get('/:slug/purchases', async (req, res, next) => {
 
         const whereParts = [
             { budgetId: budget.id },
+            { deletedAt: null },
             visibilityWhere,
         ];
 
@@ -863,6 +864,54 @@ router.post('/:slug/recurring/run-due', async (req, res, next) => {
         });
 
         res.json({ createdCount: created.length, purchaseIds: created });
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.delete('/purchases/:id', async (req, res, next) => {
+    try {
+        const meId = req.userId;
+        const { id } = req.params;
+
+        const purchase = await prisma.purchase.findUnique({
+            where: { id },
+            include: {
+                budget: {
+                    include: {
+                        owner: true,
+                        members: true,
+                    },
+                },
+            },
+        });
+        if (!purchase || purchase.deletedAt) {
+            return res.status(404).json({ error: 'Purchase not found' });
+        }
+
+        const isMember =
+            purchase.budget.ownerId === meId ||
+            purchase.budget.members.some(m => m.userId === meId);
+        if (!isMember) {
+            return res.status(403).json({ error: 'Not allowed' });
+        }
+
+        const myMember = purchase.budget.members.find(m => m.userId === meId);
+        const myRole = purchase.budget.ownerId === meId ? 'OWNER' : (myMember?.role || 'MEMBER');
+
+        const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
+        const isCreatorOrPayer = purchase.createdById === meId || purchase.paidById === meId;
+
+        if (!isAdmin && !isCreatorOrPayer) {
+            return res.status(403).json({ error: 'Not allowed to delete this purchase' });
+        }
+
+        await prisma.purchase.update({
+            where: { id },
+            data: { deletedAt: new Date() },
+        });
+
+        return res.json({ ok: true });
     } catch (err) {
         next(err);
     }
