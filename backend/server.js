@@ -13,6 +13,7 @@ import budgetsRoute from './src/routes/budgets.js';
 import invitesRoute from './src/routes/invites.js';
 import notificationsRoute from './src/routes/notifications.js';
 import incomeTotalsRoutes from './src/routes/reports.incomeTotals.js';
+import healthRoutes from './src/routes/health.js';
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
@@ -32,5 +33,11 @@ app.use('/api/budgets', trendRoute);
 app.use('/api/budgets', budgetsRoute);
 app.use('/api/invites', invitesRoute);
 app.use('/api/notifications', notificationsRoute);
+app.use('/api/health', healthRoutes);
 
-app.listen(4000, () => console.log("Server running on port 4000"));
+if (process.env.NODE_ENV !== "production") {
+    const PORT = process.env.PORT || 4000;
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+export default app;
