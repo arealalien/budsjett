@@ -1,9 +1,13 @@
 {
+  "version": 2,
   "framework": "create-react-app",
-  "buildCommand": "CI='' npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "build",
   "functions": {
-    "api/**/*.mjs": { "runtime": "nodejs20.x" },
-    "api/**/*.js":  { "runtime": "nodejs20.x" }
-  }
+    "api/**/*.js": { "runtime": "nodejs20.x" }
+  },
+  "routes": [
+    { "src": "/api/.*", "dest": "/api/index.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }

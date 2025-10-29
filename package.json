@@ -62,7 +62,13 @@
   "overrides": {
     "typescript": "^5.4.5"
   },
+  "prisma": {
+    "schema": "backend/prisma/schema.prisma"
+  },
   "devDependencies": {
+    "@prisma/client": "^6.18.0",
+    "prisma": "^6.18.0",
+    "serverless-http": "^4.0.0",
     "autoprefixer": "^10.4.21",
     "concat": "^1.0.3",
     "css-minify": "^2.1.0",
