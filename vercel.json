@@ -1,10 +1,9 @@
 {
+  "framework": "create-react-app",
+  "buildCommand": "CI='' npm run build",
+  "outputDirectory": "build",
   "functions": {
-    "api/**/*.[jt]s": {
-      "runtime": "nodejs20.x"
-    },
-    "api/**/*.[jt]m": {
-      "runtime": "nodejs20.x"
-    }
+    "api/**/*.mjs": { "runtime": "nodejs20.x" },
+    "api/**/*.js":  { "runtime": "nodejs20.x" }
   }
 }
