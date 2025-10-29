@@ -43,6 +43,7 @@ const router = createBrowserRouter([
                     { index: true, element: <BudgetHome /> },
                     { path: 'new', element: <Addpurchase /> },
                     { path: 'purchases', element: <Purchases /> },
+                    { path: 'members', element: <BudgetHome /> },
                     { path: 'edit', element: <BudgetEdit /> },
                 ],
             },

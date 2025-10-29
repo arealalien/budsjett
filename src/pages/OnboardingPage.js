@@ -12,7 +12,7 @@ const DEFAULTS = [
     { name: 'Restaurant',    color: '16, 185, 129', planMonthly: 0 },
     { name: 'Household',     color: '6, 182, 212',  planMonthly: 0 },
     { name: 'Subscriptions', color: '168, 85, 247', planMonthly: 0 },
-    { name: 'Savings',       color: '100, 116, 139', planMonthly: 0 },
+    { name: 'Other',         color: '100, 116, 139', planMonthly: 0 },
 ];
 
 const NICE_RGBS = [
