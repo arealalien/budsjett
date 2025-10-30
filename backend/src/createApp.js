@@ -1,4 +1,3 @@
-// src/createApp.js
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -20,12 +19,13 @@ export function createApp() {
 
     app.set('trust proxy', 1);
 
-    const corsOrigin = process.env.CORS_ORIGIN || undefined;
-    app.use(cors({ origin: corsOrigin, credentials: true }));
+    app.use(cors({
+        origin: process.env.CORS_ORIGIN || undefined,
+        credentials: true
+    }));
 
     app.use(express.json());
     app.use(cookieParser());
-
     app.use(express.static('public'));
 
     app.use('/api/auth', authRoutes);
@@ -40,9 +40,12 @@ export function createApp() {
     app.use('/api/invites', invitesRoute);
     app.use('/api/notifications', notificationsRoute);
 
-    // quick health probes
     app.get('/api/health', (_req, res) => {
-        res.json({ ok: true, nodeEnv: process.env.NODE_ENV, hasDbUrl: !!process.env.DATABASE_URL });
+        res.json({
+            ok: true,
+            nodeEnv: process.env.NODE_ENV,
+            hasDbUrl: !!process.env.DATABASE_URL
+        });
     });
 
     return app;
