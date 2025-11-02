@@ -19,30 +19,15 @@ export function createApp() {
 
     app.set('trust proxy', 1);
 
-    const corsOpts = {
+    app.use(cors({
         origin: process.env.CORS_ORIGIN || undefined,
-        credentials: true,
-    };
-
-    app.use(cors(corsOpts));
-    app.options('*', cors(corsOpts));
+        credentials: true
+    }));
 
     app.use(express.json());
     app.use(cookieParser());
-    // Do NOT serve static files from a serverless function on Vercel
-    // app.use(express.static('public'));
+    app.use(express.static('public'));
 
-    // Health & root
-    app.get('/api', (_req, res) => res.json({ ok: true }));
-    app.get('/api/health', (_req, res) => {
-        res.json({
-            ok: true,
-            nodeEnv: process.env.NODE_ENV,
-            hasDbUrl: !!process.env.DATABASE_URL,
-        });
-    });
-
-    // Routes
     app.use('/api/auth', authRoutes);
     app.use('/api/purchases', purchasesRoutes);
     app.use('/api/purchases', purchasesListRoutes);
@@ -55,12 +40,12 @@ export function createApp() {
     app.use('/api/invites', invitesRoute);
     app.use('/api/notifications', notificationsRoute);
 
-    // 404 and error handler
-    app.use((_req, res) => res.status(404).json({ ok: false, error: 'Not found' }));
-    // eslint-disable-next-line no-unused-vars
-    app.use((err, _req, res, _next) => {
-        console.error(err);
-        res.status(500).json({ ok: false, error: err?.message || 'Internal error' });
+    app.get('/api/health', (_req, res) => {
+        res.json({
+            ok: true,
+            nodeEnv: process.env.NODE_ENV,
+            hasDbUrl: !!process.env.DATABASE_URL
+        });
     });
 
     return app;
