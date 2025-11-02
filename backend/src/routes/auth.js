@@ -56,6 +56,8 @@ function makeTransport() {
         socketTimeout: 20_000,
         tls: { servername: SMTP_HOST },
         family: 4,
+        logger: true,
+        debug: true,
     });
 }
 
@@ -68,7 +70,7 @@ async function verifyTransportOnce() {
         return { ok: true };
     } catch (e) {
         console.error('SMTP verify failed:', e?.message || e);
-        transport = null; // disable transport so we fall back to dev logging
+        transport = null;
         return { ok: false, reason: e?.message || 'verify-failed' };
     }
 }
