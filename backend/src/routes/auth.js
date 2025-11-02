@@ -3,7 +3,7 @@ import { z } from 'zod';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { prisma } from '../lib/prisma.js';
 import { verifyEmailTemplate, resetPasswordTemplate } from '../lib/emails.js';
 
@@ -33,54 +33,8 @@ function signSession(userId, remember=false) {
     return { token, maxAge };
 }
 
-
 const MAIL_FROM = process.env.MAIL_FROM || 'Astrae <noreply@astrae.no>';
-
-function makeTransport() {
-    const { SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env;
-    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
-
-    const port = Number(process.env.SMTP_PORT || 587);
-    const secure = process.env.SMTP_SECURE
-        ? process.env.SMTP_SECURE === 'true'
-        : port === 465;
-
-    return nodemailer.createTransport({
-        host: SMTP_HOST,
-        port,
-        secure,
-        requireTLS: !secure,
-        auth: { user: SMTP_USER, pass: SMTP_PASS },
-        connectionTimeout: 10_000,
-        greetingTimeout: 10_000,
-        socketTimeout: 20_000,
-        tls: { servername: SMTP_HOST },
-        family: 4,
-        logger: true,
-        debug: true,
-    });
-}
-
-let transport = makeTransport();
-
-async function verifyTransportOnce() {
-    if (!transport) return { ok: false, reason: 'no-transport' };
-    try {
-        await transport.verify(); // checks TLS + auth
-        return { ok: true };
-    } catch (e) {
-        console.error('SMTP verify failed:', e?.message || e);
-        transport = null;
-        return { ok: false, reason: e?.message || 'verify-failed' };
-    }
-}
-
-let verifyPromise;
-
-function ensureVerified() {
-    if (!verifyPromise) verifyPromise = verifyTransportOnce();
-    return verifyPromise;
-}
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 function extractFirstHref(html) {
     const m = html?.match?.(/href="([^"]+)"/i);
@@ -88,26 +42,45 @@ function extractFirstHref(html) {
 }
 
 async function sendEmail({ to, subject, html, text }) {
-    await ensureVerified();
-
-    if (!transport) {
+    if (!resend) {
         const url = extractFirstHref(html);
-        console.log('--- DEV EMAIL (no SMTP) ---');
+        console.log('--- DEV EMAIL (no RESEND_API_KEY) ---');
         console.log('To:', to);
         console.log('Subject:', subject);
         if (url) console.log('Link:', url);
-        console.log('---------------------------');
-        return { devLink: url };
+        console.log('-------------------------------------');
+        return { mode: 'dev', devLink: url };
     }
 
     try {
-        await transport.sendMail({ from: MAIL_FROM, to, subject, html, text });
-        return {};
+        const { data, error } = await resend.emails.send({
+            from: MAIL_FROM,     // e.g. 'Astrae <noreply@astrae.no>'
+            to,
+            subject,
+            html,
+            text,                // optional; include if your template provides it
+            // Optional niceties:
+            // reply_to: 'support@astrae.no',
+            // tags: [{ name: 'type', value: 'email-verify' }],
+            headers: {
+                // Helps with unsubscribes in clients; not required
+                'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+                'List-Unsubscribe': `<mailto:noreply@astrae.no?subject=unsubscribe>`,
+            },
+        });
+
+        if (error) {
+            console.error('Resend send failed:', error);
+            const url = extractFirstHref(html);
+            return { mode: 'fallback', devLink: url, error: 'api-failed' };
+        }
+
+        console.log('Resend sent:', { id: data?.id });
+        return { mode: 'api', messageId: data?.id || null };
     } catch (e) {
-        console.error('sendMail failed:', e?.message || e);
+        console.error('Resend threw:', e?.message || e);
         const url = extractFirstHref(html);
-        transport = null;
-        return { devLink: url, error: 'smtp-failed' };
+        return { mode: 'fallback', devLink: url, error: 'api-throw' };
     }
 }
 
