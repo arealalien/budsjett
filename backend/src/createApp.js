@@ -40,12 +40,10 @@ export function createApp() {
     app.use('/api/invites', invitesRoute);
     app.use('/api/notifications', notificationsRoute);
 
+    app.get('/api', (_req, res) => res.json({ ok: true }));
+
     app.get('/api/health', (_req, res) => {
-        res.json({
-            ok: true,
-            nodeEnv: process.env.NODE_ENV,
-            hasDbUrl: !!process.env.DATABASE_URL
-        });
+        res.json({ ok: true, nodeEnv: process.env.NODE_ENV, hasDbUrl: !!process.env.DATABASE_URL });
     });
 
     return app;
