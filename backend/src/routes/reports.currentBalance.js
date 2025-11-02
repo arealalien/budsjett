@@ -3,7 +3,6 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { verifyToken } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
-import { Prisma } from '../../generated/prisma/index.js'; // adjust if you use default output
 
 const router = Router();
 
