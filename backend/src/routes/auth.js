@@ -34,9 +34,7 @@ function signSession(userId, remember=false) {
 }
 
 
-// --- Email transport (Domeneshop in prod, Mailtrap in dev, console fallback) ---
-const MAIL_FROM =
-    process.env.MAIL_FROM || '"Astrae" <noreply@astrae.no>';
+const MAIL_FROM = process.env.MAIL_FROM || 'Astrae <noreply@astrae.no>';
 
 function makeTransport() {
     const { SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env;
@@ -56,36 +54,59 @@ function makeTransport() {
         connectionTimeout: 10_000,
         greetingTimeout: 10_000,
         socketTimeout: 20_000,
+        tls: { servername: SMTP_HOST },
+        family: 4,
     });
 }
 
-const transport = makeTransport();
+let transport = makeTransport();
+
+async function verifyTransportOnce() {
+    if (!transport) return { ok: false, reason: 'no-transport' };
+    try {
+        await transport.verify(); // checks TLS + auth
+        return { ok: true };
+    } catch (e) {
+        console.error('SMTP verify failed:', e?.message || e);
+        transport = null; // disable transport so we fall back to dev logging
+        return { ok: false, reason: e?.message || 'verify-failed' };
+    }
+}
+
+let verifyPromise;
+
+function ensureVerified() {
+    if (!verifyPromise) verifyPromise = verifyTransportOnce();
+    return verifyPromise;
+}
 
 function extractFirstHref(html) {
     const m = html?.match?.(/href="([^"]+)"/i);
     return m ? m[1] : null;
 }
 
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, subject, html, text }) {
+    await ensureVerified();
+
     if (!transport) {
         const url = extractFirstHref(html);
-        console.log('--- DEV EMAIL (no SMTP configured) ---');
+        console.log('--- DEV EMAIL (no SMTP) ---');
         console.log('To:', to);
         console.log('Subject:', subject);
         if (url) console.log('Link:', url);
-        console.log(html);
-        console.log('--------------------------------------');
+        console.log('---------------------------');
         return { devLink: url };
     }
 
-    await transport.sendMail({
-        from: MAIL_FROM,
-        to,
-        subject,
-        html,
-    });
-
-    return {};
+    try {
+        await transport.sendMail({ from: MAIL_FROM, to, subject, html, text });
+        return {};
+    } catch (e) {
+        console.error('sendMail failed:', e?.message || e);
+        const url = extractFirstHref(html);
+        transport = null;
+        return { devLink: url, error: 'smtp-failed' };
+    }
 }
 
 
