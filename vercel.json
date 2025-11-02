@@ -1,7 +1,16 @@
 {
   "version": 2,
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)", "dest": "/" }
+  "framework": "create-react-app",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "functions": {
+    "api/**/*.js": { "runtime": "nodejs22.x" }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    {
+      "source": "/((?!api|static|favicon.ico|robots.txt|manifest.json|asset-manifest.json|logo.*\\.png|.*\\.(?:js|css|png|jpg|svg|map)).*)",
+      "destination": "/index.html"
+    }
   ]
 }
