@@ -350,18 +350,23 @@ router.post('/password/forgot', async (req, res, next) => {
         });
 
         const resetLink = appUrl(`/reset?token=${encodeURIComponent(token)}`);
-        await sendEmail({
-            to: user.email,
-            subject: 'Reset your password',
-            html: `
-        <p>Hi ${user.username},</p>
-        <p>Click here to reset your password:</p>
-        <p><a href="${resetLink}">Reset password</a></p>
-        <p>This link expires in 1 hour.</p>
-      `
+        const tpl = resetPasswordTemplate({
+            username: user.username,
+            resetUrl: resetLink,
         });
 
-        res.json({ ok: true });
+        const emailResult = await sendEmail({
+            to: user.email,
+            subject: tpl.subject,
+            html: tpl.html,
+            text: tpl.text,
+        });
+
+        const body = { ok: true };
+        if (emailResult?.devLink) body.devLink = emailResult.devLink;
+        if (process.env.NODE_ENV !== 'production') body.devLink = body.devLink || resetLink;
+
+        return res.json(body);
     } catch (err) {
         if (err.name === 'ZodError') {
             return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });

@@ -22,6 +22,8 @@ import BudgetLayout from './pages/BudgetLayout';
 import BudgetHome from './pages/BudgetHome';
 import BudgetEdit from './pages/BudgetEdit';
 import BudgetMembers from './pages/BudgetMembers';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 const router = createBrowserRouter([
     {
@@ -30,6 +32,8 @@ const router = createBrowserRouter([
             { path: '/', element: <Home /> },
             { path: '/register', element: <Register /> },
             { path: '/signin', element: <SignIn /> },
+            { path: '/forgot-password', element: <ForgotPasswordPage /> },
+            { path: '/reset', element: <ResetPasswordPage /> },
             { path: '/verify', element: <VerifyEmailPage /> },
 
             { path: '/onboarding', element: <RequireOnboarding><OnboardingPage/></RequireOnboarding> },
