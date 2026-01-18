@@ -21,6 +21,7 @@ import BudgetsIndex from './pages/BudgetsIndex';
 import BudgetLayout from './pages/BudgetLayout';
 import BudgetHome from './pages/BudgetHome';
 import BudgetEdit from './pages/BudgetEdit';
+import BudgetMembers from './pages/BudgetMembers';
 
 const router = createBrowserRouter([
     {
@@ -43,7 +44,7 @@ const router = createBrowserRouter([
                     { index: true, element: <BudgetHome /> },
                     { path: 'new', element: <Addpurchase /> },
                     { path: 'purchases', element: <Purchases /> },
-                    { path: 'members', element: <BudgetHome /> },
+                    { path: 'members', element: <BudgetMembers /> },
                     { path: 'edit', element: <BudgetEdit /> },
                 ],
             },

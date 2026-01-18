@@ -28,7 +28,11 @@ function App() {
   return (
     <div className={!loading && user && !user.needsOnboarding ? "app-container user" : "app-container"}>
         <Navbar loading={loading} user={user} onboarding={needsOnboarding} handleLogout={handleLogout} />
-        <Sidebar loading={loading} user={user} onboarding={needsOnboarding} handleLogout={handleLogout} />
+        {user ? (
+            <Sidebar loading={loading} user={user} onboarding={needsOnboarding} handleLogout={handleLogout} />
+        ) : (
+            <></>
+        )}
         <Outlet />
     </div>
   );

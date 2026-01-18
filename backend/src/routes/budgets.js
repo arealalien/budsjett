@@ -185,7 +185,14 @@ router.get('/:slug', async (req, res, next) => {
                     orderBy: { joinedAt: 'asc' },
                 },
                 categories: {
-                    select: { id: true, name: true, slug: true, color: true, sortOrder: true },
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                        color: true,
+                        planMonthly: true,
+                        sortOrder: true,
+                    },
                     orderBy: { sortOrder: 'asc' },
                 },
                 _count: { select: { members: true, categories: true, purchases: true } },
@@ -284,17 +291,17 @@ router.post('/:slug/purchases', async (req, res, next) => {
         let sharesCreate = [];
         if (Array.isArray(sharesOverride) && sharesOverride.length) {
             // validate members & normalize to 100
-                const rows = sharesOverride.map(s => {
+            const rows = sharesOverride.map(s => {
                 if (!memberIds.has(s.userId)) {
                     throw Object.assign(new Error('sharesOverride contains non-member'), { status: 400 });
-                    }
+                }
                 return { userId: s.userId, percent: Math.round(s.percent) };
-                });
+            });
             let sum = rows.reduce((a, b) => a + b.percent, 0);
             if (sum !== 100 && rows.length) {
                 const idx = rows.reduce((imax, r, i, arr) => r.percent > arr[imax].percent ? i : imax, 0);
                 rows[idx].percent += (100 - sum);
-                }
+            }
             sharesCreate = rows;
         } else if (!shared) {
             sharesCreate = [{ userId: paidById, percent: 100 }];
@@ -917,4 +924,181 @@ router.delete('/purchases/:id', async (req, res, next) => {
     }
 });
 
+const updateBudgetSchema = z.object({
+    name: z.string().min(1).max(191),
+    categories: z.array(z.object({
+        id: z.string().min(1).optional(),     // existing cats have id, new ones don't
+        name: z.string().min(1).max(80),
+        color: z.string().min(3).max(20),
+        planMonthly: z.number().min(0).max(99999999.99).default(0),
+    })).min(1).max(100),
+});
+
+// PATCH /api/budgets/:slug – update name + categories
+router.patch('/:slug', async (req, res, next) => {
+    try {
+        const userId = req.userId;
+        const { slug } = req.params;
+
+        const { name, categories } = updateBudgetSchema.parse(req.body);
+
+        // Only members of this budget can edit; you might want OWNER-only here:
+        const budget = await prisma.budget.findFirst({
+            where: { slug, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+                ownerId: true,
+                owner: { select: { id: true, username: true, displayName: true } },
+                members: {
+                    select: {
+                        userId: true,
+                        role: true,
+                        joinedAt: true,
+                        user: { select: { id: true, username: true, displayName: true } },
+                    },
+                    orderBy: { joinedAt: 'asc' },
+                },
+                categories: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                        color: true,
+                        planMonthly: true,   // 👈 ADD THIS
+                        sortOrder: true,
+                    },
+                    orderBy: { sortOrder: 'asc' },
+                },
+                _count: { select: { members: true, categories: true, purchases: true } },
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+
+        if (!budget) return res.status(404).json({ error: 'Budget not found' });
+
+        // Optional: restrict editing to OWNER (or OWNER + ADMIN)
+        const me = budget.members.find(m => m.userId === userId);
+        const myRole = budget.ownerId === userId ? 'OWNER' : me?.role ?? 'MEMBER';
+        if (myRole !== 'OWNER') {
+            return res.status(403).json({ error: 'Only the owner can edit the budget setup.' });
+        }
+
+        const existingCats = budget.categories;
+        const existingById = new Map(existingCats.map(c => [c.id, c]));
+
+        // prepare incoming categories (trim, set slug, sortOrder, etc.)
+        const rows = categories.map((c, idx) => ({
+            id: c.id || null,
+            name: c.name.trim(),
+            color: c.color.trim(),
+            planMonthly: (c.planMonthly ?? 0),
+            sortOrder: idx,
+            slug: slugify(c.name),
+        }));
+
+        // ensure slugs are unique within this budget (like onboarding)
+        const seen = new Set();
+        for (const r of rows) {
+            let base = r.slug || 'cat';
+            let k = base;
+            let n = 1;
+            while (seen.has(k)) k = `${base}-${++n}`;
+            r.slug = k.slice(0, 100);
+            seen.add(k);
+        }
+
+        // figure out which existing categories are being removed
+        const incomingIds = new Set(rows.filter(r => r.id).map(r => r.id));
+        const toDeleteIds = existingCats
+            .filter(c => !incomingIds.has(c.id))
+            .map(c => c.id);
+
+        const updated = await prisma.$transaction(async (tx) => {
+            // update budget name
+            await tx.budget.update({
+                where: { id: budget.id },
+                data: { name },
+            });
+
+            // delete categories that disappeared from the list (only if unused)
+            if (toDeleteIds.length > 0) {
+                await tx.category.deleteMany({
+                    where: {
+                        id: { in: toDeleteIds },
+                        budgetId: budget.id,
+                        // only delete categories with NO purchases
+                        purchases: { none: {} },
+                    },
+                });
+            }
+
+            // upsert/update each category
+            for (const r of rows) {
+                const data = {
+                    name: r.name,
+                    slug: r.slug,
+                    color: r.color,
+                    planMonthly: r.planMonthly.toFixed(2),
+                    sortOrder: r.sortOrder,
+                    isSystem: false,
+                };
+
+                if (r.id && existingById.has(r.id)) {
+                    await tx.category.update({
+                        where: { id: r.id },
+                        data,
+                    });
+                } else {
+                    await tx.category.create({
+                        data: {
+                            ...data,
+                            budgetId: budget.id,
+                        },
+                    });
+                }
+            }
+
+            // return fresh budget shape similar to GET /api/budgets/:slug
+            return tx.budget.findUnique({
+                where: { id: budget.id },
+                select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    ownerId: true,
+                    owner: { select: { id: true, username: true, displayName: true } },
+                    members: {
+                        select: {
+                            userId: true, role: true, joinedAt: true,
+                            user: { select: { id: true, username: true, displayName: true } },
+                        },
+                        orderBy: { joinedAt: 'asc' },
+                    },
+                    categories: {
+                        select: { id: true, name: true, slug: true, color: true, planMonthly: true, sortOrder: true },
+                        orderBy: { sortOrder: 'asc' },
+                    },
+                    _count: { select: { members: true, categories: true, purchases: true } },
+                    createdAt: true,
+                    updatedAt: true,
+                },
+            });
+        });
+
+        return res.json({
+            ...updated,
+            role: myRole,
+        });
+    } catch (err) {
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
+        }
+        next(err);
+    }
+});
+
 export default router;
+

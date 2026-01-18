@@ -6,11 +6,20 @@ import crypto from 'crypto';
 import { Resend } from 'resend';
 import { prisma } from '../lib/prisma.js';
 import { verifyEmailTemplate, resetPasswordTemplate } from '../lib/emails.js';
+import { cacheGetOrSet, cacheSet, cacheDel } from '../lib/cache.js';
 
-// If you already have verifyToken for protected endpoints, keep it; not needed here.
 const router = Router();
 
 // ---------- utils ----------
+function setAuthCookie(res, token, maxAge) {
+    res.cookie('token', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge,
+    });
+}
+
 function zodMsg(err) {
     const issues = err?.issues || err?.errors || [];
     return Array.isArray(issues) && issues.length
@@ -26,9 +35,18 @@ const passwordSchema = z.string()
     .regex(/[0-9]/, "Must contain a number")
     .regex(/[@$!%*?#&_]/, "Must contain a special character");
 
-function signSession(userId, remember=false) {
+function signSession(user, remember = false) {
     const expiresIn = remember ? '7d' : '1d';
-    const token = jwt.sign({ sub: userId }, process.env.JWT_SECRET, { expiresIn });
+    const payload = {
+        sub: user.id,
+        u: {
+            username: user.username,
+            displayName: user.displayName ?? null,
+            email: user.email,
+            verified: !!user.emailVerifiedAt,
+        }
+    };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
     const maxAge = remember ? 7*24*60*60*1000 : 24*60*60*1000;
     return { token, maxAge };
 }
@@ -54,16 +72,12 @@ async function sendEmail({ to, subject, html, text }) {
 
     try {
         const { data, error } = await resend.emails.send({
-            from: MAIL_FROM,     // e.g. 'Astrae <noreply@astrae.no>'
+            from: MAIL_FROM,
             to,
             subject,
             html,
-            text,                // optional; include if your template provides it
-            // Optional niceties:
-            // reply_to: 'support@astrae.no',
-            // tags: [{ name: 'type', value: 'email-verify' }],
+            text,
             headers: {
-                // Helps with unsubscribes in clients; not required
                 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
                 'List-Unsubscribe': `<mailto:noreply@astrae.no?subject=unsubscribe>`,
             },
@@ -84,19 +98,16 @@ async function sendEmail({ to, subject, html, text }) {
     }
 }
 
-
 function urlSafeToken(bytes = 32) {
     return crypto.randomBytes(bytes).toString('base64url');
 }
 
-// For links in emails
 function appUrl(path) {
     const base = (process.env.APP_ORIGIN || 'http://localhost:3000').replace(/\/+$/, '');
     return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
 function readTokenFromReq(req) {
-    // Prefer cookie; fall back to "Authorization: Bearer <token>"
     const bearer = req.get('authorization');
     const headerToken = bearer?.startsWith('Bearer ') ? bearer.slice(7) : null;
     return req.cookies?.token || headerToken || null;
@@ -111,16 +122,18 @@ function verifyJwtOrNull(token) {
     }
 }
 
-async function needsOnboarding(userId) {
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { onboardingSkippedAt: true },
+// Manual-invalidation cache (no TTL)
+async function needsOnboardingCached(userId) {
+    return cacheGetOrSet(`needsOnboarding:${userId}`, async () => {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { onboardingSkippedAt: true },
+        });
+        if (!user) return true;
+        if (user.onboardingSkippedAt) return false;
+        const count = await prisma.budget.count({ where: { ownerId: userId } });
+        return count === 0;
     });
-    if (!user) return true;
-    if (user.onboardingSkippedAt) return false;
-
-    const count = await prisma.budget.count({ where: { ownerId: userId } });
-    return count === 0;
 }
 
 // ---------- schemas ----------
@@ -131,7 +144,7 @@ const registerSchema = z.object({
     email: z.string().email(),
     password: passwordSchema,
     confirmPassword: z.string(),
-    displayName: z.string().min(1).max(100).optional(), // <-- add this
+    displayName: z.string().min(1).max(100).optional(),
 }).refine(d => d.password === d.confirmPassword, { path: ['confirmPassword'], message: 'Passwords do not match' });
 
 const loginSchema = z.object({
@@ -156,8 +169,6 @@ const verifySchema = z.object({
 
 // ---------- routes ----------
 
-// POST /api/auth/register
-// Creates user, stores verification token, emails link. DOES NOT log in.
 router.post('/register', async (req, res, next) => {
     try {
         const { username, email, password, displayName } = registerSchema.parse(req.body);
@@ -185,7 +196,6 @@ router.post('/register', async (req, res, next) => {
             text: tpl.text,
         });
 
-        // Return dev link only when we didn't actually send an email
         const body = { ok: true, message: 'Registered. Please check your email to verify your account.' };
         if (emailResult?.devLink) body.devLink = emailResult.devLink;
         if (process.env.NODE_ENV !== 'production') body.devLink = body.devLink || verifyLink;
@@ -203,17 +213,19 @@ router.post('/register', async (req, res, next) => {
     }
 });
 
-// GET /api/auth/verify?token=...
-// Verifies email; optionally seeds a default budget + categories after verification.
 router.get('/verify', async (req, res, next) => {
     try {
         const { token } = verifySchema.parse({ token: req.query.token });
+
+        let verifiedUserId = null;
 
         await prisma.$transaction(async (tx) => {
             const record = await tx.authToken.findUnique({ where: { token } });
             if (!record || record.type !== 'EMAIL_VERIFY') throw Object.assign(new Error('Invalid token'), { status: 400 });
             if (record.consumedAt) throw Object.assign(new Error('Token already used'), { status: 400 });
             if (record.expiresAt < new Date()) throw Object.assign(new Error('Token expired'), { status: 400 });
+
+            verifiedUserId = record.userId;
 
             await tx.user.update({
                 where: { id: record.userId },
@@ -226,6 +238,9 @@ router.get('/verify', async (req, res, next) => {
             });
         });
 
+        // Invalidate cached “userVerified:<id>” so /me reflects verified status immediately
+        if (verifiedUserId) cacheDel(`userVerified:${verifiedUserId}`);
+
         return res.json({ ok: true, message: 'Email verified. Please sign in to start onboarding.' });
     } catch (err) {
         if (err?.status === 400) return res.status(400).json({ error: err.message });
@@ -234,17 +249,15 @@ router.get('/verify', async (req, res, next) => {
     }
 });
 
-// POST /api/auth/verify/resend
 router.post('/verify/resend', async (req, res, next) => {
     try {
         const schema = z.object({ email: z.string().email() });
         const { email } = schema.parse(req.body);
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) return res.json({ ok: true }); // do not leak
+        if (!user) return res.json({ ok: true });
         if (user.emailVerifiedAt) return res.json({ ok: true });
 
-        // invalidate old tokens of this type
         await prisma.authToken.deleteMany({
             where: { userId: user.id, type: 'EMAIL_VERIFY' }
         });
@@ -276,40 +289,34 @@ router.post('/verify/resend', async (req, res, next) => {
     }
 });
 
-// POST /api/auth/login
 router.post('/login', async (req, res, next) => {
     try {
         const { usernameOrEmail, password, remember } = loginSchema.parse(req.body);
 
         const user = await prisma.user.findFirst({
-            where: {
-                OR: [
-                    { username: usernameOrEmail },
-                    { email: usernameOrEmail },
-                ]
-            }
+            where: { OR: [{ username: usernameOrEmail }, { email: usernameOrEmail }] },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                displayName: true,
+                passwordHash: true,
+                emailVerifiedAt: true,
+            },
         });
-        // Generic error to avoid leaking which field failed
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-
         if (!user.emailVerifiedAt) {
             return res.status(403).json({ error: 'Email not verified. Check your email or request a new verification link.' });
         }
 
         const ok = await argon2.verify(user.passwordHash, password);
         if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
-
         if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET not set');
-        const { token, maxAge } = signSession(user.id, !!remember);
 
-        res.cookie('token', token, {
-            httpOnly: true,
-            sameSite: 'lax',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge,
-        });
+        const { token, maxAge } = signSession(user, !!remember);
+        setAuthCookie(res, token, maxAge);
 
-        const onboarding = await needsOnboarding(user.id);
+        const onboarding = await needsOnboardingCached(user.id);
 
         res.json({
             id: user.id,
@@ -326,21 +333,18 @@ router.post('/login', async (req, res, next) => {
     }
 });
 
-// POST /api/auth/password/forgot
 router.post('/password/forgot', async (req, res, next) => {
     try {
         const { email } = forgotSchema.parse(req.body);
         const user = await prisma.user.findUnique({ where: { email } });
-        // Always return ok to avoid account enumeration
         if (!user) return res.json({ ok: true });
 
-        // delete existing reset tokens
         await prisma.authToken.deleteMany({
             where: { userId: user.id, type: 'PASSWORD_RESET' }
         });
 
         const token = urlSafeToken(32);
-        const expiresAt = new Date(Date.now() + 60*60*1000); // 1 hour
+        const expiresAt = new Date(Date.now() + 60*60*1000);
         await prisma.authToken.create({
             data: { userId: user.id, token, type: 'PASSWORD_RESET', expiresAt }
         });
@@ -366,7 +370,6 @@ router.post('/password/forgot', async (req, res, next) => {
     }
 });
 
-// POST /api/auth/password/reset
 router.post('/password/reset', async (req, res, next) => {
     try {
         const { token, password } = resetSchema.parse(req.body);
@@ -407,7 +410,7 @@ router.get('/availability', async (req, res, next) => {
                 where: { username: { equals: username.trim(), mode: 'insensitive' } },
                 select: { id: true },
             });
-            out.username = !exists; // true means FREE
+            out.username = !exists;
         }
 
         if (typeof email === 'string' && email.trim() !== '') {
@@ -432,38 +435,6 @@ router.get('/availability', async (req, res, next) => {
     }
 });
 
-// GET /api/auth/me
-router.get('/me', async (req, res) => {
-    const token = readTokenFromReq(req);
-    const payload = verifyJwtOrNull(token);
-
-    if (!payload?.sub) {
-        return res.json(null);
-    }
-
-    const user = await prisma.user.findUnique({
-        where: { id: payload.sub },
-        select: {
-            id: true,
-            username: true,
-            email: true,
-            displayName: true,
-            emailVerifiedAt: true,
-            createdAt: true,
-        },
-    });
-
-    if (!user) return res.json(null);
-
-    const onboarding = await needsOnboarding(user.id);
-
-    return res.json({
-        ...user,
-        needsOnboarding: onboarding,
-    });
-});
-
-// POST /api/auth/logout
 router.post('/logout', (req, res) => {
     res.clearCookie('token', {
         httpOnly: true,
@@ -473,7 +444,6 @@ router.post('/logout', (req, res) => {
     res.status(204).end();
 });
 
-// GET /api/auth/users (if you still need it)
 router.get('/users', async (_req, res, next) => {
     try {
         const users = await prisma.user.findMany({
@@ -487,7 +457,7 @@ const onboardingSchema = z.object({
     budgetName: z.string().min(1).max(191),
     categories: z.array(z.object({
         name: z.string().min(1).max(80),
-        color: z.string().min(3).max(20), // "R, G, B"
+        color: z.string().min(3).max(20),
         planMonthly: z.number().min(0).max(99999999.99).default(0),
     })).min(1).max(100)
 });
@@ -524,7 +494,6 @@ async function uniqueBudgetSlug(tx) {
     return slug;
 }
 
-// POST /api/onboarding
 router.post('/onboarding', async (req, res, next) => {
     try {
         const userId = requireAuth(req);
@@ -545,7 +514,7 @@ router.post('/onboarding', async (req, res, next) => {
                     slug,
                     members: { create: { userId, role: 'OWNER' } },
                 },
-                select: { id: true, slug: true }, // only what we need
+                select: { id: true, slug: true },
             });
 
             const rows = categories.map((c, i) => ({
@@ -558,7 +527,6 @@ router.post('/onboarding', async (req, res, next) => {
                 isSystem: false,
             }));
 
-            // ensure unique slugs within this budget’s categories
             const seen = new Set();
             rows.forEach(r => {
                 let s = r.slug || 'cat';
@@ -570,8 +538,11 @@ router.post('/onboarding', async (req, res, next) => {
 
             await tx.category.createMany({ data: rows });
 
-            return created; // <-- return something!
+            return created;
         });
+
+        // Invalidate onboarding flag for this user
+        cacheDel(`needsOnboarding:${userId}`);
 
         res.json({ ok: true, slug: budget.slug, budgetId: budget.id });
     } catch (err) {
@@ -588,10 +559,59 @@ router.post('/onboarding/skip', async (req, res, next) => {
             where: { id: userId },
             data: { onboardingSkippedAt: new Date() },
         });
+
+        cacheDel(`needsOnboarding:${userId}`);
+
         return res.json({ ok: true });
     } catch (err) {
         next(err);
     }
+});
+
+router.get('/me', async (req, res) => {
+    const token = readTokenFromReq(req);
+    let payload;
+    try { payload = token ? jwt.verify(token, process.env.JWT_SECRET) : null; }
+    catch { return res.json(null); }
+    if (!payload?.sub) return res.json(null);
+
+    let base = {
+        id: payload.sub,
+        username: payload.u?.username ?? null,
+        email: payload.u?.email ?? null,
+        displayName: payload.u?.displayName ?? null,
+        emailVerifiedAt: payload.u?.verified ? true : null,
+    };
+
+    // If the token says "unverified", check DB via cache (manual invalidation)
+    if (!base.emailVerifiedAt) {
+        const verified = await cacheGetOrSet(`userVerified:${payload.sub}`, async () => {
+            const u = await prisma.user.findUnique({
+                where: { id: payload.sub },
+                select: { emailVerifiedAt: true, username: true, displayName: true, email: true },
+            });
+            return u || null; // it's okay if null; cache layer treats null as a miss later
+        });
+        if (verified) {
+            base = {
+                id: payload.sub,
+                username: base.username ?? verified.username ?? null,
+                email: base.email ?? verified.email ?? null,
+                displayName: base.displayName ?? verified.displayName ?? null,
+                emailVerifiedAt: verified.emailVerifiedAt ? true : null,
+            };
+        }
+    }
+
+    const needsOnboarding = await needsOnboardingCached(payload.sub);
+    const body = { ...base, needsOnboarding };
+
+    const etag = crypto.createHash('sha1').update(JSON.stringify(body)).digest('hex');
+    if (req.headers['if-none-match'] === etag) return res.status(304).end();
+
+    res.set('Cache-Control', 'private, max-age=60');
+    res.set('ETag', etag);
+    return res.json(body);
 });
 
 export default router;

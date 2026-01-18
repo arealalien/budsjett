@@ -3,7 +3,7 @@
 @use "../abstracts/utilities";
 
 .dashboard {
-  padding: 2em;
+  padding: 2rem;
   width: 100%;
   position: relative;
   display: flex;
@@ -11,23 +11,23 @@
   align-items: flex-start;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 2em;
+  gap: 2rem;
 
   &-balance {
     padding: 1px;
-    width: 20em;
+    width: 20rem;
     position: relative;
     background-color: mixins.hslac(colors.$clr-gray-800, 1);
-    border-radius: 1.6em;
-    gap: 1em;
+    border-radius: 1.6rem;
+    gap: 1rem;
     overflow: hidden;
     @include mixins.flex-col();
 
     &-rim {
       $size: 10;
-      top: - calc($size / 1.5) + em;
-      left: - calc($size / 2.5) + em;
-      width: $size + em;
+      top: - calc($size / 1.5) + rem;
+      left: - calc($size / 2.5) + rem;
+      width: $size + rem;
       aspect-ratio: 1 / 1;
       position: absolute;
       background-color: mixins.hslac(colors.$clr-white, 1);
@@ -38,9 +38,9 @@
     }
     &-glow {
       $size: 20;
-      right: - calc($size / 2.5) + em;
-      bottom: - calc($size / 1.5) + em;
-      width: $size + em;
+      right: - calc($size / 2.5) + rem;
+      bottom: - calc($size / 1.5) + rem;
+      width: $size + rem;
       aspect-ratio: 1 / 1;
       position: absolute;
       border-radius: 50%;
@@ -57,10 +57,10 @@
     &-inner {
       width: 100%;
       height: 100%;
-      padding: 2em;
+      padding: 2rem;
       background-color: mixins.hslac(colors.$clr-gray-900, 1);
-      border-radius: 1.6em;
-      gap: 1em;
+      border-radius: 1.6rem;
+      gap: 1rem;
       @include mixins.flex-col();
 
       &-top {
@@ -91,19 +91,19 @@
   }
   &-categoryblock {
     padding: 1px;
-    width: 60em;
+    width: 60rem;
     position: relative;
     background-color: mixins.hslac(colors.$clr-gray-800, 1);
-    border-radius: 1.6em;
-    gap: 1em;
+    border-radius: 1.6rem;
+    gap: 1rem;
     overflow: hidden;
     @include mixins.flex-col();
 
     &-rim {
       $size: 20;
-      top: - calc($size / 1.5) + em;
-      left: - calc($size / 2.5) + em;
-      width: $size + em;
+      top: - calc($size / 1.5) + rem;
+      left: - calc($size / 2.5) + rem;
+      width: $size + rem;
       aspect-ratio: 1 / 1;
       position: absolute;
       background-color: mixins.hslac(colors.$clr-white, 1);
@@ -114,9 +114,9 @@
     }
     &-glow {
       $size: 80;
-      right: - calc($size / 3) + em;
-      bottom: - calc($size / 1.1) + em;
-      width: $size + em;
+      right: - calc($size / 3) + rem;
+      bottom: - calc($size / 1.1) + rem;
+      width: $size + rem;
       aspect-ratio: 1 / 1;
       position: absolute;
       background-color: mixins.hslac(colors.$clr-purple-500, 1);
@@ -128,20 +128,20 @@
     &-inner {
       width: 100%;
       height: 100%;
-      padding: 2em;
+      padding: 2rem;
       background-color: mixins.hslac(colors.$clr-gray-900, 1);
-      border-radius: 1.6em;
-      gap: 1em;
+      border-radius: 1.6rem;
+      gap: 1rem;
       @include mixins.flex-col();
 
       &-top {
         width: 100%;
-        gap: 2em;
+        gap: 2rem;
         @include mixins.flex-space-bet();
         &-title {
           font-size: utilities.$heading-medium;
           font-weight: 800;
-          gap: .4em;
+          gap: .4rem;
           @include mixins.flex-left();
 
           .currency-symbol {
@@ -150,16 +150,16 @@
         }
         &-buttons {
           padding: 4px;
-          border-radius: 1.2em;
+          border-radius: 1.2rem;
           border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
           @include mixins.flex-space-bet();
 
           button {
-            padding: .8em 1.4em;
+            padding: .8rem 1.4rem;
             width: 100%;
             color: mixins.hslac(colors.$clr-cyan-100, .5);
             background-color: transparent;
-            border-radius: .8em;
+            border-radius: .8rem;
             border: none;
             text-wrap: nowrap;
             cursor: pointer;
@@ -182,12 +182,12 @@
       &-center {
         width: 100%;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(15em, 1fr));
-        gap: 1em;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+        gap: 1rem;
         &-item {
-          padding: 2em;
+          padding: 2rem;
           width: 100%;
-          border-radius: 1.2em;
+          border-radius: 1.2rem;
 
           &-title {
             font-weight: 700;
@@ -234,19 +234,19 @@
   }
   &-trend {
     padding: 1px;
-    width: 35em;
+    width: 35rem;
     position: relative;
     background-color: mixins.hslac(colors.$clr-gray-800, 1);
-    border-radius: 1.6em;
-    gap: 1em;
+    border-radius: 1.6rem;
+    gap: 1rem;
     overflow: hidden;
     @include mixins.flex-col();
 
     &-rim {
       $size: 14;
-      top: - calc($size / 1.2) + em;
-      left: - calc($size / 2.5) + em;
-      width: $size + em;
+      top: - calc($size / 1.2) + rem;
+      left: - calc($size / 2.5) + rem;
+      width: $size + rem;
       aspect-ratio: 1.5 / 1;
       position: absolute;
       background-color: mixins.hslac(colors.$clr-white, 1);
@@ -257,9 +257,9 @@
     }
     &-glow {
       $size: 40;
-      right: - calc($size / 2.5) + em;
-      bottom: - calc($size / 1.5) + em;
-      width: $size + em;
+      right: - calc($size / 2.5) + rem;
+      bottom: - calc($size / 1.5) + rem;
+      width: $size + rem;
       aspect-ratio: 1 / 1;
       position: absolute;
       background-color: var(--accent);
@@ -272,10 +272,10 @@
     &-inner {
       width: 100%;
       height: 100%;
-      padding: 2em;
+      padding: 2rem;
       background-color: mixins.hslac(colors.$clr-gray-900, 1);
-      border-radius: 1.6em;
-      gap: 1em;
+      border-radius: 1.6rem;
+      gap: 1rem;
       @include mixins.flex-col();
 
       &-top {
@@ -287,7 +287,7 @@
         }
         &-sum {
           font-weight: 800;
-          gap: .3em;
+          gap: .3rem;
           @include mixins.flex-left();
 
           .currency-symbol {
@@ -299,16 +299,16 @@
       &-buttons {
         padding: 4px;
         width: 100%;
-        border-radius: 1.2em;
+        border-radius: 1.2rem;
         border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
         @include mixins.flex-space-bet();
 
         button {
-          padding: .8em 1.2em;
+          padding: .8rem 1.2rem;
           width: 100%;
           color: mixins.hslac(colors.$clr-cyan-100, .5);
           background-color: transparent;
-          border-radius: .8em;
+          border-radius: .8rem;
           border: none;
           text-wrap: nowrap;
           cursor: pointer;
@@ -326,18 +326,18 @@
       &-dropdown {
         width: 100%;
         label {
-          gap: .4em;
+          gap: .4rem;
           @include mixins.flex-col-left-ns();
 
           span {
-            margin-left: 1em;
+            margin-left: 1rem;
             color: mixins.hslac(colors.$clr-gray-500, 1);
           }
           select {
-            padding: 1em 1.2em;
+            padding: 1rem 1.2rem;
             width: 100%;
             border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
-            border-radius: 1em;
+            border-radius: 1rem;
             background: mixins.hslac(colors.$clr-gray-900, 1);
             color: mixins.hslac(colors.$clr-gray-100, 1);
             transition: border-color .25s cubic-bezier(utilities.$transition-main, 1);
@@ -349,30 +349,30 @@
         }
         &-multi {
           span {
-            margin-left: 1em;
+            margin-left: 1rem;
             color: mixins.hslac(colors.$clr-gray-500, 1);
           }
           &-buttons {
-            margin: 1em 0;
+            margin: 1erm 0;
             display: flex;
             justify-content: flex-start;
             align-items: center;
             flex-direction: row;
             flex-wrap: wrap;
-            gap: 1em;
+            gap: 1rem;
 
             button {
-              padding: .8em 1.2em;
+              padding: .8rem 1.2rem;
               color: mixins.hslac(colors.$clr-white, 1);
               border-style: solid;
               border-width: 1px;
-              border-radius: 5em;
-              gap: .5em;
+              border-radius: 5rem;
+              gap: .5rem;
               cursor: pointer;
               @include mixins.flex-center();
 
               svg {
-                width: .75em; height: .75em;
+                width: .75rem; height: .75rem;
                 path {
                   stroke: mixins.hslac(colors.$clr-white, 1);
                 }
@@ -381,12 +381,12 @@
           }
           &-combine {
             button {
-              padding: .8em 1.2em;
+              padding: .8rem 1.2rem;
               color: mixins.hslac(colors.$clr-white, 1);
               background-color: mixins.hslac(colors.$clr-gray-900, 1);
               border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
-              border-radius: 5em;
-              gap: .5em;
+              border-radius: 5rem;
+              gap: .5rem;
               cursor: pointer;
               @include mixins.flex-center();
 
@@ -395,7 +395,7 @@
                 cursor: default;
               }
               svg {
-                width: .75em; height: .75em;
+                width: .75rem; height: .75rem;
                 path {
                   stroke: mixins.hslac(colors.$clr-white, 1);
                 }
@@ -408,7 +408,7 @@
         }
       }
       &-center {
-        width: 100%; height: 20em;
+        width: 100%; height: 20rem;
         @include mixins.flex-center();
 
         &-graph {
@@ -420,12 +420,12 @@
             fill: mixins.hslac(colors.$clr-gray-500, .5);
           }
           .custom-tooltip {
-            padding: 1em;
+            padding: 1rem;
             background-color: mixins.hslac(colors.$clr-white, .1);
             backdrop-filter: blur(.5rem);
-            border-radius: 1em;
+            border-radius: 1rem;
             &-title {
-              margin-bottom: .2em;
+              margin-bottom: .2rem;
               color: var(--accent);
               transition: color .75s cubic-bezier(utilities.$transition-main, 1);
             }
@@ -441,12 +441,12 @@
           font-weight: 600;
           font-size: utilities.$heading-small;
           .trend-sign {
-            margin-right: .15em;
+            margin-right: .15rem;
             color: var(--accent);
             transition: color .75s cubic-bezier(utilities.$transition-main, 1);
           }
           .trend-percent {
-            margin-left: .05em;
+            margin-left: .05rem;
             color: mixins.hslac(colors.$clr-gray-500, 1);
             font-size: utilities.$paragraph;
           }

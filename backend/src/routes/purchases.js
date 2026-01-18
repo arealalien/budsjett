@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { verifyToken } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
+import { cacheDel } from '../lib/cache.js'; // ✅ added
 
 const router = Router();
 
@@ -18,7 +19,6 @@ const createPurchaseSchema = z.object({
     notes: z.string().optional()
 });
 
-// POST /api/purchases
 router.post('/', verifyToken, async (req, res, next) => {
     try {
         const {
@@ -38,7 +38,6 @@ router.post('/', verifyToken, async (req, res, next) => {
         // Build shares
         let sharesCreate;
         if (!shared) {
-            // Personal: 100% to payer
             sharesCreate = [{ userId: paidById, percent: 100 }];
         } else {
             const p1 = Math.round(splitPercentForPayer);
@@ -53,7 +52,7 @@ router.post('/', verifyToken, async (req, res, next) => {
             data: {
                 itemName,
                 category,
-                amount,                  // Prisma Decimal is fine with JS numbers; it will coerce
+                amount,
                 paidAt: paidAt ?? new Date(),
                 shared,
                 notes: notes ?? null,
@@ -67,6 +66,10 @@ router.post('/', verifyToken, async (req, res, next) => {
                 createdBy: { select: { id: true, name: true } }
             }
         });
+
+        // ✅ Invalidate related caches (like any cached purchase lists)
+        cacheDel('purchases:');
+        cacheDel(`user:${req.user.id}:purchases:`);
 
         res.status(201).json(purchase);
     } catch (err) {

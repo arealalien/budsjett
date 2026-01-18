@@ -1,158 +1,198 @@
+// src/routes/reports.spendingTrend.js
 import { Router } from 'express';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { verifyToken } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
+import { cacheGetOrSet, cacheDel } from '../lib/cache.js';
 
 const router = Router();
 
 const querySchema = z.object({
     period: z.enum(['week','month','year']).default('month'),
     mode: z.enum(['single','multiple']).default('single'),
-    category: z.string().optional().default('TOTAL'), // categoryId or 'TOTAL'
+    category: z.string().optional().default('TOTAL'),
     categories: z.string().optional(), // CSV of categoryIds
     combine: z.coerce.boolean().optional().default(false),
 });
 
-function keyForDate(d, step){
-    if (step === 'month') {
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    }
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+// ------------ small helpers ------------
+const sha1 = (o) => crypto.createHash('sha1').update(JSON.stringify(o)).digest('hex');
+const keyBudget = (slug) => `budget:${slug}:meta+cats:v1`;
+const keyTrend = (slug, q) => `trend:${slug}:${q.period}:${q.mode}:${q.category || 'TOTAL'}:${q.categories || 'null'}:${q.combine ? '1' : '0'}:${q._fromISO}:${q._toISO}:${q._prevFromISO}:${q._prevToISO}:${q._step}`;
 
-function buildBuckets(from, to, step){
-    const buckets = [];
-    if (step === 'month'){
-        const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
-        const limit  = new Date(to.getFullYear(),   to.getMonth(),   1);
-        while (cursor <= limit){
-            buckets.push({ key: keyForDate(cursor, 'month'), date: new Date(cursor) });
-            cursor.setMonth(cursor.getMonth()+1);
-        }
-    } else {
-        let cursor = new Date(from); cursor.setHours(0,0,0,0);
-        const limit = new Date(to);  limit.setHours(0,0,0,0);
-        while (cursor <= limit){
-            buckets.push({ key: keyForDate(cursor, 'day'), date: new Date(cursor) });
-            cursor.setDate(cursor.getDate()+1);
-        }
-    }
-    return buckets;
-}
-
-// budget-scoped
 router.get('/:slug/reports/spending-trend', verifyToken, async (req, res, next) => {
     try {
         const { period, mode, category, categories, combine } = querySchema.parse(req.query);
-        const userId = req.userId || req.user?.id; // depending on your auth middleware
+        const userId = req.userId || req.user?.id;
         const { slug } = req.params;
 
-        // Check access + get budget + categories
-        const budget = await prisma.budget.findFirst({
-            where: { slug, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
-            select: { id: true, categories: { select: { id: true, name: true } } },
+        // ---- 1) auth + categories (cached) ----
+        const budget = await cacheGetOrSet(keyBudget(slug), 60_000, async () => {
+            const b = await prisma.budget.findFirst({
+                where: { slug },
+                select: {
+                    id: true,
+                    ownerId: true,
+                    members: { select: { userId: true } },
+                    categories: { select: { id: true, name: true } },
+                },
+            });
+            if (!b) return null;
+            return {
+                id: b.id,
+                ownerId: b.ownerId,
+                memberIds: [b.ownerId, ...b.members.map(m => m.userId)],
+                categories: b.categories,
+            };
         });
         if (!budget) return res.status(404).json({ error: 'Budget not found' });
+        if (!userId || !new Set(budget.memberIds).has(userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
-        const selectedIds = mode === 'multiple'
-            ? (categories ? categories.split(',').map(s => s.trim()).filter(Boolean) : [])
-            : (category === 'TOTAL' ? [] : [category]);
+        const selectedIds =
+            mode === 'multiple'
+                ? (categories ? categories.split(',').map(s => s.trim()).filter(Boolean) : [])
+                : (category === 'TOTAL' ? [] : [category]);
 
-        // Validate that selected category IDs belong to this budget
         const budgetCatIds = new Set(budget.categories.map(c => c.id));
         if (selectedIds.some(id => !budgetCatIds.has(id))) {
             return res.status(400).json({ error: 'Invalid category in selection' });
         }
 
+        // ---- 2) ranges + bucket granularity ----
         const now = new Date();
         const { from, to, prevFrom, prevTo, step } = computeRanges(period, now);
+        const bucketExpr = step === 'month'
+            ? `date_trunc('month', "paidAt")`
+            : `date_trunc('day', "paidAt")`;
 
-        const whereCategory =
-            mode === 'single' && category === 'TOTAL'
-                ? {}
-                : (selectedIds.length ? { categoryId: { in: selectedIds } } : {});
+        // Save ISO strings for cache key stability
+        const _fromISO = from.toISOString();
+        const _toISO = to.toISOString();
+        const _prevFromISO = prevFrom.toISOString();
+        const _prevToISO = prevTo.toISOString();
+        const _step = step;
 
-        // Pull once across both ranges for efficiency
-        const purchases = await prisma.purchase.findMany({
-            where: {
-                budgetId: budget.id,
-                deletedAt: null,
-                paidAt: { gte: prevFrom, lte: to },
-                ...whereCategory,
-            },
-            select: { amount: true, paidAt: true, categoryId: true },
-            orderBy: { paidAt: 'asc' },
-        });
+        // ---- 3) main payload (cached per query tuple) ----
+        const payload = await cacheGetOrSet(
+            keyTrend(slug, { period, mode, category, categories, combine, _fromISO, _toISO, _prevFromISO, _prevToISO, _step }),
+            60_000,
+            async () => {
+                // WHERE pieces (only our controlled fragments are interpolated)
+                const whereBase = `"budgetId" = $1 AND "deletedAt" IS NULL`;
+                const whereCurr = `${whereBase} AND "paidAt" >= $2 AND "paidAt" <= $3`;
+                const wherePrev = `${whereBase} AND "paidAt" >= $4 AND "paidAt" <= $5`;
+                const hasCats = selectedIds.length > 0;
+                const catFilter = hasCats ? `AND "categoryId" = ANY($6)` : ``;
 
-        const buckets = buildBuckets(from, to, step);
-        const curr = purchases.filter(p => p.paidAt >= from && p.paidAt <= to);
-        const prev = purchases.filter(p => p.paidAt >= prevFrom && p.paidAt <= prevTo);
+                // SQL builders
+                const qAggregate = (whereClause) => `
+          SELECT ${bucketExpr} AS bucket, SUM("amount")::numeric AS total
+          FROM "Purchase"
+          WHERE ${whereClause} ${catFilter}
+          GROUP BY bucket
+          ORDER BY bucket
+        `;
 
-        // sum helper
-        const sumFor = (items, ids) => {
-            const filtered = ids?.length ? items.filter(p => p.categoryId && ids.includes(p.categoryId)) : items;
-            return sumIntoBuckets(filtered, step);
-        };
+                const qAggregateMulti = (whereClause) => `
+          SELECT ${bucketExpr} AS bucket, "categoryId", SUM("amount")::numeric AS total
+          FROM "Purchase"
+          WHERE ${whereClause} ${catFilter}
+          GROUP BY bucket, "categoryId"
+          ORDER BY bucket
+        `;
 
-        if (mode === 'single') {
-            const currByKey = sumFor(curr, selectedIds);
-            const prevByKey = sumFor(prev, selectedIds);
-            const points = toPerPeriodSeries(buckets, currByKey);
+                // Parameter array (note: order matches $1..$6)
+                const params = [budget.id, from, to, prevFrom, prevTo, ...(hasCats ? [selectedIds] : [])];
 
-            const currentTotal = sumMap(currByKey);
-            const previousTotal = sumMap(prevByKey);
-            const change = buildChange(currentTotal, previousTotal);
+                if (mode === 'single' || combine) {
+                    const [currRows, prevRows] = await Promise.all([
+                        prisma.$queryRawUnsafe(qAggregate(whereCurr), ...params),
+                        prisma.$queryRawUnsafe(qAggregate(wherePrev), ...params),
+                    ]);
 
-            return res.json({
-                mode, period, category, range: { from, to }, prevRange: { from: prevFrom, to: prevTo },
-                points, currentTotal, previousTotal, change,
-            });
+                    const buckets = buildBuckets(from, to, step);
+                    const currMap = new Map(currRows.map(r => [toKey(r.bucket, step), Number(r.total)]));
+                    const prevMap = new Map(prevRows.map(r => [toKey(r.bucket, step), Number(r.total)]));
+
+                    const points = buckets.map(b => ({
+                        x: toIso(b, step),
+                        y: +(currMap.get(keyFor(b, step)) || 0).toFixed(2),
+                    }));
+
+                    const currentTotal = sumMap(currMap);
+                    const previousTotal = sumMap(prevMap);
+                    const change = buildChange(currentTotal, previousTotal);
+
+                    return {
+                        mode,
+                        period,
+                        ...(mode === 'single' ? { category } : { categories: selectedIds, combine: true }),
+                        range: { from, to },
+                        prevRange: { from: prevFrom, to: prevTo },
+                        points,
+                        currentTotal,
+                        previousTotal,
+                        change,
+                    };
+                } else {
+                    // multiple + separate series
+                    const rows = await prisma.$queryRawUnsafe(qAggregateMulti(whereCurr), ...params);
+
+                    const seriesMap = new Map(); // catId -> Map(bucketKey -> total)
+                    for (const r of rows) {
+                        const catId = r.categoryId;
+                        if (!seriesMap.has(catId)) seriesMap.set(catId, new Map());
+                        seriesMap.get(catId).set(toKey(r.bucket, step), Number(r.total));
+                    }
+
+                    const buckets = buildBuckets(from, to, step);
+                    const series = selectedIds.map(id => {
+                        const m = seriesMap.get(id) || new Map();
+                        const points = buckets.map(b => ({ x: toIso(b, step), y: +(m.get(keyFor(b, step)) || 0).toFixed(2) }));
+                        const currentTotal = sumMap(m);
+                        return {
+                            key: id,
+                            label: budget.categories.find(c => c.id === id)?.name || id,
+                            points,
+                            currentTotal,
+                            previousTotal: 0, // add a prev aggregation if you later display per-series YoY/period deltas
+                        };
+                    });
+
+                    const currentTotal = series.reduce((s, srs) => s + srs.currentTotal, 0);
+                    const previousTotal = 0;
+                    const change = buildChange(currentTotal, previousTotal);
+
+                    return {
+                        mode,
+                        period,
+                        categories: selectedIds,
+                        combine: false,
+                        range: { from, to },
+                        prevRange: { from: prevFrom, to: prevTo },
+                        series,
+                        currentTotal,
+                        previousTotal,
+                        change,
+                    };
+                }
+            }
+        );
+
+        // ---- 4) HTTP caching (ETag/304) ----
+        const etag = sha1(payload);
+        if (req.headers['if-none-match'] === etag) {
+            res.status(304).end();
+            return;
         }
-
-        // multiple
-        if (combine) {
-            const currByKey = sumFor(curr, selectedIds);
-            const prevByKey = sumFor(prev, selectedIds);
-            const points = toPerPeriodSeries(buckets, currByKey);
-
-            const currentTotal = sumMap(currByKey);
-            const previousTotal = sumMap(prevByKey);
-            const change = buildChange(currentTotal, previousTotal);
-
-            return res.json({
-                mode, period, categories: selectedIds, combine: true,
-                range: { from, to }, prevRange: { from: prevFrom, to: prevTo },
-                points, currentTotal, previousTotal, change,
-            });
-        }
-
-        // separate lines
-        const series = selectedIds.map(id => {
-            const currByKey = sumFor(curr, [id]);
-            const prevByKey = sumFor(prev, [id]);
-            const points = toPerPeriodSeries(buckets, currByKey);
-            return {
-                key: id,
-                label: budget.categories.find(c => c.id === id)?.name || id,
-                points,
-                currentTotal: sumMap(currByKey),
-                previousTotal: sumMap(prevByKey),
-            };
-        });
-
-        const currentTotal = series.reduce((s, srs) => s + srs.currentTotal, 0);
-        const previousTotal = series.reduce((s, srs) => s + srs.previousTotal, 0);
-        const change = buildChange(currentTotal, previousTotal);
-
-        return res.json({
-            mode, period, categories: selectedIds, combine: false,
-            range: { from, to }, prevRange: { from: prevFrom, to: prevTo },
-            series, currentTotal, previousTotal, change,
-        });
+        res.set('Cache-Control', 'private, max-age=60');
+        res.set('ETag', etag);
+        res.json(payload);
     } catch (err) {
-        if (err.name === 'ZodError') {
-            return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
-        }
+        if (err.name === 'ZodError') return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
         next(err);
     }
 });
@@ -191,33 +231,37 @@ function computeRanges(period, now){
     return { from, to, prevFrom, prevTo, step };
 }
 
-function sumIntoBuckets(purchases, step){
-    const out = new Map();
-    for (const p of purchases){
-        const d = new Date(p.paidAt);
-        const key = step === 'month'
-            ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
-            : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        const amt = Number(p.amount) || 0;
-        out.set(key, (out.get(key) || 0) + amt);
+function keyFor(b, step){
+    return step === 'month'
+        ? `${b.date.getFullYear()}-${String(b.date.getMonth()+1).padStart(2,'0')}`
+        : `${b.date.getFullYear()}-${String(b.date.getMonth()+1).padStart(2,'0')}-${String(b.date.getDate()).padStart(2,'0')}`;
+}
+function buildBuckets(from, to, step){
+    const buckets = [];
+    if (step === 'month'){
+        const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+        const limit  = new Date(to.getFullYear(),   to.getMonth(),   1);
+        while (cursor <= limit){ buckets.push({ date:new Date(cursor) }); cursor.setMonth(cursor.getMonth()+1); }
+    } else {
+        let cursor = new Date(from); cursor.setHours(0,0,0,0);
+        const limit = new Date(to);  limit.setHours(0,0,0,0);
+        while (cursor <= limit){ buckets.push({ date:new Date(cursor) }); cursor.setDate(cursor.getDate()+1); }
     }
-    return out;
+    return buckets;
 }
-
-function toPerPeriodSeries(buckets, byKey){
-    return buckets.map(b => {
-        const y = +(byKey.get(b.key) || 0).toFixed(2);
-        const x = b.key.length === 7 ? `${b.key}-01` : b.key;
-        return { x, y };
-    });
+function toKey(ts, step){
+    const d = new Date(ts);
+    return step === 'month'
+        ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+        : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-
-function sumMap(m){
-    let s = 0;
-    for (const v of m.values()) s += Number(v) || 0;
-    return +s.toFixed(2);
+function toIso(b, step){
+    const d = new Date(b.date);
+    if (step === 'month') d.setDate(1);
+    d.setHours(0,0,0,0);
+    return d.toISOString().slice(0,10);
 }
-
+function sumMap(m){ let s=0; for (const v of m.values()) s+=Number(v)||0; return +s.toFixed(2); }
 function buildChange(currentTotal, previousTotal){
     const abs = currentTotal - previousTotal;
     const pct = previousTotal > 0 ? (abs / previousTotal) * 100 : (currentTotal > 0 ? 100 : 0);

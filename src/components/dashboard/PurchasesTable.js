@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import nb from 'date-fns/locale/nb';
 import Button from "../Button";
 import Loader from "../Loader";
+import { useAuth } from "../AuthContext";
 
 const fmtCurrency = (n) =>
     (Number.isFinite(n) ? n : Number(n))
@@ -33,6 +34,53 @@ function applySettleLocal(row, nextValue) {
         return s;
     });
     return { ...row, shares };
+}
+
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+function myNetForPurchase(row, myUserId, nameOf) {
+    const amount = Number(row.amount) || 0;
+    const payerId = row.paidBy?.id;
+
+    if (!myUserId || !payerId || !row.shared) return null;
+
+    const shares = Array.isArray(row.shares) ? row.shares : [];
+
+    // I PAID -> show each other user's unsettled amount to me
+    if (payerId === myUserId) {
+        const lines = shares
+            .filter(s => s.userId !== myUserId && (Number(s.percent) || 0) > 0 && !s.isSettled)
+            .map(s => ({
+                from: nameOf(s.userId),
+                to: nameOf(myUserId),
+                amount: round2(amount * (Number(s.percent) || 0) / 100),
+            }))
+            .filter(x => x.amount > 0);
+
+        const total = round2(lines.reduce((sum, l) => sum + l.amount, 0));
+
+        return {
+            dir: total > 0 ? 'OWED_TO_ME' : 'SETTLED',
+            amount: total,
+            lines, // tooltip
+        };
+    }
+
+    // SOMEONE ELSE PAID -> show my unsettled amount to payer
+    const myShare = shares.find(s => s.userId === myUserId);
+    if (!myShare || (Number(myShare.percent) || 0) <= 0) return null;
+
+    const myAmount = myShare.isSettled ? 0 : round2(amount * (Number(myShare.percent) || 0) / 100);
+
+    return {
+        dir: myAmount > 0 ? 'I_OWE' : 'SETTLED',
+        amount: myAmount,
+        lines: myAmount > 0 ? [{
+            from: nameOf(myUserId),
+            to: nameOf(payerId),
+            amount: myAmount,
+        }] : [],
+    };
 }
 
 async function toggleSettle(purchaseId, nextValue, setRows) {
@@ -75,6 +123,17 @@ export default function PurchasesTable({ size = 'full' }) {
     const [dateTo, setDateTo] = useState('');
     const [sortBy, setSortBy] = useState('paidAt');
     const [sortDir, setSortDir] = useState('desc');
+
+    const { user } = useAuth();
+    const myUserId = user?.id;
+
+    const userNameById = useMemo(() => {
+        const m = new Map();
+        users.forEach(u => m.set(u.id, u.name));
+        return m;
+    }, [users]);
+
+    const nameOf = (id) => userNameById.get(id) || id || '—';
 
     useEffect(() => setPageSize(isCompact ? 8 : 10), [isCompact]);
 
@@ -171,6 +230,9 @@ export default function PurchasesTable({ size = 'full' }) {
 
     return (
         <div className={`purchases-wrap ${isCompact ? 'compact' : ''}`}>
+            <div className="purchase-wrap-tooltip">
+                <p>Test</p>
+            </div>
             {!isCompact && (
                 <div className="purchases-wrap-filters">
                     <label className="purchases-wrap-filters-item">
@@ -328,6 +390,7 @@ export default function PurchasesTable({ size = 'full' }) {
                         <Th onClick={()=>onHeaderSort('category')} active={sortBy==='category'} dir={sortDir}>Category</Th>
                         <Th>Paid by</Th>
                         <Th onClick={()=>onHeaderSort('amount')}   active={sortBy==='amount'}   dir={sortDir} align="right">Amount</Th>
+                        <Th align="right">Balance</Th>
                         <Th>Shared</Th>
                         <Th>Notes</Th>
                         <Th>Settled</Th>
@@ -336,16 +399,17 @@ export default function PurchasesTable({ size = 'full' }) {
                     </thead>
                     <tbody>
                     {loading ? (
-                        <tr><td colSpan={9} style={{padding:16}}><Loader/></td></tr>
+                        <tr><td colSpan={10} style={{padding:16}}><Loader/></td></tr>
                     ) : err ? (
-                        <tr><td colSpan={9} style={{padding:16, color:'crimson'}}>{err}</td></tr>
+                        <tr><td colSpan={10} style={{padding:16, color:'crimson'}}>{err}</td></tr>
                     ) : rows.length === 0 ? (
-                        <tr><td colSpan={9} style={{padding:16}}>No purchases found</td></tr>
+                        <tr><td colSpan={10} style={{padding:16}}>No purchases found</td></tr>
                     ) : rows.map(r => {
                         const paidByIdRow = r.paidBy?.id;
                         const debtor = (r.shares || []).find(s => s.userId !== paidByIdRow && s.percent > 0);
                         const isSettled = debtor?.isSettled ?? false;
                         const hasDebtor = !!debtor;
+                        const net = myNetForPurchase(r, myUserId, nameOf);
 
                         return (
                             <tr key={r.id}>
@@ -358,8 +422,53 @@ export default function PurchasesTable({ size = 'full' }) {
                                 <td className="category"><p>{r.category || '—'}</p></td>
                                 <td className="paidBy"><p>{r.paidBy?.name ?? '—'}</p></td>
                                 <td style={{ textAlign: 'right' }}>{fmtCurrency(Number(r.amount))}</td>
+                                <td className="balance" style={{ textAlign: 'right', whiteSpace: 'nowrap', position: 'relative' }}>
+                                    {!net ? (
+                                        '—'
+                                    ) : net.dir === 'I_OWE' ? (
+                                        <>
+                                            <span style={{ color: 'crimson' }}>-{fmtCurrency(net.amount)}</span>
+                                            {!!net.lines?.length && (
+                                                <div className="purchases-wrap-table-inner-balance">
+                                                    {net.lines.map((l, idx) => (
+                                                        <p key={idx}>
+                                                            <strong>{l.from}</strong> owes <strong>{l.to}</strong>: {fmtCurrency(l.amount)}
+                                                        </p>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : net.dir === 'OWED_TO_ME' ? (
+                                        <>
+                                            <span style={{ color: 'green' }}>{fmtCurrency(net.amount)}</span>
+                                            {!!net.lines?.length && (
+                                                <div className="purchases-wrap-table-inner-balance">
+                                                    {net.lines.map((l, idx) => (
+                                                        <p key={idx}>
+                                                            <strong>{l.from}</strong> owes <strong>{l.to}</strong>: {fmtCurrency(l.amount)}
+                                                        </p>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <span style={{ color: '#64748b' }}>—</span>
+                                    )}
+                                </td>
                                 <td className="shared">{r.shared ? 'Yes' : 'No'}</td>
-                                <td className="notes">{r.notes ? '📝' : '—'}</td>
+                                <td className="notes">{r.notes ?
+                                    (
+                                        <>
+                                            <p>📝</p>
+                                            <div className="purchases-wrap-table-inner-notes">
+                                                <p>{r.notes}</p>
+                                            </div>
+                                        </>
+                                    ) :
+                                    (
+                                        <p>—</p>
+                                    )
+                                }</td>
                                 <td>
                                     {r.shared && hasDebtor ? (
                                         <input
