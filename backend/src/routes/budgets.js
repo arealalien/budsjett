@@ -234,7 +234,7 @@ router.get('/:slug', async (req, res, next) => {
 const createPurchaseInBudgetSchema = z.object({
     itemName: z.string().min(1).max(191),
     categoryId: z.string().min(1),
-    amount: z.number().positive(),
+    amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
     paidAt: z.coerce.date().optional(),
     paidById: z.string().min(1).optional(),
     shared: z.boolean().optional(),
@@ -251,7 +251,7 @@ const createPurchaseInBudgetSchema = z.object({
 
 const createIncomeInBudgetSchema = z.object({
     itemName: z.string().min(1).max(191),
-    amount: z.number().positive(),
+    amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
     receivedAt: z.coerce.date().optional(),
     receivedById: z.string().min(1).optional(),
     notes: z.string().max(1000).optional(),

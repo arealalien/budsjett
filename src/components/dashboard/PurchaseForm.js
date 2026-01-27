@@ -12,7 +12,6 @@ export default function PurchaseForm() {
     const { budget = { owner: null, members: [], categories: [] } } = useOutletContext?.() ?? {};
     const { user } = useAuth();
 
-    // Build members list (owner + members), unique + labeled nicely
     const members = useMemo(() => {
         const ids = new Set(
             [budget?.owner?.id, ...(budget?.members || []).map((m) => m.userId)].filter(Boolean)
@@ -22,7 +21,6 @@ export default function PurchaseForm() {
             const u = m?.user || (budget?.owner?.id === id ? budget.owner : null);
             return { id, label: u?.displayName || u?.username || id };
         });
-        // Put current user first for convenience
         list.sort((a, b) => (a.id === user?.id ? -1 : b.id === user?.id ? 1 : 0));
         return list;
     }, [budget, user]);
@@ -35,86 +33,179 @@ export default function PurchaseForm() {
     const [err, setErr] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const parseMoneyToCents = (raw) => {
+        if (raw == null) return 0;
+        let s = String(raw).trim();
+
+        if (!s) return 0;
+
+        s = s.replace(/\s|\u00A0/g, "");
+
+        if (s.includes(",") && s.includes(".")) {
+            s = s.replace(/\./g, "").replace(",", ".");
+        } else if (s.includes(",")) {
+            s = s.replace(",", ".");
+        }
+
+        s = s.replace(/[^\d.-]/g, "");
+
+        const n = Number(s);
+        return Number.isFinite(n) ? Math.round(n * 100) : 0;
+    };
+
+    const toCents = (v) => parseMoneyToCents(v);
+    const fromCents = (c) => (c / 100);
+
+    const [splitTouched, setSplitTouched] = useState(false);
+
     const todayISO = new Date().toISOString().slice(0, 10);
 
     const [form, setForm] = useState({
-        kind: ENTRY_KINDS.EXPENSE, // EXPENSE | INCOME
+        kind: ENTRY_KINDS.EXPENSE,
         itemName: '',
         categoryId: categories[0]?.id || '',
         amount: '',
-        // Dates
-        paidAt: todayISO, // for EXPENSE
-        receivedAt: todayISO, // for INCOME
-        // People
+        paidAt: todayISO,
+        receivedAt: todayISO,
         paidById: user?.id || '',
         receivedById: user?.id || '',
-        // Sharing (expenses only)
         shared: !singleMember,
         splitPercentForPayer: 50,
         personalOnly: {},
-        // Misc
         notes: '',
-        // Recurring
         makeRecurring: false,
-        recurrence: 'MONTHLY', // DAILY|WEEKLY|MONTHLY|YEARLY
+        recurrence: 'MONTHLY',
         interval: 1,
         startAt: todayISO,
         timeZone: tzGuess
     });
 
+    const isExpense = form.kind === ENTRY_KINDS.EXPENSE;
+    const isIncome = !isExpense;
+
     const setPersonalOnly = (userId, value) => {
-        setForm(f => ({
-             ...f,
-            personalOnly: { ...(f.personalOnly || {}), [userId]: value }
-        }));
+        setForm((f) => {
+            const next = {
+                ...f,
+                personalOnly: { ...(f.personalOnly || {}), [userId]: value }
+            };
+
+            if (exactlyTwo && !splitTouched && userId === f.paidById) {
+                const payerPersonalC = toCents(value);
+                if (payerPersonalC > 0) {
+                    next.splitPercentForPayer = 0;
+                }
+            }
+
+            return next;
+        });
     };
 
     const shareCalc = useMemo(() => {
         if (!form.shared) return null;
-        const amount = Number(form.amount) || 0;
+
+        const amountC = toCents(form.amount);
         const memberIds = members.map(m => m.id);
-        const personal = memberIds.reduce((acc, id) => acc + (Number(form.personalOnly?.[id]) || 0), 0);
-        const sharedBase = Math.max(0, amount - personal);
 
-            if (amount <= 0) return { sharedBase: 0, percents: new Map(), amounts: new Map() };
+        if (amountC <= 0) return { sharedBaseC: 0, amountsC: new Map(), percents: new Map() };
 
-            // shared portion split
-                const n = memberIds.length;
-        let sharedPortion = new Map();
+        const personalC = memberIds.reduce(
+            (acc, id) => acc + toCents(form.personalOnly?.[id]),
+            0
+        );
+
+        const sharedBaseC = Math.max(0, amountC - personalC);
+
+        const n = memberIds.length;
+        const payerId = form.paidById;
+        const otherId = memberIds.find(id => id !== payerId) || payerId;
+
+        const sharedPortionC = new Map();
+
         if (n <= 1) {
-            sharedPortion.set(memberIds[0], sharedBase); // single-member
-            } else if (n === 2) {
-            // slider applies to sharedBase only; percent for payer is splitPercentForPayer
-                const payerId = form.paidById;
-            const otherId = memberIds.find(id => id !== payerId) || payerId;
+            sharedPortionC.set(memberIds[0], sharedBaseC);
+        } else if (n === 2) {
             const p1 = (Number(form.splitPercentForPayer) || 0) / 100;
-            sharedPortion.set(payerId, sharedBase * p1);
-            sharedPortion.set(otherId, sharedBase * (1 - p1));
-            } else {
-            // equal split of sharedBase
-                const eq = sharedBase / n;
-            memberIds.forEach(id => sharedPortion.set(id, eq));
-            }
+            const payerShareC = Math.round(sharedBaseC * p1);
+            const otherShareC = sharedBaseC - payerShareC;
+            sharedPortionC.set(payerId, payerShareC);
+            sharedPortionC.set(otherId, otherShareC);
+        } else {
+            const eq = Math.floor(sharedBaseC / n);
+            const rem = sharedBaseC - eq * n;
+            memberIds.forEach((id, i) => sharedPortionC.set(id, eq + (i === 0 ? rem : 0)));
+        }
 
-            // total owed per user = personal-only + their shared portion
-                const amounts = new Map();
+        const amountsC = new Map();
         memberIds.forEach(id => {
-            const personalAmt = Number(form.personalOnly?.[id]) || 0;
-            const sharedAmt = sharedPortion.get(id) || 0;
-            amounts.set(id, personalAmt + sharedAmt);
-            });
+            const pC = toCents(form.personalOnly?.[id]);
+            const sC = sharedPortionC.get(id) || 0;
+            amountsC.set(id, pC + sC);
+        });
 
-            // convert to percents over the total amount
-                const percents = new Map();
+        const percents = new Map();
         memberIds.forEach(id => {
-            const pct = amount > 0 ? (amounts.get(id) / amount) * 100 : 0;
+            const pct = amountC > 0 ? (amountsC.get(id) / amountC) * 100 : 0;
             percents.set(id, pct);
-            });
+        });
 
-            return { sharedBase, amounts, percents };
-            }, [form.shared, form.amount, form.personalOnly, form.paidById, form.splitPercentForPayer, members]);
+        return { sharedBaseC, amountsC, percents };
+    }, [form.shared, form.amount, form.personalOnly, form.paidById, form.splitPercentForPayer, members]);
 
-    // Keep defaults in sync when budget loads (members/categories/user)
+    const settlement = useMemo(() => {
+        if (!isExpense || !form.shared || !shareCalc) return null;
+
+        const memberIds = members.map(m => m.id);
+        if (!memberIds.length) return null;
+
+        const payerId = form.paidById;
+        const totalC = toCents(form.amount);
+
+        const respByIdC = new Map();
+        memberIds.forEach(id => respByIdC.set(id, shareCalc.amountsC?.get(id) || 0));
+
+        const paidByIdC = new Map();
+        memberIds.forEach(id => paidByIdC.set(id, id === payerId ? totalC : 0));
+
+        const netByIdC = new Map();
+        memberIds.forEach(id => netByIdC.set(id, (paidByIdC.get(id) || 0) - (respByIdC.get(id) || 0)));
+
+        if (memberIds.length === 2) {
+            const otherId = memberIds.find(id => id !== payerId) || payerId;
+            const otherOwesC = respByIdC.get(otherId) || 0;
+
+            return {
+                mode: "two",
+                payer: { id: payerId, label: members.find(m => m.id === payerId)?.label || "Payer", responsibleC: respByIdC.get(payerId) || 0, netC: netByIdC.get(payerId) || 0 },
+                other: { id: otherId, label: members.find(m => m.id === otherId)?.label || "Other", responsibleC: otherOwesC, netC: netByIdC.get(otherId) || 0 },
+                transfer: { fromId: otherId, toId: payerId, amountC: otherOwesC }
+            };
+        }
+
+        return {
+            mode: "multi",
+            rows: memberIds.map(id => ({
+                id,
+                label: members.find(m => m.id === id)?.label || id,
+                responsibleC: respByIdC.get(id) || 0,
+                netC: netByIdC.get(id) || 0
+            }))
+        };
+    }, [isExpense, form.shared, form.paidById, form.amount, shareCalc, members]);
+
+    const owes = useMemo(() => {
+        if (!isExpense || !form.shared || !exactlyTwo || !shareCalc) return null;
+
+        const memberIds = members.map(m => m.id);
+        const payerId = form.paidById;
+        const otherId = memberIds.find(id => id !== payerId) || payerId;
+
+        const otherOwesC = shareCalc.amountsC?.get(otherId) || 0;
+        const otherLabel = members.find(m => m.id === otherId)?.label || 'Other';
+
+        return { otherLabel, otherOwesC };
+    }, [isExpense, form.shared, exactlyTwo, shareCalc, form.paidById, members]);
+
     useEffect(() => {
         setForm((f) => ({
             ...f,
@@ -123,30 +214,25 @@ export default function PurchaseForm() {
             receivedById: f.receivedById || user?.id || members[0]?.id || '',
             shared: singleMember ? false : f.shared
         }));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categories, members, singleMember, user?.id]);
 
-    // If switching between Expense/Income, clear errors and adjust irrelevant fields
     useEffect(() => {
         setErr('');
         setOk(false);
         setForm((f) => {
             if (f.kind === ENTRY_KINDS.EXPENSE) {
-                // ensure category & paidBy have values; keep existing shared
                 return {
                     ...f,
                     categoryId: f.categoryId || categories[0]?.id || '',
                     paidById: f.paidById || user?.id || members[0]?.id || '',
                 };
             } else {
-                // INCOME: no sharing/category; keep receivedBy sane
                 return {
                     ...f,
                     receivedById: f.receivedById || user?.id || members[0]?.id || '',
                 };
             }
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [form.kind]);
 
     useEffect(() => {
@@ -170,15 +256,14 @@ export default function PurchaseForm() {
         setErr('');
         setOk(false);
 
-        // Common validations
         if (!form.itemName.trim()) return setErr('Item name is required');
-        const amountNum = Number(form.amount);
-        if (!Number.isFinite(amountNum) || amountNum <= 0) return setErr('Amount must be > 0');
+        const amountC = toCents(form.amount);
+        const amountStr = (amountC / 100).toFixed(2);
+        if (!Number.isFinite(amountC) || amountC <= 0) return setErr('Amount must be > 0');
+        const amountNum = amountC / 100;
 
-        if (form.shared) {
-            const personalSum = members.reduce((acc, m) => acc + (Number(form.personalOnly?.[m.id]) || 0), 0);
-            if (personalSum > amountNum) return setErr('Personal-only items exceed total amount');
-        }
+        const personalSumC = members.reduce((acc, m) => acc + toCents(form.personalOnly?.[m.id]), 0);
+        if (personalSumC > amountC) return setErr('Personal-only items exceed total amount');
 
         try {
             setLoading(true);
@@ -194,45 +279,41 @@ export default function PurchaseForm() {
                     : undefined;
 
             if (form.kind === ENTRY_KINDS.INCOME) {
-                // INCOME payload
                 if (!form.receivedById) return setErr('Choose who received it');
                 const payload = {
                     itemName: form.itemName.trim(),
-                    amount: amountNum,
+                    amount: amountStr,
                     receivedAt: form.receivedAt ? new Date(form.receivedAt).toISOString() : undefined,
                     receivedById: form.receivedById,
                     notes: form.notes?.trim() || undefined,
-                    recurring // RecurringRule(kind=INCOME)
+                    recurring
                 };
                 await api.post(`/budgets/${encodeURIComponent(slug)}/income`, payload, { withCredentials: true });
             } else {
-                // EXPENSE payload
                 if (!form.categoryId) return setErr('Choose a category');
                 if (!form.paidById) return setErr('Choose who paid');
 
                 let sharesOverride;
-                if (form.shared && shareCalc && shareCalc.percents && Number.isFinite(Number(form.amount)) && Number(form.amount) > 0) {
-                    // round percents to integers and fix rounding to total 100
+                const amountC = toCents(form.amount);
+
+                if (form.shared && shareCalc && shareCalc.percents && amountC > 0) {
                         const raw = members.map(m => ({
                         userId: m.id,
                         pct: shareCalc.percents.get(m.id) || 0
                     }));
-                    // round & normalize
                         const rounded = raw.map(r => ({ userId: r.userId, percent: Math.max(0, Math.round(r.pct)) }));
                     let sum = rounded.reduce((a, b) => a + b.percent, 0);
                     if (sum !== 100 && rounded.length) {
-                        // adjust the largest to make it exactly 100
-                            const idx = rounded.reduce((imax, r, i, arr) => r.percent > arr[imax].percent ? i : imax, 0);
+                         const idx = rounded.reduce((imax, r, i, arr) => r.percent > arr[imax].percent ? i : imax, 0);
                         rounded[idx].percent += (100 - sum);
                         }
                     sharesOverride = rounded;
                     }
 
-
                 const payload = {
                     itemName: form.itemName.trim(),
                     categoryId: form.categoryId,
-                    amount: amountNum,
+                    amount: amountStr,
                     paidAt: form.paidAt ? new Date(form.paidAt).toISOString() : undefined,
                     paidById: form.paidById,
                     shared: singleMember ? false : form.shared,
@@ -242,7 +323,7 @@ export default function PurchaseForm() {
                             : undefined,
                     sharesOverride,
                     notes: form.notes?.trim() || undefined,
-                    recurring // RecurringRule(kind=EXPENSE)
+                    recurring
                 };
                 await api.post(`/budgets/${encodeURIComponent(slug)}/purchases`, payload, { withCredentials: true });
             }
@@ -258,10 +339,6 @@ export default function PurchaseForm() {
 
     const payerSplit = Number(form.splitPercentForPayer) || 0;
     const otherSplit = 100 - payerSplit;
-
-    // Helpers to conditionally render fields by kind
-    const isExpense = form.kind === ENTRY_KINDS.EXPENSE;
-    const isIncome = !isExpense;
 
     return (
         <form onSubmit={onSubmit} className="purchase-form">
@@ -333,12 +410,11 @@ export default function PurchaseForm() {
                                     <span className="purchase-form-inner-grid-field-input-prefix">€</span>
                                     <input
                                         name="amount"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
+                                        type="text"
+                                        inputMode="decimal"
                                         value={form.amount}
                                         onChange={onChange}
-                                        placeholder="0.00"
+                                        placeholder="0,00"
                                     />
                                 </div>
                             </label>
@@ -487,12 +563,11 @@ export default function PurchaseForm() {
                                     <span className="purchase-form-inner-grid-field-input-prefix">€</span>
                                     <input
                                         name="amount"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
+                                        type="text"
+                                        inputMode="decimal"
                                         value={form.amount}
                                         onChange={onChange}
-                                        placeholder="0.00"
+                                        placeholder="0,00"
                                     />
                                 </div>
                             </label>
@@ -545,7 +620,10 @@ export default function PurchaseForm() {
                                         min="0"
                                         max="100"
                                         value={form.splitPercentForPayer}
-                                        onChange={onChange}
+                                        onChange={(e) => {
+                                            setSplitTouched(true);
+                                            onChange(e);
+                                        }}
                                         className="purchase-form-inner-grid-field-range"
                                     />
 
@@ -557,12 +635,28 @@ export default function PurchaseForm() {
                                                 className={`purchase-form-inner-grid-field-split-pills-pill ${
                                                     Number(form.splitPercentForPayer) === v ? 'active' : ''
                                                 }`}
-                                                onClick={() => setForm((f) => ({ ...f, splitPercentForPayer: v }))}
+                                                onClick={() => {
+                                                    setSplitTouched(true);
+                                                    setForm((f) => ({ ...f, splitPercentForPayer: v }));
+                                                }}
                                             >
                                                 {v}/{100 - v}
                                             </button>
                                         ))}
                                     </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {settlement?.mode === "two" && (
+                            <div className="pf-summary">
+                                <div className="pf-summary-row">
+                                    <span>{settlement.payer.label} is responsible for</span>
+                                    <strong>€{fromCents(settlement.payer.responsibleC).toFixed(2)}</strong>
+                                </div>
+                                <div className="pf-summary-row">
+                                    <span>{settlement.other.label} is responsible for</span>
+                                    <strong>€{fromCents(settlement.other.responsibleC).toFixed(2)}</strong>
                                 </div>
                             </div>
                         )}
@@ -579,8 +673,9 @@ export default function PurchaseForm() {
 
                             <div className="purchase-form-inner-grid">
                                 {members.map((m) => {
+                                    const amountC = toCents(form.amount);
                                     const pct =
-                                        form.shared && Number(form.amount) > 0 && shareCalc
+                                        form.shared && amountC > 0 && shareCalc
                                             ? (shareCalc.percents.get(m.id) ?? 0)
                                             : null;
 
@@ -598,12 +693,11 @@ export default function PurchaseForm() {
                                             <div className="purchase-form-inner-grid-field-input pf-input-with-prefix">
                                                 <span className="purchase-form-inner-grid-field-input-prefix">€</span>
                                                 <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    value={form.personalOnly?.[m.id] ?? ''}
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={form.personalOnly?.[m.id] ?? ""}
                                                     onChange={(e) => setPersonalOnly(m.id, e.target.value)}
-                                                    placeholder="0.00"
+                                                    placeholder="0,00"
                                                 />
                                             </div>
                                         </label>

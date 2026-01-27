@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { verifyToken } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
-import { cacheDel } from '../lib/cache.js'; // ✅ added
+import { cacheDel } from '../lib/cache.js';
 
 const router = Router();
 
@@ -12,10 +12,10 @@ const createPurchaseSchema = z.object({
         'FURNITURE', 'GROCERIES', 'TAKEAWAY', 'RESTAURANT', 'HOUSEHOLD', 'SUBSCRIPTIONS', 'OTHER'
     ]),
     amount: z.number().positive(),
-    paidAt: z.coerce.date().optional(),        // accepts ISO string or omitted (defaults to now)
-    paidById: z.string().min(1),               // user id of the payer
+    paidAt: z.coerce.date().optional(),
+    paidById: z.string().min(1),
     shared: z.boolean().default(true),
-    splitPercentForPayer: z.number().min(0).max(100).optional(), // if shared, default 50
+    splitPercentForPayer: z.number().min(0).max(100).optional(),
     notes: z.string().optional()
 });
 
@@ -26,16 +26,13 @@ router.post('/', verifyToken, async (req, res, next) => {
             splitPercentForPayer = 50, notes
         } = createPurchaseSchema.parse(req.body);
 
-        // Ensure payer exists
         const payer = await prisma.user.findUnique({ where: { id: paidById }, select: { id: true } });
         if (!payer) return res.status(400).json({ error: 'Invalid paidById' });
 
-        // Find “the other user” (assumes exactly two accounts exist)
         const users = await prisma.user.findMany({ select: { id: true } });
         if (users.length < 1) return res.status(400).json({ error: 'No users found' });
-        const other = users.find(u => u.id !== paidById) || users[0]; // fallback if only one user
+        const other = users.find(u => u.id !== paidById) || users[0];
 
-        // Build shares
         let sharesCreate;
         if (!shared) {
             sharesCreate = [{ userId: paidById, percent: 100 }];
@@ -67,7 +64,6 @@ router.post('/', verifyToken, async (req, res, next) => {
             }
         });
 
-        // ✅ Invalidate related caches (like any cached purchase lists)
         cacheDel('purchases:');
         cacheDel(`user:${req.user.id}:purchases:`);
 
