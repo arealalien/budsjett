@@ -103,21 +103,7 @@ router.post('/me/avatar', async (req, res, next) => {
 
             onUploadCompleted: async ({ blob, tokenPayload }) => {
                 const parsed = JSON.parse(tokenPayload || '{}');
-                const userId = parsed.userId;
                 const previousAvatarStorageKey = parsed.previousAvatarStorageKey;
-
-                if (!userId) {
-                    throw new Error('Missing userId in upload payload');
-                }
-
-                await prisma.user.update({
-                    where: { id: userId },
-                    data: {
-                        avatarUrl: blob.url,
-                        avatarStorageKey: blob.pathname,
-                        avatarUpdatedAt: new Date(),
-                    },
-                });
 
                 if (
                     previousAvatarStorageKey &&
@@ -135,6 +121,43 @@ router.post('/me/avatar', async (req, res, next) => {
         return res.status(200).json(jsonResponse);
     } catch (err) {
         return next(err);
+    }
+});
+
+router.patch('/me/avatar', verifyToken, async (req, res, next) => {
+    try {
+        const userId = req.user?.id || req.userId;
+        const { avatarUrl, avatarStorageKey } = req.body || {};
+
+        if (!avatarUrl || !avatarStorageKey) {
+            return res.status(400).json({ error: 'Missing avatarUrl or avatarStorageKey' });
+        }
+
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: {
+                avatarUrl,
+                avatarStorageKey,
+                avatarUpdatedAt: new Date(),
+            },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                displayName: true,
+                avatarUrl: true,
+                avatarStorageKey: true,
+                avatarUpdatedAt: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+
+        res.json({
+            user: shapeUser(updatedUser),
+        });
+    } catch (err) {
+        next(err);
     }
 });
 

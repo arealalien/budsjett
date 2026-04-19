@@ -69,28 +69,24 @@ export default function AccountSettings() {
         setError('');
 
         try {
-            const blob = await upload(`avatars/avatar.webp`, file, {
+            const blob = await upload('avatars/avatar.webp', file, {
                 access: 'public',
                 handleUploadUrl: '/api/users/me/avatar',
             });
 
-            setForm((f) => ({
-                ...f,
-                avatarUrl: blob.url,
-                avatarStorageKey: blob.pathname,
-            }));
+            const { data } = await api.patch(
+                '/users/me/avatar',
+                {
+                    avatarUrl: blob.url,
+                    avatarStorageKey: blob.pathname,
+                },
+                { withCredentials: true }
+            );
 
-            const updated = await refreshUserAfterAvatarUpload(blob.pathname);
-
-            if (!updated) {
-                throw new Error(
-                    'Upload succeeded, but avatar metadata was not saved to the database. In local development, Vercel Blob onUploadCompleted cannot call localhost.'
-                );
-            }
-
+            applyUserData(data.user);
             showToast('Avatar updated', { type: 'success' });
         } catch (e) {
-            const msg = e.message || 'Failed to upload avatar';
+            const msg = e.response?.data?.error || e.message || 'Failed to upload avatar';
             setError(msg);
             showToast(msg, { type: 'error' });
             throw e;
