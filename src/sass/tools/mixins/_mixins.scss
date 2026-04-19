@@ -1,0 +1,12 @@
+@use "sass:color";
+@use "sass:meta";
+
+$lightMode: true;
+
+@mixin lightMode {
+  @if($lightMode) {
+    @media(prefers-color-scheme: light) {
+      @content;
+    }
+  }
+}

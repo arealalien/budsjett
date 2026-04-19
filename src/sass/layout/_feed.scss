@@ -1,0 +1,10 @@
+.mixed-feed {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22em, 1fr));
+  grid-template-rows: masonry;
+  grid-auto-flow: dense;
+  place-items: flex-start;
+  gap: 1.5em;
+}
+

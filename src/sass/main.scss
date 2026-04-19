@@ -1,18 +1,53 @@
-@use "abstracts/colors";
-@use "abstracts/font-face";
-@use "abstracts/mixins";
+/* Abstracts */
 @use "abstracts/utilities";
-@use "base/reset";
+
+/* Tools */
+@use "tools/functions/encode-colors";
+@use "tools/mixins/alignment";
+@use "tools/mixins/mixins";
+@use "tools/mixins/respond";
+
+/* Config */
+@use "config/colors";
+@use "config/fonts";
+@use "config/sizes";
+@use "config/breakpoints";
+@use "config/z-index";
+
+/* Fonts */
+@use "fonts/lato";
+@use "fonts/montserrat";
+@use "fonts/playfair-display";
+@use "fonts/sora";
+
+/* Vendor */
+@use "vendor/reset";
+
+/* Base */
 @use "base/global";
 
-@use "components/navbar";
-@use "components/sidebar";
-@use "components/purchases";
-@use "components/dashboard";
-@use "components/purchaseform";
-@use "components/register";
-@use "components/toast";
-@use "components/landing";
+/* Layout */
+@use "layout/navbar";
+@use "layout/sidebar";
+@use "layout/feed";
+@use "layout/highcharts";
+@use "layout/purchases";
+@use "layout/currentbalance";
+
+/* Components */
+@use "components/button";
 @use "components/colorpicker";
-@use "components/onboarding";
-@use "components/budget";
+@use "components/toast";
+@use "components/avatar";
+@use "components/imagecropper";
+
+/* Pages */
+@use "pages/accountsettings";
+@use "pages/register";
+@use "pages/budget";
+@use "pages/budgetmembers";
+@use "pages/budgetedit";
+@use "pages/purchaseform";
+@use "pages/purchasedetails";
+@use "pages/onboarding";
+@use "pages/landing";

@@ -385,9 +385,7 @@ export default function RegisterForm() {
                     {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
                     <div className="register-form-inner-bottom">
-                        <Button className="ba-purple" type="submit" disabled={loading}>
-                            {loading ? 'Register' : 'Register'}
-                        </Button>
+                        <Button variant="primary" text="Register" type="submit" disabled={loading} />
                         <p>Already have an account? <NavLink to="/signin">Sign in</NavLink></p>
                     </div>
                 </div>

@@ -1,0 +1,42 @@
+@use "sass:math";
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+
+.avatar {
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  flex-shrink: 0;
+  overflow: hidden;
+  display: block;
+  clip-path: var(--avatar-clip);
+  -webkit-clip-path: var(--avatar-clip);
+
+  &-image,
+  &-fallback {
+    width: 100%;
+    height: 100%;
+    display: block;
+    clip-path: var(--avatar-clip);
+    -webkit-clip-path: var(--avatar-clip);
+  }
+
+  &-image {
+    object-fit: cover;
+  }
+
+  &-image-fallback {
+    object-fit: cover;
+  }
+
+  &-fallback {
+    color: color(white);
+    background: color(gray-800);
+    border: 1px solid color(gray-700);
+    font-weight: 700;
+    @include align(center, center);
+  }
+}

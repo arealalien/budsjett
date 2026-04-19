@@ -7,13 +7,17 @@ import {
 import reportWebVitals from './reportWebVitals';
 import { AuthProvider } from './components/AuthContext';
 import { ToastProvider } from './components/utils/ToastContext';
+import { AnimationProvider } from "./components/sidebar/AnimationMode";
 
 import App from './App';
 import Home from './pages/Home';
 import Register from './pages/Register';
 import SignIn from './pages/SignIn';
 import Addpurchase from "./pages/Addpurchase";
+import Analytics from "./pages/Analytics";
+import Statistics from "./pages/Statistics";
 import Purchases from "./pages/Purchases";
+import Reports from "./pages/Reports";
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import RequireOnboarding, { RequireApp } from './components/RequireOnboarding';
 import OnboardingPage from './pages/OnboardingPage';
@@ -22,8 +26,11 @@ import BudgetLayout from './pages/BudgetLayout';
 import BudgetHome from './pages/BudgetHome';
 import BudgetEdit from './pages/BudgetEdit';
 import BudgetMembers from './pages/BudgetMembers';
+import BudgetSettings from "./pages/BudgetSettings";
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import PurchaseDetails from './pages/PurchaseDetails';
+import AccountSettings from './pages/AccountSettings';
 
 const router = createBrowserRouter([
     {
@@ -47,9 +54,15 @@ const router = createBrowserRouter([
                 children: [
                     { index: true, element: <BudgetHome /> },
                     { path: 'new', element: <Addpurchase /> },
+                    { path: 'analytics', element: <Analytics /> },
+                    { path: 'statistics', element: <Statistics /> },
                     { path: 'purchases', element: <Purchases /> },
+                    { path: 'purchases/:purchaseId', element: <PurchaseDetails /> },
+                    { path: 'reports', element: <Reports /> },
                     { path: 'members', element: <BudgetMembers /> },
                     { path: 'edit', element: <BudgetEdit /> },
+                    { path: 'settings', element: <BudgetSettings /> },
+                    { path: 'account/settings', element: <AccountSettings /> },
                 ],
             },
         ],
@@ -60,9 +73,11 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
       <AuthProvider>
-          <ToastProvider>
-              <RouterProvider router={router}/>
-          </ToastProvider>
+          <AnimationProvider animated="static"> {/* Supports: Static | Fluid | System */}
+              <ToastProvider>
+                  <RouterProvider router={router}/>
+              </ToastProvider>
+          </AnimationProvider>
       </AuthProvider>
   </React.StrictMode>
 );

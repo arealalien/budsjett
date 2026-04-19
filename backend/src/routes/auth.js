@@ -318,11 +318,27 @@ router.post('/login', async (req, res, next) => {
 
         const onboarding = await needsOnboardingCached(user.id);
 
+        const freshUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                displayName: true,
+                avatarUrl: true,
+                avatarStorageKey: true,
+                avatarUpdatedAt: true,
+            },
+        });
+
         res.json({
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            displayName: user.displayName ?? null,
+            id: freshUser.id,
+            username: freshUser.username,
+            email: freshUser.email,
+            displayName: freshUser.displayName ?? null,
+            avatarUrl: freshUser.avatarUrl ?? null,
+            avatarStorageKey: freshUser.avatarStorageKey ?? null,
+            avatarUpdatedAt: freshUser.avatarUpdatedAt ?? null,
             needsOnboarding: onboarding,
         });
     } catch (err) {
@@ -573,50 +589,66 @@ router.post('/onboarding/skip', async (req, res, next) => {
     }
 });
 
-router.get('/me', async (req, res) => {
-    const token = readTokenFromReq(req);
-    let payload;
-    try { payload = token ? jwt.verify(token, process.env.JWT_SECRET) : null; }
-    catch { return res.json(null); }
-    if (!payload?.sub) return res.json(null);
+router.get('/me', async (req, res, next) => {
+    try {
+        const token = readTokenFromReq(req);
 
-    let base = {
-        id: payload.sub,
-        username: payload.u?.username ?? null,
-        email: payload.u?.email ?? null,
-        displayName: payload.u?.displayName ?? null,
-        emailVerifiedAt: payload.u?.verified ? true : null,
-    };
-
-    // If the token says "unverified", check DB via cache (manual invalidation)
-    if (!base.emailVerifiedAt) {
-        const verified = await cacheGetOrSet(`userVerified:${payload.sub}`, async () => {
-            const u = await prisma.user.findUnique({
-                where: { id: payload.sub },
-                select: { emailVerifiedAt: true, username: true, displayName: true, email: true },
-            });
-            return u || null; // it's okay if null; cache layer treats null as a miss later
-        });
-        if (verified) {
-            base = {
-                id: payload.sub,
-                username: base.username ?? verified.username ?? null,
-                email: base.email ?? verified.email ?? null,
-                displayName: base.displayName ?? verified.displayName ?? null,
-                emailVerifiedAt: verified.emailVerifiedAt ? true : null,
-            };
+        let payload;
+        try {
+            payload = token ? jwt.verify(token, process.env.JWT_SECRET) : null;
+        } catch {
+            return res.json(null);
         }
+
+        if (!payload?.sub) {
+            return res.json(null);
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: payload.sub },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                displayName: true,
+                emailVerifiedAt: true,
+                avatarUrl: true,
+                avatarStorageKey: true,
+                avatarUpdatedAt: true,
+                onboardingSkippedAt: true,
+            },
+        });
+
+        if (!user) {
+            return res.json(null);
+        }
+
+        const needsOnboarding = await needsOnboardingCached(user.id);
+
+        const body = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            displayName: user.displayName ?? null,
+            emailVerifiedAt: user.emailVerifiedAt ? true : null,
+            avatarUrl: user.avatarUrl ?? null,
+            avatarStorageKey: user.avatarStorageKey ?? null,
+            avatarUpdatedAt: user.avatarUpdatedAt ?? null,
+            needsOnboarding,
+        };
+
+        const etag = crypto.createHash('sha1').update(JSON.stringify(body)).digest('hex');
+        if (req.headers['if-none-match'] === etag) {
+            return res.status(304).end();
+        }
+
+        res.set('Cache-Control', 'private, max-age=60');
+        res.set('ETag', etag);
+
+        return res.json(body);
+    } catch (err) {
+        next(err);
     }
-
-    const needsOnboarding = await needsOnboardingCached(payload.sub);
-    const body = { ...base, needsOnboarding };
-
-    const etag = crypto.createHash('sha1').update(JSON.stringify(body)).digest('hex');
-    if (req.headers['if-none-match'] === etag) return res.status(304).end();
-
-    res.set('Cache-Control', 'private, max-age=60');
-    res.set('ETag', etag);
-    return res.json(body);
 });
 
 export default router;

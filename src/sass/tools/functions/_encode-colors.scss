@@ -1,0 +1,16 @@
+@use "sass:map";
+@use "../../config/colors" as colors;
+
+/**
+ * color(key, alpha)
+ * Usage: color(black, .75) OR color(primary-500) OR color(gray-900, .4)
+ */
+@function color($key, $alpha: 1) {
+  $col: map.get(colors.$colors, $key);
+
+  @if $col == null {
+    @error "Unknown color key: #{$key}";
+  }
+
+  @return hsl(from $col h s l / $alpha);
+}

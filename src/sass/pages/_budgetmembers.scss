@@ -1,0 +1,354 @@
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+@use "sass:math";
+
+.budget-members {
+  width: 100%;
+  gap: 1.2em;
+  @include align(start, stretch, column);
+
+  &-hero {
+    padding: 1px;
+    position: relative;
+    border-radius: 1.6em;
+    overflow: hidden;
+    background-color: color(gray-800);
+
+    &-rim {
+      $size: 26;
+      top: - calc($size / 1.5) + em;
+      left: - calc($size / 2.6) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: color(white);
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      opacity: .1;
+      pointer-events: none;
+    }
+
+    &-glow {
+      $size: 60;
+      right: - calc($size / 3) + em;
+      bottom: - calc($size / 1.2) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: color(purple-500);
+      border-radius: 50%;
+      filter: blur(calc($size / 2) + rem);
+      opacity: .18;
+      pointer-events: none;
+    }
+
+    &-inner {
+      padding: 1.8em;
+      width: 100%;
+      position: relative;
+      border-radius: 1.6em;
+      background: linear-gradient(180deg, color(gray-900) 0%, color(gray-900, .92) 100%);
+      @include align(between, start, $gap: 1.25em);
+    }
+  }
+
+  &-eyebrow {
+    color: color(gray-500);
+    font-size: $paragraph-small;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  &-title {
+    margin-top: .2em;
+    font-size: $heading-medium;
+    line-height: 1.08;
+    font-weight: 700;
+    color: color(white);
+  }
+
+  &-subtitle {
+    margin-top: .45em;
+    max-width: 42em;
+    color: color(gray-400);
+    line-height: 1.45;
+  }
+
+  &-role {
+    margin-top: 1em;
+    @include align(start, center, $gap: .7em);
+
+    span {
+      color: color(gray-500);
+      font-size: $paragraph-small;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    &-badge {
+      padding: .45em .8em;
+      border-radius: 999px;
+      border: 1px solid color(gray-700);
+      font-size: $paragraph-small;
+      font-weight: 600;
+
+      &.is-owner {
+        color: color(lime-100);
+        border-color: color(lime-700);
+        background: color(lime-700, .14);
+      }
+
+      &.is-admin {
+        color: color(cyan-100);
+        border-color: color(cyan-700);
+        background: color(cyan-700, .14);
+      }
+
+      &.is-member {
+        color: color(gray-200);
+        border-color: color(gray-700);
+        background: color(gray-800, .35);
+      }
+    }
+  }
+
+  &-stats {
+    min-width: 18em;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .8em;
+  }
+
+  &-stat {
+    padding: 1em;
+    border: 1px solid color(white, .08);
+    border-radius: 1.1em;
+    background: color(white, .04);
+    @include align(start, start, column, $gap: .2em);
+
+    span {
+      color: color(gray-500);
+      font-size: $paragraph-small;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    strong {
+      font-size: $paragraph-xlarge;
+      color: color(white);
+      font-weight: 700;
+    }
+  }
+
+  &-grid {
+    display: grid;
+    grid-template-columns: .95fr 1.6fr;
+    gap: 1em;
+  }
+
+  &-card {
+    padding: 1.2em;
+    border: 1px solid color(gray-800);
+    border-radius: 1.25em;
+    background: linear-gradient(180deg, color(gray-900) 0%, color(gray-800, .18) 100%);
+    gap: 1em;
+    @include align(start, stretch, column);
+
+    &-head {
+      @include align(between, start, $gap: 1em);
+
+      h3 {
+        font-size: $paragraph-xlarge;
+        font-weight: 700;
+        color: color(white);
+      }
+
+      p {
+        margin-top: .25em;
+        color: color(gray-500);
+        line-height: 1.4;
+      }
+    }
+  }
+
+  &-invite {
+    gap: .7em;
+    @include align(start, stretch, column);
+
+    &-row {
+      @include align(start, center, $gap: .7em);
+    }
+
+    &-help {
+      color: color(gray-500);
+      font-size: $paragraph-small;
+      line-height: 1.4;
+    }
+  }
+
+  &-input {
+    padding: 1em 1.2em;
+    width: 100%;
+    border: 1px solid color(gray-800);
+    border-radius: 1em;
+    background: color(gray-900);
+    color: color(gray-100);
+
+    &:focus {
+      outline: none;
+      border-color: color(purple-500);
+    }
+  }
+
+  &-message {
+    &.is-success {
+      color: color(lime-200);
+    }
+
+    &.is-error {
+      color: color(red-300);
+    }
+  }
+
+  &-list {
+    gap: .9em;
+    @include align(start, stretch, column);
+
+    &-item {
+      padding: 1em 1.1em;
+      border: 1px solid color(gray-800);
+      border-radius: 1.1em;
+      background: color(gray-800, .18);
+      gap: 1em;
+      @include align(between, center);
+
+      &-user {
+        min-width: 0;
+        @include align(start, center, $gap: .9em);
+
+        &-copy {
+          min-width: 0;
+          @include align(start, start, column, $gap: .25em);
+        }
+
+        &-top {
+          flex-wrap: wrap;
+          @include align(start, center, $gap: .55em);
+
+          strong {
+            color: color(white);
+            font-weight: 700;
+          }
+        }
+
+        &-meta {
+          color: color(gray-500);
+          font-size: $paragraph-small;
+        }
+      }
+
+      &-actions {
+        @include align(end, end, $gap: .9em);
+      }
+
+      &-role,
+      &-remove {
+        min-width: 9em;
+        @include align(start, start, column, $gap: .4em);
+      }
+    }
+  }
+
+  &-avatar {
+    width: 2.7em;
+    height: 2.7em;
+    border-radius: 50%;
+    font-weight: 700;
+    @include align(center, center);
+
+    &.is-owner {
+      color: color(lime-100);
+      background: color(lime-700, .18);
+      border: 1px solid color(lime-700);
+    }
+
+    &.is-admin {
+      color: color(cyan-100);
+      background: color(cyan-700, .18);
+      border: 1px solid color(cyan-700);
+    }
+
+    &.is-member {
+      color: color(gray-100);
+      background: color(gray-800, .5);
+      border: 1px solid color(gray-700);
+    }
+  }
+
+  &-pill {
+    padding: .35em .7em;
+    border-radius: 999px;
+    border: 1px solid color(gray-700);
+    font-size: $paragraph-small;
+    font-weight: 600;
+
+    &.is-owner {
+      color: color(lime-100);
+      border-color: color(lime-700);
+      background: color(lime-700, .14);
+    }
+
+    &.is-admin {
+      color: color(cyan-100);
+      border-color: color(cyan-700);
+      background: color(cyan-700, .14);
+    }
+
+    &.is-member {
+      color: color(gray-200);
+      border-color: color(gray-700);
+      background: color(gray-800, .35);
+    }
+  }
+
+  &-field-label {
+    color: color(gray-500);
+    font-size: $paragraph-small;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  &-select,
+  &-static-role {
+    padding: .8em .95em;
+    min-width: 8.5em;
+    border: 1px solid color(gray-800);
+    border-radius: .9em;
+    background: color(gray-900);
+    color: color(gray-100);
+  }
+
+  &-select {
+    &:focus {
+      outline: none;
+      border-color: color(purple-500);
+    }
+  }
+
+  &-no-action {
+    padding: .8em .2em;
+    color: color(gray-600);
+  }
+
+  &-empty {
+    padding: 1em 1.1em;
+    border: 1px dashed color(gray-700);
+    border-radius: 1em;
+    color: color(gray-500);
+    background: color(gray-800, .12);
+  }
+}

@@ -1,0 +1,354 @@
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+@use "sass:math";
+
+.purchases-wrap {
+  width: 100%;
+  gap: 1em;
+  @include align(center, center, column);
+
+  &.compact {
+    width: 60vw;
+  }
+
+  &-filters {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15em, 1fr));
+    gap: 1em;
+
+    &-button {
+      height: 100%;
+      @include align(start, end);
+    }
+
+    &-item {
+      height: 100%;
+      gap: .2em;
+      @include align(start, start, column);
+
+      &:first-child {
+        grid-column: 1 / 4;
+      }
+
+      span {
+        margin-left: 1em;
+      }
+
+      &-search,
+      &-select,
+      &-date {
+        padding: 1em 1.2em;
+        width: 100%;
+        border: 1px solid color(gray-800);
+        border-radius: 1em;
+        background: color(gray-900);
+        color: color(gray-100);
+
+        &:focus {
+          outline: none;
+          border-color: color(purple-500);
+        }
+      }
+
+      &-paidby-toggle,
+      &-shared-toggle {
+        @include align(center, center);
+
+        button {
+          padding: 1em 1.2em;
+          color: color(white);
+          background: color(gray-900);
+          border-top: 1px solid color(gray-800);
+          border-bottom: 1px solid color(gray-800);
+          border-right: 1px solid color(gray-800);
+          gap: .5em;
+          cursor: pointer;
+          @include align(center, center);
+
+          svg {
+            width: .75em;
+            height: .75em;
+
+            path {
+              stroke: color(white);
+            }
+          }
+
+          span {
+            margin-left: 0;
+          }
+
+          &:first-child {
+            border-top-left-radius: 1em;
+            border-bottom-left-radius: 1em;
+            border-left: 1px solid color(gray-800);
+            border-right: none;
+          }
+
+          &:last-child {
+            border-top-right-radius: 1em;
+            border-bottom-right-radius: 1em;
+            border-left: 1px solid color(gray-800);
+          }
+        }
+
+        button.active {
+          opacity: .75;
+        }
+      }
+    }
+  }
+
+  &-table {
+    margin-top: 2em;
+    padding: 1px;
+    width: 100%;
+    position: relative;
+    background-color: color(gray-800);
+    border-radius: 1em;
+    overflow: hidden;
+
+    &-rim {
+      $size: 40;
+      top: - calc($size / 1.5) + em;
+      left: - calc($size / 2.5) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: color(white);
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      pointer-events: none;
+      opacity: .1;
+    }
+
+    &-glow {
+      $size: 140;
+      right: - calc($size / 3) + em;
+      bottom: - calc($size / 1.1) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: color(purple-500);
+      border-radius: 50%;
+      filter: blur(calc($size / 2) + rem);
+      pointer-events: none;
+      opacity: .2;
+    }
+
+    &-inner {
+      width: 100%;
+      background-color: color(gray-900);
+      border-radius: 1em;
+      border-collapse: collapse;
+
+      thead {
+        border-bottom: 1px solid color(gray-800);
+
+        th {
+          padding: 1em !important;
+          color: color(gray-300);
+          user-select: none;
+        }
+
+        tr:hover {
+          background-color: transparent;
+        }
+      }
+
+      td {
+        padding: 1em;
+        vertical-align: middle;
+      }
+    }
+
+    &-row {
+      cursor: pointer;
+      transition: background-color .12s cubic-bezier($transition-main, 1);
+
+      &:hover {
+        background-color: color(gray-800);
+      }
+
+      &:focus-visible {
+        outline: 2px solid color(purple-500);
+        outline-offset: -2px;
+      }
+    }
+
+    &-state {
+      padding: 1.25em;
+      text-align: center;
+
+      &.is-error {
+        color: color(red-300);
+      }
+    }
+  }
+
+  &-pager {
+    gap: 1em;
+    @include align(center, center);
+
+    &-button {
+      padding: 1em;
+      background-color: color(gray-900);
+      border: 1px solid color(gray-800);
+      border-radius: .9em;
+      cursor: pointer;
+
+      &:disabled {
+        opacity: .5;
+        cursor: default;
+      }
+    }
+  }
+}
+
+.purchase-date-cell {
+  @include align(start, start, column, $gap: .15em);
+
+  small {
+    color: color(gray-500);
+  }
+}
+
+.purchase-main {
+  &-title {
+    color: color(white);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  &-meta {
+    margin-top: .45em;
+    flex-wrap: wrap;
+    @include align(start, center, $gap: .45em);
+  }
+
+  &-note {
+    margin-top: .55em;
+    color: color(gray-400);
+    line-height: 1.35;
+    max-width: 34em;
+  }
+}
+
+.purchase-pill {
+  padding: .28em .7em;
+  display: inline-flex;
+  border: 1px solid color(gray-700);
+  border-radius: 999px;
+  background: color(gray-800, .35);
+  color: color(gray-200);
+  font-size: $paragraph-small;
+  white-space: nowrap;
+
+  &.purchase-pill-category {
+    background: color(gray-800, .5);
+  }
+
+  &.is-shared {
+    color: color(cyan-100);
+    border-color: color(cyan-700);
+    background: color(cyan-700, .15);
+  }
+
+  &.is-personal {
+    color: color(gray-200);
+    border-color: color(gray-700);
+    background: color(gray-800, .5);
+  }
+
+  &.is-settled {
+    color: color(lime-100);
+    border-color: color(lime-700);
+    background: color(lime-700, .15);
+  }
+
+  &.is-open {
+    color: color(yellow-100);
+    border-color: color(yellow-700);
+    background: color(yellow-700, .15);
+  }
+
+  &.has-note {
+    color: color(purple-200);
+    border-color: color(purple-700);
+    background: color(purple-700, .15);
+  }
+}
+
+.purchase-user-pill {
+  padding: .35em .8em;
+  display: inline-flex;
+  border: 1px solid color(gray-700);
+  border-radius: 999px;
+  background: color(gray-800, .4);
+  color: color(white);
+}
+
+.purchase-status-group {
+  flex-wrap: wrap;
+  @include align(start, center, $gap: .45em);
+}
+
+.purchase-balance-pill {
+  padding: .38em .8em;
+  display: inline-flex;
+  border-radius: 999px;
+  font-size: $paragraph-small;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.is-positive {
+    color: color(lime-100);
+    background: color(lime-700, .15);
+    border: 1px solid color(lime-700);
+  }
+
+  &.is-negative {
+    color: color(red-100);
+    background: color(red-700, .15);
+    border: 1px solid color(red-700);
+  }
+
+  &.is-neutral {
+    color: color(gray-300);
+    background: color(gray-800, .35);
+    border: 1px solid color(gray-700);
+  }
+}
+
+.purchase-actions {
+  @include align(end, center, $gap: .65em);
+
+  &-spacer {
+    width: 1.4em;
+    height: 1.4em;
+    display: inline-block;
+  }
+}
+
+.purchase-checkbox {
+  @include align(center, center);
+}
+
+.purchases-delete-btn {
+  padding: .55em .8em;
+  color: color(red-200);
+  background: color(red-700, .12);
+  border: 1px solid color(red-700);
+  border-radius: .8em;
+  cursor: pointer;
+  transition: opacity .12s cubic-bezier($transition-main, 1);
+
+  &:hover {
+    opacity: .8;
+  }
+}

@@ -5,7 +5,14 @@ import { useAuth } from '../AuthContext';
 import Button from '../Button';
 
 const tzGuess = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-const ENTRY_KINDS = { EXPENSE: 'EXPENSE', INCOME: 'INCOME' };
+
+const formatCurrency = (value) =>
+    new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(Number(value) || 0);
 
 export default function PurchaseForm() {
     const { slug } = useParams();
@@ -16,59 +23,45 @@ export default function PurchaseForm() {
         const ids = new Set(
             [budget?.owner?.id, ...(budget?.members || []).map((m) => m.userId)].filter(Boolean)
         );
+
         const list = Array.from(ids).map((id) => {
-            const m = (budget?.members || []).find((x) => x.userId === id);
-            const u = m?.user || (budget?.owner?.id === id ? budget.owner : null);
-            return { id, label: u?.displayName || u?.username || id };
+            const membership = (budget?.members || []).find((x) => x.userId === id);
+            const memberUser = membership?.user || (budget?.owner?.id === id ? budget.owner : null);
+
+            return {
+                id,
+                label: memberUser?.displayName || memberUser?.username || id,
+            };
         });
-        list.sort((a, b) => (a.id === user?.id ? -1 : b.id === user?.id ? 1 : 0));
+
+        list.sort((a, b) => {
+            if (a.id === user?.id) return -1;
+            if (b.id === user?.id) return 1;
+            return a.label.localeCompare(b.label);
+        });
+
         return list;
     }, [budget, user]);
 
     const categories = budget?.categories || [];
     const singleMember = members.length <= 1;
     const exactlyTwo = members.length === 2;
+    const todayISO = new Date().toISOString().slice(0, 10);
 
     const [ok, setOk] = useState(false);
     const [err, setErr] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const parseMoneyToCents = (raw) => {
-        if (raw == null) return 0;
-        let s = String(raw).trim();
-
-        if (!s) return 0;
-
-        s = s.replace(/\s|\u00A0/g, "");
-
-        if (s.includes(",") && s.includes(".")) {
-            s = s.replace(/\./g, "").replace(",", ".");
-        } else if (s.includes(",")) {
-            s = s.replace(",", ".");
-        }
-
-        s = s.replace(/[^\d.-]/g, "");
-
-        const n = Number(s);
-        return Number.isFinite(n) ? Math.round(n * 100) : 0;
-    };
-
-    const toCents = (v) => parseMoneyToCents(v);
-    const fromCents = (c) => (c / 100);
-
-    const [splitTouched, setSplitTouched] = useState(false);
-
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const [splitMode, setSplitMode] = useState('quick');
+    const [showPrivateBreakdown, setShowPrivateBreakdown] = useState(false);
+    const [showRecurringSettings, setShowRecurringSettings] = useState(false);
 
     const [form, setForm] = useState({
-        kind: ENTRY_KINDS.EXPENSE,
         itemName: '',
         categoryId: categories[0]?.id || '',
         amount: '',
         paidAt: todayISO,
-        receivedAt: todayISO,
         paidById: user?.id || '',
-        receivedById: user?.id || '',
         shared: !singleMember,
         splitPercentForPayer: 50,
         personalOnly: {},
@@ -77,37 +70,129 @@ export default function PurchaseForm() {
         recurrence: 'MONTHLY',
         interval: 1,
         startAt: todayISO,
-        timeZone: tzGuess
+        timeZone: tzGuess,
     });
 
-    const isExpense = form.kind === ENTRY_KINDS.EXPENSE;
-    const isIncome = !isExpense;
+    const parseMoneyToCents = (raw) => {
+        if (raw == null) return 0;
+
+        let s = String(raw).trim();
+        if (!s) return 0;
+
+        s = s.replace(/\s|\u00A0/g, '');
+
+        if (s.includes(',') && s.includes('.')) {
+            s = s.replace(/\./g, '').replace(',', '.');
+        } else if (s.includes(',')) {
+            s = s.replace(',', '.');
+        }
+
+        s = s.replace(/[^\d.-]/g, '');
+
+        const n = Number(s);
+        return Number.isFinite(n) ? Math.round(n * 100) : 0;
+    };
+
+    const toCents = (v) => parseMoneyToCents(v);
+    const fromCents = (c) => (Number(c || 0) / 100);
+
+    const formatAmountInput = (raw) => {
+        const cents = toCents(raw);
+        if (!cents && !String(raw || '').trim()) return '';
+        return new Intl.NumberFormat(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(cents / 100);
+    };
+
+    useEffect(() => {
+        setForm((f) => ({
+            ...f,
+            categoryId: f.categoryId || categories[0]?.id || '',
+            paidById: f.paidById || user?.id || members[0]?.id || '',
+            shared: singleMember ? false : f.shared,
+        }));
+    }, [categories, members, singleMember, user?.id]);
+
+    useEffect(() => {
+        if (!form.makeRecurring) {
+            setShowRecurringSettings(false);
+        }
+    }, [form.makeRecurring]);
+
+    useEffect(() => {
+        if (!form.shared) {
+            setSplitMode('quick');
+            setShowPrivateBreakdown(false);
+        }
+    }, [form.shared]);
+
+    useEffect(() => {
+        if (!exactlyTwo) {
+            setSplitMode('quick');
+        }
+    }, [exactlyTwo]);
+
+    useEffect(() => {
+        if (ok) {
+            const t = window.setTimeout(() => setOk(false), 2500);
+            return () => window.clearTimeout(t);
+        }
+    }, [ok]);
+
+    const onChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setForm((f) => ({
+            ...f,
+            [name]: type === 'checkbox' ? checked : value,
+        }));
+    };
+
+    const setShared = (value) => {
+        setForm((f) => ({
+            ...f,
+            shared: value,
+        }));
+    };
 
     const setPersonalOnly = (userId, value) => {
-        setForm((f) => {
-            const next = {
-                ...f,
-                personalOnly: { ...(f.personalOnly || {}), [userId]: value }
-            };
-
-            if (exactlyTwo && !splitTouched && userId === f.paidById) {
-                const payerPersonalC = toCents(value);
-                if (payerPersonalC > 0) {
-                    next.splitPercentForPayer = 0;
-                }
-            }
-
-            return next;
-        });
+        setForm((f) => ({
+            ...f,
+            personalOnly: {
+                ...(f.personalOnly || {}),
+                [userId]: value,
+            },
+        }));
     };
+
+    const amountC = useMemo(() => toCents(form.amount), [form.amount]);
+
+    const payer = useMemo(
+        () => members.find((m) => m.id === form.paidById) || null,
+        [members, form.paidById]
+    );
+
+    const otherMember = useMemo(
+        () => members.find((m) => m.id !== form.paidById) || null,
+        [members, form.paidById]
+    );
+
+    const personalTotals = useMemo(() => {
+        const totalC = members.reduce((acc, m) => acc + toCents(form.personalOnly?.[m.id]), 0);
+        return { totalC };
+    }, [members, form.personalOnly]);
 
     const shareCalc = useMemo(() => {
         if (!form.shared) return null;
 
-        const amountC = toCents(form.amount);
-        const memberIds = members.map(m => m.id);
-
-        if (amountC <= 0) return { sharedBaseC: 0, amountsC: new Map(), percents: new Map() };
+        const memberIds = members.map((m) => m.id);
+        if (!memberIds.length || amountC <= 0) {
+            return {
+                sharedBaseC: 0,
+                amountsC: new Map(),
+                percents: new Map(),
+            };
+        }
 
         const personalC = memberIds.reduce(
             (acc, id) => acc + toCents(form.personalOnly?.[id]),
@@ -115,578 +200,468 @@ export default function PurchaseForm() {
         );
 
         const sharedBaseC = Math.max(0, amountC - personalC);
-
-        const n = memberIds.length;
-        const payerId = form.paidById;
-        const otherId = memberIds.find(id => id !== payerId) || payerId;
-
         const sharedPortionC = new Map();
 
-        if (n <= 1) {
+        if (memberIds.length === 1) {
             sharedPortionC.set(memberIds[0], sharedBaseC);
-        } else if (n === 2) {
-            const p1 = (Number(form.splitPercentForPayer) || 0) / 100;
-            const payerShareC = Math.round(sharedBaseC * p1);
+        } else if (memberIds.length === 2) {
+            const payerId = form.paidById;
+            const otherId = memberIds.find((id) => id !== payerId) || payerId;
+            const payerRatio = Math.max(0, Math.min(100, Number(form.splitPercentForPayer) || 0)) / 100;
+
+            const payerShareC = Math.round(sharedBaseC * payerRatio);
             const otherShareC = sharedBaseC - payerShareC;
+
             sharedPortionC.set(payerId, payerShareC);
             sharedPortionC.set(otherId, otherShareC);
         } else {
-            const eq = Math.floor(sharedBaseC / n);
-            const rem = sharedBaseC - eq * n;
-            memberIds.forEach((id, i) => sharedPortionC.set(id, eq + (i === 0 ? rem : 0)));
+            const equalC = Math.floor(sharedBaseC / memberIds.length);
+            const remainderC = sharedBaseC - equalC * memberIds.length;
+
+            memberIds.forEach((id, index) => {
+                sharedPortionC.set(id, equalC + (index === 0 ? remainderC : 0));
+            });
         }
 
         const amountsC = new Map();
-        memberIds.forEach(id => {
-            const pC = toCents(form.personalOnly?.[id]);
-            const sC = sharedPortionC.get(id) || 0;
-            amountsC.set(id, pC + sC);
-        });
-
         const percents = new Map();
-        memberIds.forEach(id => {
-            const pct = amountC > 0 ? (amountsC.get(id) / amountC) * 100 : 0;
-            percents.set(id, pct);
+
+        memberIds.forEach((id) => {
+            const privateC = toCents(form.personalOnly?.[id]);
+            const sharedC = sharedPortionC.get(id) || 0;
+            const memberTotalC = privateC + sharedC;
+
+            amountsC.set(id, memberTotalC);
+            percents.set(id, amountC > 0 ? (memberTotalC / amountC) * 100 : 0);
         });
 
-        return { sharedBaseC, amountsC, percents };
-    }, [form.shared, form.amount, form.personalOnly, form.paidById, form.splitPercentForPayer, members]);
+        return {
+            sharedBaseC,
+            amountsC,
+            percents,
+        };
+    }, [form.shared, form.personalOnly, form.paidById, form.splitPercentForPayer, members, amountC]);
 
-    const settlement = useMemo(() => {
-        if (!isExpense || !form.shared || !shareCalc) return null;
+    const sharesOverride = useMemo(() => {
+        if (!form.shared || !shareCalc || amountC <= 0) return undefined;
 
-        const memberIds = members.map(m => m.id);
-        if (!memberIds.length) return null;
+        const raw = members.map((m) => ({
+            userId: m.id,
+            percent: Math.max(0, Math.round(shareCalc.percents.get(m.id) || 0)),
+        }));
 
-        const payerId = form.paidById;
-        const totalC = toCents(form.amount);
+        const total = raw.reduce((sum, item) => sum + item.percent, 0);
 
-        const respByIdC = new Map();
-        memberIds.forEach(id => respByIdC.set(id, shareCalc.amountsC?.get(id) || 0));
+        if (total !== 100 && raw.length) {
+            const largestIdx = raw.reduce(
+                (bestIdx, item, idx, arr) => item.percent > arr[bestIdx].percent ? idx : bestIdx,
+                0
+            );
 
-        const paidByIdC = new Map();
-        memberIds.forEach(id => paidByIdC.set(id, id === payerId ? totalC : 0));
+            raw[largestIdx].percent += (100 - total);
+        }
 
-        const netByIdC = new Map();
-        memberIds.forEach(id => netByIdC.set(id, (paidByIdC.get(id) || 0) - (respByIdC.get(id) || 0)));
+        return raw;
+    }, [form.shared, shareCalc, members, amountC]);
 
-        if (memberIds.length === 2) {
-            const otherId = memberIds.find(id => id !== payerId) || payerId;
-            const otherOwesC = respByIdC.get(otherId) || 0;
+    const preview = useMemo(() => {
+        if (amountC <= 0 || !payer) return null;
+
+        if (!form.shared || singleMember) {
+            return {
+                mode: 'personal',
+                payer,
+                totalC: amountC,
+            };
+        }
+
+        const memberIds = members.map((m) => m.id);
+        const responsibilityRows = memberIds.map((id) => {
+            const member = members.find((m) => m.id === id);
+            const responsibleC = shareCalc?.amountsC?.get(id) || 0;
 
             return {
-                mode: "two",
-                payer: { id: payerId, label: members.find(m => m.id === payerId)?.label || "Payer", responsibleC: respByIdC.get(payerId) || 0, netC: netByIdC.get(payerId) || 0 },
-                other: { id: otherId, label: members.find(m => m.id === otherId)?.label || "Other", responsibleC: otherOwesC, netC: netByIdC.get(otherId) || 0 },
-                transfer: { fromId: otherId, toId: payerId, amountC: otherOwesC }
+                id,
+                label: member?.label || id,
+                responsibleC,
+            };
+        });
+
+        if (exactlyTwo) {
+            const otherId = memberIds.find((id) => id !== form.paidById) || form.paidById;
+            const other = members.find((m) => m.id === otherId);
+            const otherOwesC = shareCalc?.amountsC?.get(otherId) || 0;
+
+            return {
+                mode: 'two',
+                payer,
+                other: other || { id: otherId, label: 'Other' },
+                totalC: amountC,
+                sharedBaseC: shareCalc?.sharedBaseC || 0,
+                otherOwesC,
+                rows: responsibilityRows,
             };
         }
 
         return {
-            mode: "multi",
-            rows: memberIds.map(id => ({
-                id,
-                label: members.find(m => m.id === id)?.label || id,
-                responsibleC: respByIdC.get(id) || 0,
-                netC: netByIdC.get(id) || 0
-            }))
+            mode: 'multi',
+            payer,
+            totalC: amountC,
+            sharedBaseC: shareCalc?.sharedBaseC || 0,
+            rows: responsibilityRows,
         };
-    }, [isExpense, form.shared, form.paidById, form.amount, shareCalc, members]);
-
-    const owes = useMemo(() => {
-        if (!isExpense || !form.shared || !exactlyTwo || !shareCalc) return null;
-
-        const memberIds = members.map(m => m.id);
-        const payerId = form.paidById;
-        const otherId = memberIds.find(id => id !== payerId) || payerId;
-
-        const otherOwesC = shareCalc.amountsC?.get(otherId) || 0;
-        const otherLabel = members.find(m => m.id === otherId)?.label || 'Other';
-
-        return { otherLabel, otherOwesC };
-    }, [isExpense, form.shared, exactlyTwo, shareCalc, form.paidById, members]);
-
-    useEffect(() => {
-        setForm((f) => ({
-            ...f,
-            categoryId: f.categoryId || categories[0]?.id || '',
-            paidById: f.paidById || user?.id || members[0]?.id || '',
-            receivedById: f.receivedById || user?.id || members[0]?.id || '',
-            shared: singleMember ? false : f.shared
-        }));
-    }, [categories, members, singleMember, user?.id]);
-
-    useEffect(() => {
-        setErr('');
-        setOk(false);
-        setForm((f) => {
-            if (f.kind === ENTRY_KINDS.EXPENSE) {
-                return {
-                    ...f,
-                    categoryId: f.categoryId || categories[0]?.id || '',
-                    paidById: f.paidById || user?.id || members[0]?.id || '',
-                };
-            } else {
-                return {
-                    ...f,
-                    receivedById: f.receivedById || user?.id || members[0]?.id || '',
-                };
-            }
-        });
-    }, [form.kind]);
-
-    useEffect(() => {
-        setForm((f) => ({
-            ...f,
-            shared: f.kind === ENTRY_KINDS.EXPENSE && !singleMember,
-        }));
-    }, [form.kind, singleMember]);
-
-
-
-    const onChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
-    };
-
-    const setShared = (v) => setForm((f) => ({ ...f, shared: v }));
+    }, [amountC, payer, form.shared, singleMember, exactlyTwo, members, shareCalc, form.paidById]);
 
     const onSubmit = async (e) => {
         e.preventDefault();
         setErr('');
         setOk(false);
 
-        if (!form.itemName.trim()) return setErr('Item name is required');
-        const amountC = toCents(form.amount);
-        const amountStr = (amountC / 100).toFixed(2);
-        if (!Number.isFinite(amountC) || amountC <= 0) return setErr('Amount must be > 0');
-        const amountNum = amountC / 100;
+        if (!form.itemName.trim()) {
+            setErr('Item name is required');
+            return;
+        }
 
-        const personalSumC = members.reduce((acc, m) => acc + toCents(form.personalOnly?.[m.id]), 0);
-        if (personalSumC > amountC) return setErr('Personal-only items exceed total amount');
+        if (amountC <= 0) {
+            setErr('Amount must be greater than 0');
+            return;
+        }
+
+        if (!form.categoryId) {
+            setErr('Choose a category');
+            return;
+        }
+
+        if (!form.paidById) {
+            setErr('Choose who paid');
+            return;
+        }
+
+        if (personalTotals.totalC > amountC) {
+            setErr('Private amounts cannot be more than the total amount');
+            return;
+        }
 
         try {
             setLoading(true);
 
-            const recurring =
-                form.makeRecurring
-                    ? {
-                        recurrence: form.recurrence,
-                        interval: Number(form.interval) || 1,
-                        startAt: new Date(form.startAt).toISOString(),
-                        timeZone: form.timeZone || 'UTC'
-                    }
-                    : undefined;
+            const recurring = form.makeRecurring
+                ? {
+                    recurrence: form.recurrence,
+                    interval: Number(form.interval) || 1,
+                    startAt: new Date(form.startAt).toISOString(),
+                    timeZone: form.timeZone || 'UTC',
+                }
+                : undefined;
 
-            if (form.kind === ENTRY_KINDS.INCOME) {
-                if (!form.receivedById) return setErr('Choose who received it');
-                const payload = {
-                    itemName: form.itemName.trim(),
-                    amount: amountStr,
-                    receivedAt: form.receivedAt ? new Date(form.receivedAt).toISOString() : undefined,
-                    receivedById: form.receivedById,
-                    notes: form.notes?.trim() || undefined,
-                    recurring
-                };
-                await api.post(`/budgets/${encodeURIComponent(slug)}/income`, payload, { withCredentials: true });
-            } else {
-                if (!form.categoryId) return setErr('Choose a category');
-                if (!form.paidById) return setErr('Choose who paid');
+            const payload = {
+                itemName: form.itemName.trim(),
+                categoryId: form.categoryId,
+                amount: (amountC / 100).toFixed(2),
+                paidAt: form.paidAt ? new Date(form.paidAt).toISOString() : undefined,
+                paidById: form.paidById,
+                shared: singleMember ? false : form.shared,
+                sharesOverride: form.shared ? sharesOverride : undefined,
+                splitPercentForPayer: undefined,
+                notes: form.notes?.trim() || undefined,
+                recurring,
+            };
 
-                let sharesOverride;
-                const amountC = toCents(form.amount);
-
-                if (form.shared && shareCalc && shareCalc.percents && amountC > 0) {
-                        const raw = members.map(m => ({
-                        userId: m.id,
-                        pct: shareCalc.percents.get(m.id) || 0
-                    }));
-                        const rounded = raw.map(r => ({ userId: r.userId, percent: Math.max(0, Math.round(r.pct)) }));
-                    let sum = rounded.reduce((a, b) => a + b.percent, 0);
-                    if (sum !== 100 && rounded.length) {
-                         const idx = rounded.reduce((imax, r, i, arr) => r.percent > arr[imax].percent ? i : imax, 0);
-                        rounded[idx].percent += (100 - sum);
-                        }
-                    sharesOverride = rounded;
-                    }
-
-                const payload = {
-                    itemName: form.itemName.trim(),
-                    categoryId: form.categoryId,
-                    amount: amountStr,
-                    paidAt: form.paidAt ? new Date(form.paidAt).toISOString() : undefined,
-                    paidById: form.paidById,
-                    shared: singleMember ? false : form.shared,
-                    splitPercentForPayer:
-                        (!sharesOverride && exactlyTwo && (singleMember ? undefined : form.shared))
-                            ? Number(form.splitPercentForPayer)
-                            : undefined,
-                    sharesOverride,
-                    notes: form.notes?.trim() || undefined,
-                    recurring
-                };
-                await api.post(`/budgets/${encodeURIComponent(slug)}/purchases`, payload, { withCredentials: true });
-            }
+            await api.post(
+                `/budgets/${encodeURIComponent(slug)}/purchases`,
+                payload,
+                { withCredentials: true }
+            );
 
             setOk(true);
-            setForm((f) => ({ ...f, itemName: '', amount: '', notes: '' }));
-        } catch (e) {
-            setErr(e?.response?.data?.error || e.message);
+            setErr('');
+
+            setForm((f) => ({
+                ...f,
+                itemName: '',
+                amount: '',
+                notes: '',
+                personalOnly: {},
+            }));
+            setSplitMode('quick');
+            setShowPrivateBreakdown(false);
+        } catch (e2) {
+            setErr(e2?.response?.data?.error || e2.message || 'Failed to save purchase');
         } finally {
             setLoading(false);
         }
     };
 
-    const payerSplit = Number(form.splitPercentForPayer) || 0;
+    const payerSplit = Math.max(0, Math.min(100, Number(form.splitPercentForPayer) || 0));
     const otherSplit = 100 - payerSplit;
 
     return (
         <form onSubmit={onSubmit} className="purchase-form">
             <div className="purchase-form-rim" />
             <div className="purchase-form-glow" />
+
             <div className="purchase-form-inner">
                 <div className="purchase-form-inner-header">
-                    <h3>{isIncome ? 'Add income' : 'Add a purchase'}</h3>
-                    {ok && <span className="purchase-form-inner-header-badge pf-success">Saved</span>}
-                    {err && <span className="purchase-form-inner-header-badge pf-error">{err}</span>}
-                </div>
+                    <div className="purchase-form-inner-header-copy">
+                        <h3>Add a purchase</h3>
+                        <p>Create a new expense and preview how it will be split before saving.</p>
+                    </div>
 
-                {/* Entry type */}
-                <div className="purchase-form-inner-grid">
-                    <div className="purchase-form-inner-grid-field pf-col-span-2">
-                        <span className="purchase-form-inner-grid-field-label">Entry type</span>
-                        <div className="purchase-form-inner-grid-field-seg">
-                            <button
-                                type="button"
-                                className={`purchase-form-inner-grid-field-seg-btn ${isExpense ? 'active' : ''}`}
-                                onClick={() => setForm((f) => ({ ...f, kind: ENTRY_KINDS.EXPENSE }))}
-                                aria-pressed={isExpense}
-                            >
-                                Expense
-                            </button>
-                            <button
-                                type="button"
-                                className={`purchase-form-inner-grid-field-seg-btn ${isIncome ? 'active' : ''}`}
-                                onClick={() => setForm((f) => ({ ...f, kind: ENTRY_KINDS.INCOME }))}
-                                aria-pressed={isIncome}
-                            >
-                                Income
-                            </button>
-                        </div>
+                    <div className="purchase-form-inner-header-status">
+                        {ok && <span className="purchase-form-inner-header-badge pf-success">Saved</span>}
+                        {err && <span className="purchase-form-inner-header-badge pf-error">{err}</span>}
                     </div>
                 </div>
 
-                {isIncome ? (
-                    <>
-                        <div className="purchase-form-inner-grid">
-                            <label className="purchase-form-inner-grid-field pf-col-span-2">
-                                <span className="purchase-form-inner-grid-field-label">Received date</span>
+                <section className="purchase-form-section">
+                    <div className="purchase-form-section-heading">
+                        <h4>Basics</h4>
+                        <p>Start with the purchase details.</p>
+                    </div>
+
+                    <div className="purchase-form-inner-grid">
+                        <label className="purchase-form-inner-grid-field">
+                            <span className="purchase-form-inner-grid-field-label">Item name</span>
+                            <input
+                                name="itemName"
+                                value={form.itemName}
+                                onChange={onChange}
+                                placeholder="e.g. Groceries"
+                                required
+                                className="purchase-form-inner-grid-field-input"
+                            />
+                        </label>
+
+                        <label className="purchase-form-inner-grid-field">
+                            <span className="purchase-form-inner-grid-field-label">Amount</span>
+                            <div className="purchase-form-inner-grid-field-input pf-input-with-prefix">
+                                <span className="purchase-form-inner-grid-field-input-prefix">€</span>
                                 <input
-                                    type="date"
-                                    name="receivedAt"
-                                    value={form.receivedAt}
+                                    name="amount"
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={form.amount}
                                     onChange={onChange}
-                                    required
-                                    className="purchase-form-inner-grid-field-input"
+                                    onBlur={() => {
+                                        setForm((f) => ({
+                                            ...f,
+                                            amount: f.amount ? formatAmountInput(f.amount) : '',
+                                        }));
+                                    }}
+                                    placeholder="0,00"
                                 />
-                            </label>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div className="purchase-form-inner-grid">
+                        <label className="purchase-form-inner-grid-field">
+                            <span className="purchase-form-inner-grid-field-label">Date</span>
+                            <input
+                                type="date"
+                                name="paidAt"
+                                value={form.paidAt}
+                                onChange={onChange}
+                                required
+                                className="purchase-form-inner-grid-field-input"
+                            />
+                        </label>
+
+                        <label className="purchase-form-inner-grid-field">
+                            <span className="purchase-form-inner-grid-field-label">Category</span>
+                            <select
+                                name="categoryId"
+                                value={form.categoryId}
+                                onChange={onChange}
+                                className="purchase-form-inner-grid-field-input"
+                            >
+                                {categories.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+
+                    <div className="purchase-form-inner-grid">
+                        <label className="purchase-form-inner-grid-field pf-col-span-2">
+                            <span className="purchase-form-inner-grid-field-label">Who paid?</span>
+                            <select
+                                name="paidById"
+                                value={form.paidById}
+                                onChange={onChange}
+                                required
+                                className="purchase-form-inner-grid-field-input"
+                            >
+                                {members.map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                        {m.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+                </section>
+
+                {!singleMember && (
+                    <section className="purchase-form-section">
+                        <div className="purchase-form-section-heading">
+                            <h4>Who should this count for?</h4>
+                            <p>Choose whether this expense is only for the payer or shared with others.</p>
                         </div>
 
                         <div className="purchase-form-inner-grid">
-                            <label className="purchase-form-inner-grid-field">
-                                <span className="purchase-form-inner-grid-field-label">Item name</span>
-                                <input
-                                    name="itemName"
-                                    value={form.itemName}
-                                    onChange={onChange}
-                                    placeholder="e.g. Salary"
-                                    required
-                                    className="purchase-form-inner-grid-field-input"
-                                />
-                            </label>
-                            <label className="purchase-form-inner-grid-field">
-                                <span className="purchase-form-inner-grid-field-label">Amount</span>
-                                <div className="purchase-form-inner-grid-field-input pf-input-with-prefix">
-                                    <span className="purchase-form-inner-grid-field-input-prefix">€</span>
-                                    <input
-                                        name="amount"
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={form.amount}
-                                        onChange={onChange}
-                                        placeholder="0,00"
-                                    />
+                            <div className="purchase-form-inner-grid-field pf-col-span-2">
+                                <div className="purchase-form-inner-grid-field-seg">
+                                    <button
+                                        type="button"
+                                        className={`purchase-form-inner-grid-field-seg-btn ${!form.shared ? 'active' : ''}`}
+                                        onClick={() => setShared(false)}
+                                        aria-pressed={!form.shared}
+                                    >
+                                        Just me
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className={`purchase-form-inner-grid-field-seg-btn ${form.shared ? 'active' : ''}`}
+                                        onClick={() => setShared(true)}
+                                        aria-pressed={form.shared}
+                                    >
+                                        Shared
+                                    </button>
                                 </div>
-                            </label>
-                        </div>
 
-                        <div className="purchase-form-inner-grid">
-                            <label className="purchase-form-inner-grid-field pf-col-span-2">
-                                <span className="purchase-form-inner-grid-field-label">Notes</span>
-                                <input
-                                    name="notes"
-                                    value={form.notes}
-                                    onChange={onChange}
-                                    placeholder="Optional"
-                                    className="purchase-form-inner-grid-field-input"
-                                />
-                            </label>
-                        </div>
-
-                        <div className="purchase-form-inner-grid">
-                            <label className="purchase-form-inner-grid-field">
-                                <span className="purchase-form-inner-grid-field-label">Make this income recurring</span>
-                                <div className="purchase-form-inner-grid-field-checkbox">
-                                    <input
-                                        className="check-purple"
-                                        type="checkbox"
-                                        name="makeRecurring"
-                                        checked={form.makeRecurring}
-                                        onChange={onChange}
-                                    />
-                                    Repeat this entry automatically
-                                </div>
-                            </label>
-                            {form.makeRecurring && (
-                                <label className="purchase-form-inner-grid-field">
-                                    <span className="purchase-form-inner-grid-field-label">Starts on</span>
-                                    <input
-                                        type="date"
-                                        name="startAt"
-                                        value={form.startAt}
-                                        onChange={onChange}
-                                        className="purchase-form-inner-grid-field-input"
-                                    />
-                                </label>
-                            )}
-                        </div>
-
-                        <div className="purchase-form-inner-grid">
-                            {form.makeRecurring && (
-                                <>
-                                    <label className="purchase-form-inner-grid-field">
-                                        <span className="purchase-form-inner-grid-field-label">Repeat every</span>
-                                        <input
-                                            name="interval"
-                                            type="number"
-                                            min="1"
-                                            value={form.interval}
-                                            onChange={onChange}
-                                            className="purchase-form-inner-grid-field-input"
-                                        />
-                                    </label>
-                                    <label className="purchase-form-inner-grid-field">
-                                        <span className="purchase-form-inner-grid-field-label">Repeat type</span>
-                                        <select
-                                            name="recurrence"
-                                            value={form.recurrence}
-                                            onChange={onChange}
-                                            className="purchase-form-inner-grid-field-input"
-                                        >
-                                            <option>DAILY</option>
-                                            <option>WEEKLY</option>
-                                            <option>MONTHLY</option>
-                                            <option>YEARLY</option>
-                                        </select>
-                                    </label>
-                                </>
-                            )}
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <div className="purchase-form-inner-grid">
-                            <label className="purchase-form-inner-grid-field">
-                                <span className="purchase-form-inner-grid-field-label">Paid date</span>
-                                <input
-                                    type="date"
-                                    name="paidAt"
-                                    value={form.paidAt}
-                                    onChange={onChange}
-                                    required
-                                    className="purchase-form-inner-grid-field-input"
-                                />
-                            </label>
-
-                            <label className="purchase-form-inner-grid-field">
-                                <span className="purchase-form-inner-grid-field-label">Category</span>
-                                <select
-                                    name="categoryId"
-                                    value={form.categoryId}
-                                    onChange={onChange}
-                                    className="purchase-form-inner-grid-field-input"
-                                >
-                                    {categories.map((c) => (
-                                        <option key={c.id} value={c.id}>
-                                            {c.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                        </div>
-
-                        <div className="purchase-form-inner-grid">
-                            <label className="purchase-form-inner-grid-field">
-                                <span className="purchase-form-inner-grid-field-label">Item name</span>
-                                <input
-                                    name="itemName"
-                                    value={form.itemName}
-                                    onChange={onChange}
-                                    placeholder="e.g. Groceries"
-                                    required
-                                    className="purchase-form-inner-grid-field-input"
-                                />
-                            </label>
-
-                            <label className="purchase-form-inner-grid-field">
-                                <span className="purchase-form-inner-grid-field-label">Paid by</span>
-                                <select
-                                    name="paidById"
-                                    value={form.paidById}
-                                    onChange={onChange}
-                                    required
-                                    className="purchase-form-inner-grid-field-input"
-                                >
-                                    {members.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                            {m.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                        </div>
-
-                        <div className="purchase-form-inner-grid">
-                            <label className="purchase-form-inner-grid-field">
-                                <span className="purchase-form-inner-grid-field-label">Amount</span>
-                                <div className="purchase-form-inner-grid-field-input pf-input-with-prefix">
-                                    <span className="purchase-form-inner-grid-field-input-prefix">€</span>
-                                    <input
-                                        name="amount"
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={form.amount}
-                                        onChange={onChange}
-                                        placeholder="0,00"
-                                    />
-                                </div>
-                            </label>
-
-                            {!singleMember && (
-                                <div className="purchase-form-inner-grid-field">
-                                    <span className="purchase-form-inner-grid-field-label">Type</span>
-                                    <div className="purchase-form-inner-grid-field-seg">
-                                        <button
-                                            type="button"
-                                            className={`purchase-form-inner-grid-field-seg-btn ${!form.shared ? 'active' : ''}`}
-                                            onClick={() => setShared(false)}
-                                            aria-pressed={!form.shared}
-                                        >
-                                            Personal
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={`purchase-form-inner-grid-field-seg-btn ${form.shared ? 'active' : ''}`}
-                                            onClick={() => setShared(true)}
-                                            aria-pressed={form.shared}
-                                        >
-                                            Shared
-                                        </button>
-                                    </div>
-                                    <small className="purchase-form-inner-grid-field-help">
-                                        {form.shared
-                                            ? exactlyTwo
-                                                ? 'Split between payer and the other member'
-                                                : 'Split equally among all members'
-                                            : 'Only the payer covers this expense'}
-                                    </small>
-                                </div>
-                            )}
+                                <small className="purchase-form-inner-grid-field-help">
+                                    {!form.shared
+                                        ? `${payer?.label || 'The payer'} covers the full amount.`
+                                        : exactlyTwo
+                                            ? `Split this between ${payer?.label || 'the payer'} and ${otherMember?.label || 'the other person'}.`
+                                            : `Split this across all ${members.length} members.`}
+                                </small>
+                            </div>
                         </div>
 
                         {form.shared && exactlyTwo && (
-                            <div className="purchase-form-inner-grid">
-                                <div className="purchase-form-inner-grid-field pf-col-span-2">
-                                    <div className="purchase-form-inner-grid-field-split-row">
-                                        <span className="purchase-form-inner-grid-field-split-row-label">Split % (payer)</span>
-                                        <span className="purchase-form-inner-grid-field-split-row-chip">
-                                          Payer {payerSplit}% • Other {otherSplit}%
-                                        </span>
-                                    </div>
+                            <>
+                                <div className="purchase-form-inner-grid">
+                                    <div className="purchase-form-inner-grid-field pf-col-span-2">
+                                        <div className="purchase-form-inner-grid-field-split-row">
+                                            <span className="purchase-form-inner-grid-field-split-row-label">
+                                                Split mode
+                                            </span>
+                                            <span className="purchase-form-inner-grid-field-split-row-chip">
+                                                {payer?.label || 'Payer'} {payerSplit}% • {otherMember?.label || 'Other'} {otherSplit}%
+                                            </span>
+                                        </div>
 
-                                    <input
-                                        name="splitPercentForPayer"
-                                        type="range"
-                                        min="0"
-                                        max="100"
-                                        value={form.splitPercentForPayer}
-                                        onChange={(e) => {
-                                            setSplitTouched(true);
-                                            onChange(e);
-                                        }}
-                                        className="purchase-form-inner-grid-field-range"
-                                    />
-
-                                    <div className="purchase-form-inner-grid-field-split-pills">
-                                        {[0, 25, 50, 75, 100].map((v) => (
+                                        <div className="purchase-form-inner-grid-field-seg purchase-form-inner-grid-field-seg--split-mode">
                                             <button
                                                 type="button"
-                                                key={v}
-                                                className={`purchase-form-inner-grid-field-split-pills-pill ${
-                                                    Number(form.splitPercentForPayer) === v ? 'active' : ''
-                                                }`}
-                                                onClick={() => {
-                                                    setSplitTouched(true);
-                                                    setForm((f) => ({ ...f, splitPercentForPayer: v }));
-                                                }}
+                                                className={`purchase-form-inner-grid-field-seg-btn ${splitMode === 'quick' ? 'active' : ''}`}
+                                                onClick={() => setSplitMode('quick')}
+                                                aria-pressed={splitMode === 'quick'}
                                             >
-                                                {v}/{100 - v}
+                                                Quick split
                                             </button>
-                                        ))}
+
+                                            <button
+                                                type="button"
+                                                className={`purchase-form-inner-grid-field-seg-btn ${splitMode === 'advanced' ? 'active' : ''}`}
+                                                onClick={() => setSplitMode('advanced')}
+                                                aria-pressed={splitMode === 'advanced'}
+                                            >
+                                                Advanced split
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+
+                                <div className="purchase-form-inner-grid">
+                                    <div className="purchase-form-inner-grid-field pf-col-span-2">
+                                        {splitMode === 'quick' ? (
+                                            <div className="purchase-form-split-panel">
+                                                <small className="purchase-form-inner-grid-field-help">
+                                                    Pick a common split quickly.
+                                                </small>
+
+                                                <div className="purchase-form-inner-grid-field-split-pills">
+                                                    {[50, 60, 70, 80, 100].map((v) => (
+                                                        <button
+                                                            type="button"
+                                                            key={v}
+                                                            className={`purchase-form-inner-grid-field-split-pills-pill ${payerSplit === v ? 'active' : ''}`}
+                                                            onClick={() => {
+                                                                setForm((f) => ({
+                                                                    ...f,
+                                                                    splitPercentForPayer: v,
+                                                                }));
+                                                            }}
+                                                        >
+                                                            {v}/{100 - v}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="purchase-form-split-panel">
+                                                <div className="purchase-form-inner-grid-field-split-row">
+                                                    <span className="purchase-form-inner-grid-field-split-row-label">
+                                                        How much should {payer?.label || 'the payer'} cover?
+                                                    </span>
+                                                    <span className="purchase-form-inner-grid-field-split-row-chip">
+                                                        {payerSplit}% / {otherSplit}%
+                                                    </span>
+                                                </div>
+
+                                                <input
+                                                    name="splitPercentForPayer"
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={form.splitPercentForPayer}
+                                                    onChange={onChange}
+                                                    className="purchase-form-inner-grid-field-range"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
                         )}
 
-                        {settlement?.mode === "two" && (
-                            <div className="pf-summary">
-                                <div className="pf-summary-row">
-                                    <span>{settlement.payer.label} is responsible for</span>
-                                    <strong>€{fromCents(settlement.payer.responsibleC).toFixed(2)}</strong>
-                                </div>
-                                <div className="pf-summary-row">
-                                    <span>{settlement.other.label} is responsible for</span>
-                                    <strong>€{fromCents(settlement.other.responsibleC).toFixed(2)}</strong>
-                                </div>
-                            </div>
-                        )}
-
-                        {form.shared && members.length > 0 && (
-                            <>
+                        {form.shared && (
                             <div className="purchase-form-inner-grid">
-                                <div className="purchase-form-inner-grid-field">
-                                      <span className="purchase-form-inner-grid-field-label">
-                                        Personal-only items (excluded from shared split)
-                                      </span>
+                                <div className="purchase-form-inner-grid-field pf-col-span-2">
+                                    <button
+                                        type="button"
+                                        className={`purchase-form-toggle ${showPrivateBreakdown ? 'active' : ''}`}
+                                        onClick={() => setShowPrivateBreakdown((v) => !v)}
+                                    >
+                                        {showPrivateBreakdown ? 'Hide private part' : 'Add a private part of this purchase'}
+                                    </button>
+
+                                    <small className="purchase-form-inner-grid-field-help">
+                                        Use this if part of the receipt should belong to one person before the rest is shared.
+                                    </small>
                                 </div>
                             </div>
+                        )}
 
+                        {form.shared && showPrivateBreakdown && (
                             <div className="purchase-form-inner-grid">
                                 {members.map((m) => {
-                                    const amountC = toCents(form.amount);
-                                    const pct =
-                                        form.shared && amountC > 0 && shareCalc
-                                            ? (shareCalc.percents.get(m.id) ?? 0)
-                                            : null;
+                                    const pct = amountC > 0 && shareCalc
+                                        ? (shareCalc.percents.get(m.id) ?? 0)
+                                        : 0;
 
                                     return (
                                         <label key={m.id} className="purchase-form-inner-grid-field">
                                             <div className="pf-label-row">
                                                 <span className="purchase-form-inner-grid-field-label">
                                                     {m.label}
-                                                    {pct !== null && (
-                                                        <span className="pf-chip">{pct.toFixed(0)}%</span>
-                                                    )}
+                                                    {amountC > 0 && <span className="pf-chip">{pct.toFixed(0)}%</span>}
                                                 </span>
                                             </div>
 
@@ -695,8 +670,12 @@ export default function PurchaseForm() {
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
-                                                    value={form.personalOnly?.[m.id] ?? ""}
+                                                    value={form.personalOnly?.[m.id] ?? ''}
                                                     onChange={(e) => setPersonalOnly(m.id, e.target.value)}
+                                                    onBlur={() => {
+                                                        const nextVal = form.personalOnly?.[m.id] ?? '';
+                                                        setPersonalOnly(m.id, nextVal ? formatAmountInput(nextVal) : '');
+                                                    }}
                                                     placeholder="0,00"
                                                 />
                                             </div>
@@ -704,92 +683,187 @@ export default function PurchaseForm() {
                                     );
                                 })}
                             </div>
-                            </>
                         )}
+                    </section>
+                )}
 
-                        <div className="purchase-form-inner-grid">
-                            <label className="purchase-form-inner-grid-field pf-col-span-2">
-                                <span className="purchase-form-inner-grid-field-label">Notes</span>
+                <section className="purchase-form-section">
+                    <div className="purchase-form-section-heading">
+                        <h4>Preview</h4>
+                        <p>See what this expense means before you save it.</p>
+                    </div>
+
+                    {!preview ? (
+                        <div className="purchase-form-preview is-empty">
+                            Enter an amount to see the breakdown.
+                        </div>
+                    ) : preview.mode === 'personal' ? (
+                        <div className="purchase-form-preview">
+                            <div className="purchase-form-preview-row">
+                                <span>Total purchase</span>
+                                <strong>{formatCurrency(fromCents(preview.totalC))}</strong>
+                            </div>
+
+                            <div className="purchase-form-preview-row">
+                                <span>Covered by</span>
+                                <strong>{preview.payer.label}</strong>
+                            </div>
+
+                            <div className="purchase-form-preview-highlight">
+                                Only {preview.payer.label} covers this expense.
+                            </div>
+                        </div>
+                    ) : preview.mode === 'two' ? (
+                        <div className="purchase-form-preview">
+                            <div className="purchase-form-preview-row">
+                                <span>Total purchase</span>
+                                <strong>{formatCurrency(fromCents(preview.totalC))}</strong>
+                            </div>
+
+                            {personalTotals.totalC > 0 && (
+                                <div className="purchase-form-preview-row">
+                                    <span>Private part</span>
+                                    <strong>{formatCurrency(fromCents(personalTotals.totalC))}</strong>
+                                </div>
+                            )}
+
+                            <div className="purchase-form-preview-row">
+                                <span>Shared part</span>
+                                <strong>{formatCurrency(fromCents(preview.sharedBaseC))}</strong>
+                            </div>
+
+                            {preview.rows.map((row) => (
+                                <div key={row.id} className="purchase-form-preview-row">
+                                    <span>{row.label} covers</span>
+                                    <strong>{formatCurrency(fromCents(row.responsibleC))}</strong>
+                                </div>
+                            ))}
+
+                            <div className="purchase-form-preview-highlight">
+                                {preview.other.label} owes {preview.payer.label} {formatCurrency(fromCents(preview.otherOwesC))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="purchase-form-preview">
+                            <div className="purchase-form-preview-row">
+                                <span>Total purchase</span>
+                                <strong>{formatCurrency(fromCents(preview.totalC))}</strong>
+                            </div>
+
+                            {personalTotals.totalC > 0 && (
+                                <div className="purchase-form-preview-row">
+                                    <span>Private part</span>
+                                    <strong>{formatCurrency(fromCents(personalTotals.totalC))}</strong>
+                                </div>
+                            )}
+
+                            <div className="purchase-form-preview-row">
+                                <span>Shared part</span>
+                                <strong>{formatCurrency(fromCents(preview.sharedBaseC))}</strong>
+                            </div>
+
+                            <div className="purchase-form-preview-list">
+                                {preview.rows.map((row) => (
+                                    <div key={row.id} className="purchase-form-preview-list-item">
+                                        <span>{row.label}</span>
+                                        <strong>{formatCurrency(fromCents(row.responsibleC))}</strong>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </section>
+
+                <section className="purchase-form-section">
+                    <div className="purchase-form-section-heading">
+                        <h4>Optional details</h4>
+                        <p>Add notes or repeat this purchase automatically.</p>
+                    </div>
+
+                    <div className="purchase-form-inner-grid">
+                        <label className="purchase-form-inner-grid-field pf-col-span-2">
+                            <span className="purchase-form-inner-grid-field-label">Notes</span>
+                            <textarea
+                                name="notes"
+                                value={form.notes}
+                                onChange={onChange}
+                                placeholder="Optional notes"
+                                className="purchase-form-inner-grid-field-input purchase-form-textarea"
+                                rows="3"
+                            />
+                        </label>
+                    </div>
+
+                    <div className="purchase-form-inner-grid">
+                        <div className="purchase-form-inner-grid-field pf-col-span-2">
+                            <label className="purchase-form-inner-grid-field-checkbox">
                                 <input
-                                    name="notes"
-                                    value={form.notes}
+                                    className="check-purple"
+                                    type="checkbox"
+                                    name="makeRecurring"
+                                    checked={form.makeRecurring}
                                     onChange={onChange}
-                                    placeholder="Optional"
+                                />
+                                Repeat this purchase automatically
+                            </label>
+
+                            {form.makeRecurring && (
+                                <button
+                                    type="button"
+                                    className={`purchase-form-toggle ${showRecurringSettings ? 'active' : ''}`}
+                                    onClick={() => setShowRecurringSettings((v) => !v)}
+                                >
+                                    {showRecurringSettings ? 'Hide repeat settings' : 'Show repeat settings'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {form.makeRecurring && showRecurringSettings && (
+                        <div className="purchase-form-inner-grid">
+                            <label className="purchase-form-inner-grid-field">
+                                <span className="purchase-form-inner-grid-field-label">Starts on</span>
+                                <input
+                                    type="date"
+                                    name="startAt"
+                                    value={form.startAt}
+                                    onChange={onChange}
                                     className="purchase-form-inner-grid-field-input"
                                 />
                             </label>
-                        </div>
 
-                        <div className="purchase-form-inner-grid">
                             <label className="purchase-form-inner-grid-field">
-                                <span className="purchase-form-inner-grid-field-label">Make this purchase recurring</span>
-                                <div className="purchase-form-inner-grid-field-checkbox">
-                                    <input
-                                        className="check-purple"
-                                        type="checkbox"
-                                        name="makeRecurring"
-                                        checked={form.makeRecurring}
-                                        onChange={onChange}
-                                    />
-                                    Repeat this entry automatically
-                                </div>
+                                <span className="purchase-form-inner-grid-field-label">Repeat every</span>
+                                <input
+                                    name="interval"
+                                    type="number"
+                                    min="1"
+                                    value={form.interval}
+                                    onChange={onChange}
+                                    className="purchase-form-inner-grid-field-input"
+                                />
                             </label>
 
-                            {form.makeRecurring && (
-                                <label className="purchase-form-inner-grid-field">
-                                    <span className="purchase-form-inner-grid-field-label">Starts on</span>
-                                    <input
-                                        type="date"
-                                        name="startAt"
-                                        value={form.startAt}
-                                        onChange={onChange}
-                                        className="purchase-form-inner-grid-field-input"
-                                    />
-                                </label>
-                            )}
+                            <label className="purchase-form-inner-grid-field pf-col-span-2">
+                                <span className="purchase-form-inner-grid-field-label">Repeat type</span>
+                                <select
+                                    name="recurrence"
+                                    value={form.recurrence}
+                                    onChange={onChange}
+                                    className="purchase-form-inner-grid-field-input"
+                                >
+                                    <option value="DAILY">Daily</option>
+                                    <option value="WEEKLY">Weekly</option>
+                                    <option value="MONTHLY">Monthly</option>
+                                    <option value="YEARLY">Yearly</option>
+                                </select>
+                            </label>
                         </div>
-
-                        <div className="purchase-form-inner-grid">
-                            {form.makeRecurring && (
-                                <>
-                                    <label className="purchase-form-inner-grid-field">
-                                        <span className="purchase-form-inner-grid-field-label">Repeat every</span>
-                                        <input
-                                            name="interval"
-                                            type="number"
-                                            min="1"
-                                            value={form.interval}
-                                            onChange={onChange}
-                                            className="purchase-form-inner-grid-field-input"
-                                        />
-                                    </label>
-                                    <label className="purchase-form-inner-grid-field">
-                                        <span className="purchase-form-inner-grid-field-label">Repeat type</span>
-                                        <select
-                                            name="recurrence"
-                                            value={form.recurrence}
-                                            onChange={onChange}
-                                            className="purchase-form-inner-grid-field-input"
-                                        >
-                                            <option>DAILY</option>
-                                            <option>WEEKLY</option>
-                                            <option>MONTHLY</option>
-                                            <option>YEARLY</option>
-                                        </select>
-                                    </label>
-                                </>
-                            )}
-                        </div>
-                    </>
-                )}
+                    )}
+                </section>
 
                 <div className="purchase-form-inner-actions">
-                    <Button
-                        className="ba-purple"
-                        children={loading ? 'Saving…' : isIncome ? 'Add income' : 'Add purchase'}
-                        type="submit"
-                        disabled={loading}
-                    />
+                    <Button variant="primary" text={loading ? 'Saving…' : 'Add purchase'} type="submit" disabled={loading} />
                 </div>
             </div>
         </form>

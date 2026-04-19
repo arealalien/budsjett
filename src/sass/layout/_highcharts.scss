@@ -1,0 +1,120 @@
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+@use "sass:math";
+
+.hc {
+  &-title {
+    margin-bottom: .6em;
+    font-size: $paragraph-large;
+    font-weight: 600;
+  }
+}
+.highcharts {
+  padding: 1.6em;
+  width: 100%;
+  background-color: color(gray-900);
+  border-radius: .6em;
+  .highcharts-button {
+    &-box {
+      fill: color(gray-800);
+      stroke: color(gray-700);
+    }
+    &-normal {
+      text {
+        fill: color(gray-300) !important;
+      }
+    }
+    &-pressed {
+      .highcharts-button-box {
+        fill: var(--color);
+        stroke: var(--color);
+      }
+      text {
+        fill: color(gray-100) !important;
+      }
+    }
+    &-hover {
+      text {
+        fill: color(white) !important;
+      }
+    }
+    &-disabled {
+      opacity: .6;
+      cursor: not-allowed !important;
+      text {
+        fill: color(gray-600) !important;
+      }
+    }
+  }
+
+  .highcharts-series-group {
+    .highcharts-point {
+      stroke: transparent;
+    }
+  }
+
+  .highcharts-input-group {
+    .highcharts-label:nth-child(2), .highcharts-label:nth-child(4) {
+      text {
+        fill: var(--color) !important;
+      }
+    }
+  }
+
+  .highcharts-navigator-outline, .highcharts-grid-line {
+    stroke: color(white, .1);
+  }
+  .highcharts-navigator-mask-inside {
+    fill: var(--color);
+    opacity: .1;
+  }
+  .highcharts-navigator-handle {
+    fill: color(gray-900);
+    stroke: color(gray-800);
+  }
+  .highcharts-yaxis-labels {
+    text {
+      fill: color(gray-400) !important;
+    }
+  }
+  .highcharts-xaxis-labels {
+    text {
+      fill: color(gray-400) !important;
+    }
+  }
+  .highcharts-navigator-xaxis {
+    text {
+      fill: color(black) !important;
+      tspan {
+        stroke-width: 3px;
+      }
+    }
+  }
+
+  .highcharts-tooltip {
+    &-header, &-box {
+      path {
+        fill: color(gray-900);
+        stroke: color(gray-800);
+      }
+    }
+    &-header {
+      text, tspan {
+        fill: color(gray-300) !important;
+      }
+    }
+    &-box {
+      text {
+        fill: color(gray-300) !important;
+      }
+    }
+  }
+
+  .highcharts-credits {
+    display: none;
+  }
+}

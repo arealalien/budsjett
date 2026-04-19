@@ -1,0 +1,43 @@
+@use "sass:map";
+
+$justify-map: (
+    start: flex-start,
+    center: center,
+    end: flex-end,
+    between: space-between,
+    around: space-around,
+    evenly: space-evenly
+);
+
+$align-map: (
+    start: flex-start,
+    center: center,
+    end: flex-end,
+    stretch: stretch,
+    baseline: baseline
+);
+
+@mixin align(
+  $main: center,
+  $cross: center,
+  $dir: row,
+  $wrap: nowrap,
+  $gap: null,
+  $row-gap: null,
+  $col-gap: null,
+  $display: flex
+) {
+  @if $display != none {
+    display: $display;
+  }
+
+  flex-direction: $dir;
+  flex-wrap: $wrap;
+
+  justify-content: map.get($justify-map, $main);
+  align-items: map.get($align-map, $cross);
+
+  @if $gap != null {
+    gap: $gap;
+  }
+}

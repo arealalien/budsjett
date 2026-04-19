@@ -60,7 +60,6 @@ export default function Home() {
                     <DocumentTitle title="Astrae | Your Personal Accountant"/>
                     <main className="landing">
                         <Header/>
-                        <Pricing/>
                     </main>
                 </>
             )}

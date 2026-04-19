@@ -1,47 +1,68 @@
-@use "../abstracts/colors";
-@use "../abstracts/mixins";
-@use "../abstracts/utilities";
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+@use "sass:math";
 
+.toast.open {
+  box-shadow: 0 40px 150px -15px color(black, .4),
+              0 40px 150px -15px color(black, .3),
+              0 40px 150px -15px color(black, .2),
+              0 40px 150px -15px color(black, .1);
+  transform: scale(1, 1);
+  opacity: 1;
+}
 .toast {
   bottom: 2em; right: 2em;
   padding: 1.5em;
   position: fixed;
-  background-color: mixins.hslac(colors.$clr-gray-800, .6);
-  backdrop-filter: blur(3rem);
-  border-radius: 1.2em;
+  background-color: color(gray-900);
+  border: 1px solid color(gray-800);
+  box-shadow: 0 40px 150px -15px color(black, 0),
+              0 40px 150px -15px color(black, 0),
+              0 40px 150px -15px color(black, 0),
+              0 40px 150px -15px color(black, 0);
+  transform: scale(.98, .98);
+  opacity: 0;
+  border-radius: .6em;
   z-index: 9999;
-  animation: fadeInOut 2s cubic-bezier(utilities.$transition-menu, 1) forwards;
-  border: 1px solid transparent;
+  transition: opacity .35s cubic-bezier($transition-main, 1), box-shadow 1s ease-in-out, transform .5s cubic-bezier($transition-main, 1);
+  @include align(center, center, $gap: 1em);
 
-  &-message {
-    color: mixins.hslac(colors.$clr-white, 1);
-    font-weight: 600;
+  &--success {
+    background-color: color(green-900);
+    border: 1px solid color(green-500);
+    .toast-message, .toast-icon, .toast-close {
+      color: color(green-200);
+    }
   }
-
-  &-success {
-    background-color: mixins.hslac(colors.$clr-lime-500, .15);
-    border-color: mixins.hslac(colors.$clr-lime-500, 1);
+  &--warning {
+    background-color: color(orange-900);
+    border: 1px solid color(orange-500);
+    .toast-message, .toast-icon, .toast-close {
+      color: color(orange-200);
+    }
   }
-
-  &-error {
-    background-color: mixins.hslac(colors.$clr-red-500, .15);
-    border-color: mixins.hslac(colors.$clr-red-500, 1);
+  &--info {
+    background-color: color(skyblue-900);
+    border: 1px solid color(skyblue-500);
+    .toast-message, .toast-icon, .toast-close {
+      color: color(skyblue-200);
+    }
   }
-
-  &-warning {
-    background-color: mixins.hslac(colors.$clr-orange-500, .15);
-    border-color: mixins.hslac(colors.$clr-orange-500, 1);
+  &--error {
+    background-color: color(red-900);
+    border: 1px solid color(red-500);
+    .toast-message, .toast-icon, .toast-close {
+      color: color(red-200);
+    }
   }
-
-  &-info {
-    background-color: mixins.hslac(colors.$clr-skyblue-400, .15);
-    border-color: mixins.hslac(colors.$clr-skyblue-400, 1);
+  &-close {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    @include align(center, center);
   }
-}
-
-@keyframes fadeInOut {
-  0%   { opacity: 0; transform: scale(0.95); }
-  15%  { opacity: 1; transform: scale(1); }
-  85%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.97); }
 }

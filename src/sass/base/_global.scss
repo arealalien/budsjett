@@ -1,48 +1,81 @@
-@use "../abstracts/colors" as c;
-@use "../abstracts/font-face";
-@use "../abstracts/mixins" as m;
-@use "../abstracts/utilities" as u;
 @use "sass:math";
+@use "../config/colors" as *;
+@use "../tools/mixins/mixins" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/fonts" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
 
 body {
   width: 100%;
-  color: m.hslac(c.$clr-white, 1);
-  font-family: u.$font-main;
-  font-size: .8rem;
-  background: m.hslac(c.$clr-black, 1);
-  @include m.lightMode {
-    color: m.hslac(c.$clr-black, 1);
-    background-color: m.hslac(c.$clr-white, 1);
+  color: color(white);
+  font: {
+    size: .85rem;
+    family: $font-main;
+  }
+  line-height: 1;
+  background: color(black);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+  @include lightMode {
+    color: color(black);
+    background-color: color(white);
   }
 }
+
+ .material-symbols-rounded {
+   font-variation-settings:
+       'FILL' 0,
+       'wght' 300,
+       'GRAD' 0,
+       'opsz' 24
+ }
+
 .view-width {
-  width: u.$view-width !important;
-}
-.view-width-home {
-  max-width: u.$max-view-width;
-  width: u.$view-width !important;
+  width: $view-width !important;
 }
 
-rem {
-  font-weight: 700;
+em {
+  font: {
+    weight: 700;
+  }
 }
 
 main {
   position: relative;
-  gap: 1rem;
-  @include m.flex-col();
+  will-change: margin-left;
+}
+.user main {
+  margin-left: $sidebar-width;
+}
+.nouser main {
+  margin-left: 6em;
+}
+.is-collapsed ~ main {
+  margin-left: 6em;
 }
 
-.app-container.user {
-  display: grid;
-  background: m.hslac(c.$clr-gray-900, 1);
-  grid-template-columns: u.$sidebar-width 1fr;
-  > main {
-    margin: 1rem 1rem 1rem 0;
-    width: calc(100% - 1rem); height: calc(100dvh - 2rem);
-    background: m.hslac(c.$clr-black, 1);
-    border-radius: 1rem;
-    overflow-y: auto;
+.view-width-home {
+  width: $view-width;
+  max-width: $max-view-width;
+}
+
+.page {
+  &-padding {
+    padding: 2em;
+  }
+  &-title {
+    margin-bottom: 1em;
+    font: {
+      size: $paragraph-large;
+      weight: 700;
+    }
+    color: color(white);
   }
 }
 
@@ -51,267 +84,87 @@ main {
   border-radius: 50%;
 }
 
-.button-primary {
-  --font-size: .9rem;
-  font-size: var(--font-size);
-  padding: 1rem 1.5rem;
-  color: m.hslac(c.$clr-white, 1);
-  background-color: m.hslac(c.$clr-primary-500, 1);
-  border: none;
-  text-decoration: none;
-  border-radius: 5rem;
-  gap: .5rem;
-  cursor: pointer;
-  transition: opacity .15s cubic-bezier(u.$transition-smooth, 1);
-  @include m.flex-center();
-
-  &:disabled {
-    opacity: .5;
-    pointer-events: none;
-  }
-  span {
-
-  }
-  svg {
-    width: 1.3rem; height: 1.3rem;
-    path {
-      stroke-width: .9;
-      stroke: m.hslac(c.$clr-white, 1);
-    }
-  }
-}
-.button-white {
-  --font-size: .9rem;
-  font-size: var(--font-size);
-  padding: 1rem 1.5rem;
-  color: m.hslac(c.$clr-black, 1);
-  background-color: m.hslac(c.$clr-white, 1);
-  border: none;
-  text-decoration: none;
-  border-radius: 5rem;
-  gap: .5rem;
-  cursor: pointer;
-  transition: opacity .15s cubic-bezier(u.$transition-smooth, 1);
-  @include m.flex-center();
-
-  &:disabled {
-    opacity: .5;
-    pointer-events: none;
-  }
-  span {
-
-  }
-  svg {
-    width: 1.3rem; height: 1.3rem;
-    path {
-      stroke-width: .9;
-      stroke: m.hslac(c.$clr-black, 1);
-    }
-  }
-}
-.button-blur {
-  --font-size: .9rem;
-  font-size: var(--font-size);
-  padding: 1rem 1.5rem;
-  color: m.hslac(c.$clr-white, 1);
-  background-color: m.hslac(c.$clr-gray-800, .6);
-  border: none;
-  backdrop-filter: blur(3rem);
-  text-decoration: none;
-  border-radius: 5rem;
-  gap: .5rem;
-  cursor: pointer;
-  transition: opacity .15s cubic-bezier(u.$transition-smooth, 1);
-  @include m.flex-center();
-
-  &:disabled {
-    opacity: .5;
-    pointer-events: none;
-  }
-  span {
-
-  }
-  svg {
-    width: 1.3rem; height: 1.3rem;
-    path {
-      stroke-width: .9;
-      stroke: m.hslac(c.$clr-white, 1);
-    }
-  }
-}
-
-.ba-primary {
-  background: m.hslac(c.$clr-skyblue-500, 1);
-  color: m.hslac(c.$clr-white, 1);
-  div {
-    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
-  }
-}
-.ba-white {
-  background: m.hslac(c.$clr-white, 1);
-  color: m.hslac(c.$clr-black, 1);
-  div {
-    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-black, 1);
-  }
-}
-.ba-gray {
-  background: m.hslac(c.$clr-gray-900, 1);
-  color: m.hslac(c.$clr-white, 1);
-  div {
-    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
-  }
-}
-.ba-purple {
-  background: m.hslac(c.$clr-purple-500, 1);
-  color: m.hslac(c.$clr-white, 1);
-  div {
-    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
-  }
-}
-.ba-yellow {
-  background: m.hslac(c.$clr-yellow-500, 1);
-  color: m.hslac(c.$clr-white, 1);
-  div {
-    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
-  }
-}
-.ba-deeppink {
-  background: m.hslac(c.$clr-deeppink-500, 1);
-  color: m.hslac(c.$clr-white, 1);
-  div {
-    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
-  }
-}
-.ba-green {
-  background: m.hslac(c.$clr-lime-500, 1);
-  color: m.hslac(c.$clr-white, 1);
-  div {
-    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
-  }
-}
-.ba-glow {
-  background: m.hslac(c.$clr-white, .1);
-  color: m.hslac(c.$clr-white, 1);
-  backdrop-filter: blur(2rem);
-  box-shadow: 0 0 4px 0 m.hslac(c.$clr-white, .2) inset;
-  div {
-    text-shadow: 0 var(--font-shadow) 0 m.hslac(c.$clr-white, 1);
-  }
-}
-.button-animated {
-  --font-size: .9rem;
-  --duration: .3s;
-  --font-shadow: calc(var(--font-size) + .1rem);
-  appearance: none;
-  padding: 1rem 1.5rem;
-  font-size: var(--font-size);
-  letter-spacing: .02rem;
-  font-weight: 500;
-  text-decoration: none;
-  line-height: calc(var(--font-size) + .12rem);
-  border-radius: 1rem;
-  outline: none;
-  border: none;
-  cursor: pointer;
-  transform: translateY(var(--y)) translateZ(0);
-  transition: transform var(--duration) cubic-bezier(u.$transition-smooth, 1), box-shadow var(--duration) cubic-bezier(u.$transition-smooth, 1), opacity .15s cubic-bezier(u.$transition-smooth, 1);
-  &:disabled {
-    opacity: .5;
-    pointer-events: none;
-  }
-  div {
-    display: flex;
-    overflow: hidden;
-    span {
-      display: block;
-      backface-visibility: hidden;
-      font-style: normal;
-      transition: transform var(--duration) ease;
-      transform: translateY(var(--m)) translateZ(0);
-      $i: 1;
-      @while $i < 22 {
-        &:nth-child(#{$i}) {
-          transition-delay: #{math.div($i, 60)}s;
-        }
-        $i: $i + 1;
-      }
-    }
-  }
-  &:hover {
-    span {
-      --m: calc(calc(var(--font-size) + .1rem) * -1);
-    }
-  }
-  &.reverse {
-    &:hover {
-      span {
-        --m: calc(var(--font-size));
-      }
-    }
-  }
-}
-
 @supports (-webkit-appearance: none) or (-moz-appearance: none) {
-  input[type='checkbox'].check-purple, input[type='radio'].check-purple {
-    --active: #{m.hslac(c.$clr-purple-500, 1)};
-    --focus: 2px #{m.hslac(c.$clr-purple-500, 0.3)};
-    --border-hover: #{m.hslac(c.$clr-purple-500, 1)};
+  input[type='checkbox'].check-red, input[type='radio'].check-red {
+    --active: #{color(red-500)};
+    --focus: 2px #{color(red-500, .3)};
+    --border-hover: #{color(red-500)};
+  }
+  input[type='checkbox'].check-orange, input[type='radio'].check-orange {
+    --active: #{color(orange-500)};
+    --focus: 2px #{color(orange-500, .3)};
+    --border-hover: #{color(orange-500)};
   }
   input[type='checkbox'].check-yellow, input[type='radio'].check-yellow {
-    --active: #{m.hslac(c.$clr-yellow-500, 1)};
-    --focus: 2px #{m.hslac(c.$clr-yellow-500, 0.3)};
-    --border-hover: #{m.hslac(c.$clr-yellow-500, 1)};
+    --active: #{color(yellow-500)};
+    --focus: 2px #{color(yellow-500, .3)};
+    --border-hover: #{color(yellow-500)};
+  }
+  input[type='checkbox'].check-yellowgreen, input[type='radio'].check-yellowgreen {
+    --active: #{color(yellowgreen-500)};
+    --focus: 2px #{color(yellowgreen-500, .3)};
+    --border-hover: #{color(yellowgreen-500)};
+  }
+  input[type='checkbox'].check-green, input[type='radio'].check-green {
+    --active: #{color(green-500)};
+    --focus: 2px #{color(green-500, .3)};
+    --border-hover: #{color(green-500)};
+  }
+  input[type='checkbox'].check-lime, input[type='radio'].check-lime {
+    --active: #{color(lime-500)};
+    --focus: 2px #{color(lime-500, .3)};
+    --border-hover: #{color(lime-500)};
+  }
+  input[type='checkbox'].check-turquoise, input[type='radio'].check-turquoise {
+    --active: #{color(turquoise-500)};
+    --focus: 2px #{color(turquoise-500, .3)};
+    --border-hover: #{color(turquoise-500)};
+  }
+  input[type='checkbox'].check-cyan, input[type='radio'].check-cyan {
+    --active: #{color(cyan-500)};
+    --focus: 2px #{color(cyan-500, .3)};
+    --border-hover: #{color(cyan-500)};
+  }
+  input[type='checkbox'].check-skyblue, input[type='radio'].check-skyblue {
+    --active: #{color(skyblue-500)};
+    --focus: 2px #{color(skyblue-500, .3)};
+    --border-hover: #{color(skyblue-500)};
+  }
+  input[type='checkbox'].check-blue, input[type='radio'].check-blue {
+    --active: #{color(blue-500)};
+    --focus: 2px #{color(blue-500, .3)};
+    --border-hover: #{color(blue-500)};
+  }
+  input[type='checkbox'].check-purple, input[type='radio'].check-purple {
+    --active: #{color(purple-500)};
+    --focus: 2px #{color(purple-500, .3)};
+    --border-hover: #{color(purple-500)};
+  }
+  input[type='checkbox'].check-magenta, input[type='radio'].check-magenta {
+    --active: #{color(magenta-500)};
+    --focus: 2px #{color(magenta-500, .3)};
+    --border-hover: #{color(magenta-500)};
+  }
+  input[type='checkbox'].check-pink, input[type='radio'].check-pink {
+    --active: #{color(pink-500)};
+    --focus: 2px #{color(pink-500, .3)};
+    --border-hover: #{color(pink-500)};
   }
   input[type='checkbox'].check-deeppink, input[type='radio'].check-deeppink {
-    --active: #{m.hslac(c.$clr-deeppink-500, 1)};
-    --focus: 2px #{m.hslac(c.$clr-deeppink-500, 0.3)};
-    --border-hover: #{m.hslac(c.$clr-deeppink-500, 1)};
-  }
-  input[type='checkbox'].check-FURNITURE, input[type='radio'].check-FURNITURE {
-    --active: #{c.$clr-furniture};
-    --focus: 2px #{rgba(c.$clr-furniture, 0.3)};
-    --border-hover: #{c.$clr-furniture};
-  }
-  input[type='checkbox'].check-GROCERIES, input[type='radio'].check-GROCERIES {
-    --active: #{c.$clr-groceries};
-    --focus: 2px #{rgba(c.$clr-groceries, 0.3)};
-    --border-hover: #{c.$clr-groceries};
-  }
-  input[type='checkbox'].check-TAKEAWAY, input[type='radio'].check-TAKEAWAY {
-    --active: #{c.$clr-takeaway};
-    --focus: 2px #{rgba(c.$clr-takeaway, 0.3)};
-    --border-hover: #{c.$clr-takeaway};
-  }
-  input[type='checkbox'].check-RESTAURANT, input[type='radio'].check-RESTAURANT {
-    --active: #{c.$clr-restaurant};
-    --focus: 2px #{rgba(c.$clr-restaurant, 0.3)};
-    --border-hover: #{c.$clr-restaurant};
-  }
-  input[type='checkbox'].check-HOUSEHOLD, input[type='radio'].check-HOUSEHOLD {
-    --active: #{c.$clr-household};
-    --focus: 2px #{rgba(c.$clr-household, 0.3)};
-    --border-hover: #{c.$clr-household};
-  }
-  input[type='checkbox'].check-SUBSCRIPTIONS, input[type='radio'].check-SUBSCRIPTIONS {
-    --active: #{c.$clr-subscriptions};
-    --focus: 2px #{rgba(c.$clr-subscriptions, 0.3)};
-    --border-hover: #{c.$clr-subscriptions};
-  }
-  input[type='checkbox'].check-OTHER, input[type='radio'].check-OTHER {
-    --active: #{c.$clr-other};
-    --focus: 2px #{rgba(c.$clr-other, 0.3)};
-    --border-hover: #{c.$clr-other};
+    --active: #{color(deeppink-500)};
+    --focus: 2px #{color(deeppink-500, .3)};
+    --border-hover: #{color(deeppink-500)};
   }
   input[type='checkbox'],
   input[type='radio'] {
-    --active: #{m.hslac(c.$clr-skyblue-500, 1)};
-    --active-inner: #{m.hslac(c.$clr-white, 1)};
-    --focus: 2px #{m.hslac(c.$clr-skyblue-500, 0.3)};
-    --border: #{m.hslac(c.$clr-gray-700, 1)};
-    --border-hover: #{m.hslac(c.$clr-skyblue-500, 1)};
-    --background: #{m.hslac(c.$clr-black, .5)};
-    --disabled: #{m.hslac(c.$clr-gray-900, 1)};
-    --disabled-inner: #{m.hslac(c.$clr-gray-800, 1)};
+    --active: #{color(primary-500)};
+    --active-inner: #{color(white)};
+    --focus: 2px #{color(primary-500, .3)};
+    --border: #{color(gray-700)};
+    --border-hover: #{color(primary-500)};
+    --background: #{color(black, .5)};
+    --disabled: #{color(gray-900)};
+    --disabled-inner: #{color(gray-800)};
     -webkit-appearance: none;
     -moz-appearance: none;
     height: 21px;
@@ -330,7 +183,7 @@ main {
       left: 0;
       top: 0;
       position: absolute;
-      transition: transform var(--d-t, .3s) cubic-bezier(u.$transition-smooth, 1),
+      transition: transform var(--d-t, .3s) cubic-bezier($transition-smooth, 1),
       opacity var(--d-o, .2s);
     }
     &:checked {
@@ -371,7 +224,9 @@ main {
       }
     }
     & + label {
-      font-size: 14px;
+      font: {
+        size: 14px;
+      }
       line-height: 21px;
       display: inline-block;
       vertical-align: top;
@@ -437,17 +292,55 @@ main {
   }
 }
 
+.dropdown {
+  width: fit-content;
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  select {
+    padding: 1em 2.8em 1em 1.4em;
+    appearance: none;
+    width: 100%;
+    color: color(white);
+    background-color: color(gray-900);
+    border: 1px solid color(gray-800);
+    border-radius: .6em;
+    &:focus, &:active {
+      outline: 2px solid color(white);
+    }
+  }
+  select.icon {
+    padding: 1em 1.4em 1em 2.8em;
+  }
+  > span {
+    padding: 0;
+    position: absolute;
+    display: inline-flex;
+    font: {
+      size: $paragraph;
+    }
+    pointer-events: none;
+    color: color(gray-100);
+    transition: all .35s cubic-bezier($transition-main, 1);
+  }
+  .material-symbols-rounded {
+    font: {
+      size: $paragraph;
+    }
+  }
+}
+
 label {
   user-select: none;
 }
 
 .error {
-  color: m.hslac(c.$clr-red-500, 1);
+  color: color(red-500);
 }
 
 .loader {
-  width: 100%; height: calc(100vh - u.$navbar-height);
-  @include m.flex-center();
+  width: 100%; height: calc(100vh - $navbar-height);
+  @include align(center, center, row);
 }
 .spinner svg {
   animation: loading-rotate 2.2s linear infinite;
@@ -458,7 +351,7 @@ label {
   stroke-dasharray: 90, 150;
   stroke-dashoffset: 0;
   stroke-width: 3;
-  stroke: m.hslac(c.$clr-white, 1);
+  stroke: color(white);
   stroke-linecap: round;
   animation: loading-dash 1.6s ease-in-out infinite;
 }
@@ -482,22 +375,115 @@ label {
   }
 }
 
+.sub-root {
+  appearance: none;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  &:disabled { cursor: not-allowed; opacity: 0.7; }
+}
+
+.sub-button {
+  padding: 1em 1.5em;
+  position: relative;
+  color: color(black);
+  background: color(white);
+  border-radius: .75em;
+  font: {
+    size: $paragraph;
+    weight: 500;
+  }
+  transition: all .5s cubic-bezier($transition-main, 1);
+  @include align(center, center, row);
+}
+.sub-root:not(.is-following) .sub-button:hover {
+  background: color(gray-100);
+}
+.sub-text {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.sub-button svg {
+  top: 50%;
+  width: 100%;
+  position: absolute;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.sub-root.is-following .sub-button {
+  color: color(gray-100);
+  background: linear-gradient(
+          to right,
+          var(--sub-color) 0%,
+          var(--sub-color) 25%,
+          color(red-200) 50%,
+          color(yellow-500) 75%,
+          color(gray-100) 100%
+  );
+  background-size: 600% 100%;
+  animation: colorMove 1s linear forwards;
+}
+.sub-root.is-following .sub-button:hover {
+  animation: colorMove 1s linear forwards;
+}
+
+.stars, .circles { opacity: 1; transform: scale(0); transform-origin: 0 0; }
+.dots { opacity: 0; transform: scale(0.5); transform-origin: 0 0; }
+
+.sub-root.is-following svg {
+  #star1  { opacity: 0; transition: opacity .2s .5s, transform .5s; transform: scale(1) translate(10px, 10px); }
+  #circle1{ opacity: 0; transition: opacity .3s .5s, transform .5s; transform: scale(1) translate(10px,-10px); }
+  #dots1  { animation: 1s linear dotsAnimation .5s; }
+
+  #star2  { opacity: 0; transition: opacity .3s .6s, transform .5s .1s; transform: scale(1) translate(5px, 10px); }
+  #star3  { opacity: 0; transition: opacity .3s .7s, transform .5s .2s; transform: scale(1) translate(0px, 10px); }
+  #star4  { opacity: 0; transition: opacity .3s .7s, transform .5s .2s; transform: scale(1) translate(0px,-10px); }
+
+  #circle2{ opacity: 0; transition: opacity .2s .8s, transform .5s .3s; transform: scale(1) translate(0px,-10px); }
+  #dots2  { animation: 1s linear dotsAnimation .8s; }
+
+  #circle3{ opacity: 0; transition: opacity .2s .8s, transform .5s .3s; transform: scale(1) translate(-10px, 10px); }
+  #dots3  { animation: 1s linear dotsAnimation .8s; }
+
+  #star5  { opacity: 0; transition: opacity .3s .9s, transform .5s .4s; transform: scale(1) translate(-5px,-5px); }
+  #star6  { opacity: 0; transition: opacity .3s 1s, transform .5s .5s; transform: scale(1) translate(-5px,-5px); }
+}
+
+@keyframes dotsAnimation {
+  0% { opacity: 1; transform: scale(0.5); }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+
+@keyframes colorMove {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+
+
+
+
+
+
 ::selection {
-  color: m.hslac(c.$clr-black, 1);
-  background: m.hslac(c.$clr-white, 1);
+  color: color(black);
+  background: color(white);
 }
 
 ::-webkit-scrollbar-track {
-  background-color: m.hslac(c.$clr-black, 1);
+  background-color: color(black);
 }
 ::-webkit-scrollbar {
   width: 8px;
-  background-color: m.hslac(c.$clr-black, 1);
+  background-color: color(black);
 }
 ::-webkit-scrollbar-thumb {
-  background-color: m.hslac(c.$clr-white, .7);
-  border-radius: 1rem;
+  background-color: color(white, .7);
+  border-radius: 1em;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: m.hslac(c.$clr-white, .9);
+  background-color: color(white, .9);
 }

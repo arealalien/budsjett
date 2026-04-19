@@ -1,0 +1,14 @@
+@use "sass:map";
+
+$z-index: (
+    modal: 10000,
+    navbar: 9900,
+);
+
+@function zi($key) {
+  @return map.get($z-index, $key);
+}
+
+@mixin z-index($key) {
+  z-index: zi($key);
+}

@@ -1,0 +1,15 @@
+@use "sass:math";
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+
+.budget {
+  padding: 2em;
+
+  &-window, &-home {
+    @include align(center, center, column, nowrap, 2em);
+  }
+}

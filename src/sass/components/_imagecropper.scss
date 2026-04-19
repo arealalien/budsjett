@@ -1,0 +1,63 @@
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+@use "sass:math";
+
+.cropper-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(8, 10, 18, .82);
+  backdrop-filter: blur(10px);
+  padding: 2rem;
+  @include align(center, center);
+}
+
+.cropper-modal-inner {
+  width: min(92vw, 42rem);
+  height: min(88vh, 42rem);
+  padding: 1rem;
+  border: 1px solid color(gray-800);
+  border-radius: 1.5rem;
+  background: color(gray-900);
+  overflow: hidden;
+  gap: 1rem;
+  @include align(stretch, stretch, column);
+}
+
+.advanced-cropper {
+  width: 100%;
+  flex: 1 1 auto;
+  color: color(purple-400);
+  min-height: 20rem;
+}
+
+.cropper-modal-inner-toptools {
+  gap: 1rem;
+  flex-wrap: wrap;
+  @include align(between, center);
+}
+
+.cropper-modal-inner-toptools-center {
+  gap: .75rem;
+  flex-wrap: wrap;
+  @include align(center, center);
+}
+
+.cropper-modal-inner-toptools-center-button {
+  padding: .8rem 1rem;
+  border: 1px solid color(gray-700);
+  border-radius: 1rem;
+  background: color(gray-800, .35);
+  color: color(gray-100);
+  gap: .45rem;
+  cursor: pointer;
+  @include align(center, center);
+
+  &:hover {
+    background: color(gray-800, .55);
+  }
+}

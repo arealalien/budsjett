@@ -141,7 +141,7 @@ export default function OnboardingPage() {
     };
 
     return (
-        <main className="onboarding">
+        <div className="onboarding">
             <form className="onboarding-form" onSubmit={submit}>
                 <div className="onboarding-form-rim"></div>
                 <div className="onboarding-form-glow"></div>
@@ -273,6 +273,6 @@ export default function OnboardingPage() {
                     </div>
                 </div>
             </form>
-        </main>
+        </div>
     );
 }

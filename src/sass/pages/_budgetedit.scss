@@ -1,0 +1,349 @@
+@use "sass:math";
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+
+.budgetedit {
+  width: 100%;
+
+  &-form {
+    padding: 1px;
+    width: 100%;
+    position: relative;
+    background-color: color(gray-800);
+    border-radius: 1.6em;
+    overflow: hidden;
+    @include align(center, center, column);
+
+    &-rim {
+      $size: 15;
+      top: - calc($size / 1.5) + em;
+      left: - calc($size / 2.5) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1;
+      position: absolute;
+      background-color: color(white);
+      border-radius: 50%;
+      filter: blur(calc($size / 1.5) + rem);
+      pointer-events: none;
+      opacity: .15;
+    }
+
+    &-glow {
+      $size: 30;
+      right: - calc($size / 3) + em;
+      bottom: - calc($size / 1.1) + em;
+      width: $size + em;
+      aspect-ratio: 1 / 1.5;
+      position: absolute;
+      background-color: color(skyblue-400);
+      border-radius: 50%;
+      filter: blur(calc($size * 1.2) + rem);
+      pointer-events: none;
+      opacity: .15;
+    }
+
+    &-inner {
+      padding: 2em;
+      width: 100%;
+      background-color: color(gray-900);
+      border-radius: 1.6em;
+      gap: 1.2em;
+      @include align(start, stretch, column);
+    }
+  }
+
+  &-header {
+    width: 100%;
+    @include align(between, start, $gap: 1em);
+
+    &-copy {
+      gap: .25em;
+      @include align(start, start, column);
+    }
+
+    &-eyebrow {
+      color: color(gray-500);
+      font-size: $paragraph-small;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    &-title {
+      font-weight: 700;
+    }
+
+    &-subtitle {
+      color: color(gray-500);
+      line-height: 1.45;
+    }
+
+    &-stats {
+      min-width: 16em;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: .75em;
+    }
+
+    &-stat {
+      padding: 1em;
+      border: 1px solid color(gray-800);
+      border-radius: 1.1em;
+      background: color(gray-800, .18);
+      @include align(start, start, column, $gap: .2em);
+
+      span {
+        color: color(gray-500);
+        font-size: $paragraph-small;
+      }
+
+      strong {
+        color: color(white);
+        font-weight: 700;
+      }
+    }
+  }
+
+  &-section {
+    padding: 1.2em;
+    width: 100%;
+    border: 1px solid color(gray-800);
+    border-radius: 1.3em;
+    background: color(gray-800, .12);
+    gap: 1em;
+    @include align(start, stretch, column);
+
+    &-head {
+      width: 100%;
+      @include align(between, center, $gap: 1em);
+
+      h3 {
+        font-weight: 700;
+      }
+
+      p {
+        margin-top: .2em;
+        color: color(gray-500);
+      }
+    }
+  }
+
+  &-field {
+    width: 100%;
+    gap: .5em;
+    @include align(start, start, column);
+
+    &-label {
+      color: color(gray-500);
+    }
+  }
+
+  &-input {
+    padding: 1em 1.2em;
+    width: 100%;
+    border: 1px solid color(gray-800);
+    border-radius: 1em;
+    background: color(gray-900);
+    color: color(gray-100);
+
+    &:focus {
+      outline: none;
+      border-color: color(white);
+    }
+
+    &[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    &-with-prefix {
+      padding: 0 1em;
+      @include align(start, center, $gap: .6em);
+
+      input {
+        padding: 1em 0;
+        width: 100%;
+        border: none;
+        background: transparent;
+        color: inherit;
+        -webkit-appearance: none;
+        -moz-appearance: textfield;
+
+        &:focus {
+          outline: none;
+        }
+      }
+    }
+
+    &-prefix {
+      color: color(gray-500);
+      font-weight: 600;
+    }
+  }
+
+  &-categories {
+    width: 100%;
+    gap: 1em;
+    @include align(start, stretch, column);
+  }
+
+  &-category {
+    --cat-color: 239, 68, 68;
+
+    padding: 1em;
+    width: 100%;
+    border: 1px solid color(gray-800);
+    border-radius: 1.25em;
+    background:
+        linear-gradient(
+                180deg,
+                rgb(var(--cat-color) / .12) 0%,
+                color(gray-800, .05) 100%
+        );
+    gap: 1em;
+    @include align(start, stretch, column);
+
+    &-top {
+      width: 100%;
+      @include align(between, center, $gap: 1em);
+    }
+
+    &-preview {
+      min-width: 0;
+      @include align(start, center, $gap: .8em);
+
+      &-swatch {
+        width: 2.75em;
+        height: 2.75em;
+        flex-shrink: 0;
+        border-radius: 1em;
+        background: rgb(var(--cat-color));
+        box-shadow: inset 0 0 0 1px color(white, .18);
+      }
+
+      &-copy {
+        min-width: 0;
+        gap: .15em;
+        @include align(start, start, column);
+
+        strong {
+          color: color(white);
+          font-weight: 700;
+        }
+
+        span {
+          color: color(gray-500);
+          font-size: $paragraph-small;
+        }
+      }
+    }
+
+    &-remove {
+      padding: .8em 1em;
+      color: color(white);
+      background: color(red-500, .9);
+      border: none;
+      border-radius: 1em;
+      cursor: pointer;
+      transition: opacity .15s cubic-bezier($transition-main, 1);
+
+      &:hover {
+        opacity: .85;
+      }
+    }
+
+    &-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 1em;
+    }
+
+    &-color {
+      gap: .8em;
+      @include align(start, stretch, column);
+
+      &-head {
+        width: 100%;
+        @include align(between, start, $gap: 1em);
+      }
+
+      &-help {
+        margin-top: .15em;
+        color: color(gray-500);
+        font-size: $paragraph-small;
+      }
+    }
+
+    &-custom {
+      padding: .8em 1em;
+      color: color(white);
+      background: color(gray-900);
+      border: 1px solid color(gray-800);
+      border-radius: 1em;
+      cursor: pointer;
+      transition: all .15s cubic-bezier($transition-main, 1);
+
+      &:hover {
+        border-color: color(white, .2);
+      }
+
+      &.is-active {
+        border-color: color(white, .35);
+        background: color(gray-800);
+      }
+    }
+
+    &-swatches {
+      flex-wrap: wrap;
+      @include align(start, center, $gap: .7em);
+    }
+
+    &-swatch {
+      --swatch: 239, 68, 68;
+
+      width: 2.4em;
+      height: 2.4em;
+      border: 1px solid color(white, .12);
+      border-radius: 50%;
+      background: rgb(var(--swatch));
+      cursor: pointer;
+      transition: transform .15s cubic-bezier($transition-main, 1),
+      box-shadow .15s cubic-bezier($transition-main, 1),
+      border-color .15s cubic-bezier($transition-main, 1);
+
+      &:hover {
+        transform: scale(1.05);
+      }
+
+      &.is-active {
+        transform: scale(1.08);
+        border-color: color(white);
+        box-shadow:
+            0 0 0 3px color(white, .08),
+            0 0 0 1px color(white, .35) inset;
+      }
+    }
+
+    &-picker {
+      padding-top: .25em;
+      position: relative;
+    }
+  }
+
+  &-error {
+    padding: 1em 1.2em;
+    color: color(red-300);
+    border: 1px solid color(red-700);
+    border-radius: 1em;
+    background: color(red-700, .08);
+  }
+
+  &-footer {
+    width: 100%;
+    gap: .8em;
+    @include align(start, center);
+  }
+}

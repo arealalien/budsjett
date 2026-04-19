@@ -1,6 +1,10 @@
-@use "../abstracts/colors";
-@use "../abstracts/mixins";
-@use "../abstracts/utilities";
+@use "sass:math";
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
 
 .onboarding {
   padding: 2em;
@@ -8,11 +12,11 @@
     padding: 1px;
     width: 100%;
     position: relative;
-    background-color: mixins.hslac(colors.$clr-gray-800, 1);
+    background-color: color(gray-800);
     border-radius: 1.6em;
     gap: 1em;
     overflow: hidden;
-    @include mixins.flex-col();
+    @include align(center, center, column);
 
     &-rim {
       $size: 15;
@@ -21,7 +25,7 @@
       width: $size + em;
       aspect-ratio: 1 / 1;
       position: absolute;
-      background-color: mixins.hslac(colors.$clr-white, 1);
+      background-color: color(white);
       border-radius: 50%;
       filter: blur(calc($size / 1.5) + rem);
       pointer-events: none;
@@ -34,7 +38,7 @@
       width: $size + em;
       aspect-ratio: 1 / 1.5;
       position: absolute;
-      background-color: mixins.hslac(colors.$clr-skyblue-400, 1);
+      background-color: color(skyblue-400);
       border-radius: 50%;
       filter: blur(calc($size * 1.2) + rem);
       pointer-events: none;
@@ -43,57 +47,58 @@
     &-inner {
       padding: 2em;
       width: 100%; height: 100%;
-      background-color: mixins.hslac(colors.$clr-gray-900, 1);
+      background-color: color(gray-900);
       border-radius: 1.6em;
       gap: 1em;
-      @include mixins.flex-col();
+      @include align(center, center, column);
 
       &-fieldset {
         padding: 1em 0 2em 0;
         width: 100%;
         border: none;
-        border-bottom: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+        border-bottom: 1px solid color(gray-800);
         gap: .5em;
-        @include mixins.flex-col-left-ns();
+        @include align(start, start, column);
 
         &-label {
-          color: mixins.hslac(colors.$clr-gray-500, 1);
+          color: color(gray-500);
         }
         &-input {
           padding: 1em 1.2em 1em 1.2em;
           width: 100%;
-          border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+          border: 1px solid color(gray-800);
           border-radius: 1em;
-          background: mixins.hslac(colors.$clr-gray-900, 1);
-          color: mixins.hslac(colors.$clr-gray-100, 1);
+          background: color(gray-900);
+          color: color(gray-100);
           &:focus {
             outline: none;
-            border-color: mixins.hslac(colors.$clr-white, 1);
+            border-color: color(white);
           }
         }
       }
       &-header {
         width: 100%;
         gap: .2em;
-        @include mixins.flex-col-left-ns();
+        @include align(start, start, column);
 
         &-title {
           font-weight: 700;
         }
         &-subtitle {
           font-weight: 400;
-          color: mixins.hslac(colors.$clr-gray-500, 1);
+          color: color(gray-500);
         }
       }
       &-cats {
         padding-top: 1em;
         width: 100%;
         gap: 2em;
-        @include mixins.flex-col();
+        @include align(center, center, column);
+        
         &-header {
           width: 100%;
           gap: .2em;
-          @include mixins.flex-space-bet();
+          @include align(between, center);
 
           &-title {
             font-weight: 700;
@@ -115,48 +120,48 @@
           &-color {
             height: 100%;
             aspect-ratio: 1 / 1;
-            background-color: mixins.hslac(colors.$clr-gray-500, 1);
+            background-color: color(gray-500);
             border: none;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
             border-radius: 1em;
             cursor: pointer;
-            @include mixins.flex-center();
+            @include align(center, center);
 
             &-icon {
               width: 1.25em; height: 1.25em;
               path {
-                stroke: mixins.hslac(colors.$clr-white, 1);
+                stroke: color(white);
               }
             }
           }
           &-input {
             position: relative;
             gap: .5em;
-            @include mixins.flex-left();
+            @include align(start, center, column);
 
             &-icon {
               left: 1.2em;
               width: 1em; height: 1em;
               position: absolute;
               path {
-                stroke: mixins.hslac(colors.$clr-gray-500, 1);
+                stroke: color(gray-500);
               }
             }
             &-text {
               left: 1.2em;
               position: absolute;
-              color: mixins.hslac(colors.$clr-gray-500, 1);
+              color: color(gray-500);
             }
             &-field {
               padding: 1em 1.2em 1em 2.6em;
               width: 100%;
-              border: 1px solid mixins.hslac(colors.$clr-gray-800, 1);
+              border: 1px solid color(gray-800);
               border-radius: 1em;
-              background: mixins.hslac(colors.$clr-gray-900, 1);
-              color: mixins.hslac(colors.$clr-gray-100, 1);
+              background: color(gray-900);
+              color: color(gray-100);
               &:focus {
                 outline: none;
-                border-color: mixins.hslac(colors.$clr-white, 1);
+                border-color: color(white);
               }
               &[type="number"] {
                 -moz-appearance: textfield;
@@ -166,18 +171,18 @@
           &-button {
             height: 100%;
             aspect-ratio: 1 / 1;
-            color: mixins.hslac(colors.$clr-white, 1);
-            background-color: mixins.hslac(colors.$clr-red-500, 1);
+            color: color(white);
+            background-color: color(red-500);
             border: none;
             border-radius: 1em;
             gap: .5em;
             cursor: pointer;
-            @include mixins.flex-center();
+            @include align(center, center);
 
             svg {
               width: 1em; height: 1em;
               path {
-                stroke: mixins.hslac(colors.$clr-white, 1);
+                stroke: color(white);
               }
             }
           }

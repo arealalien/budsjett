@@ -12,7 +12,7 @@ const TTL_CATEGORIES  = 5 * 60_000; // categories change rarely
 const TTL_TOTALS = null;     // range totals (refresh on new purchases via invalidation elsewhere)
 
 const querySchema = z.object({
-    period: z.enum(['week', 'month']).default('month'),
+    period: z.enum(['week', 'month', 'lastMonth', 'all']).default('month'),
     anchorDate: z.coerce.date().optional(),
 });
 
@@ -48,9 +48,24 @@ function computeRange(period, anchor) {
         const to = endOfDay(new Date(from.getTime() + 6 * 24 * 3600 * 1000));
         return { from, to };
     }
-    const from = startOfMonth(anchor);
-    const to = endOfMonth(anchor);
-    return { from, to };
+
+    if (period === 'lastMonth') {
+        const d = new Date(anchor);
+        d.setMonth(d.getMonth() - 1);
+        return {
+            from: startOfMonth(d),
+            to: endOfMonth(d)
+        };
+    }
+
+    if (period === 'all') {
+        return null;
+    }
+
+    return {
+        from: startOfMonth(anchor),
+        to: endOfMonth(anchor)
+    };
 }
 
 // ---------- cache keys ----------
@@ -92,9 +107,12 @@ router.get('/:slug/category-totals', verifyToken, async (req, res, next) => {
         }
 
         // 2) time window
-        const { from, to } = computeRange(period, today);
-        const fromISO = from.toISOString();
-        const toISO = to.toISOString();
+        const range = computeRange(period, today);
+
+        const from = range?.from ?? null;
+        const to = range?.to ?? null;
+        const fromISO = from ? from.toISOString() : 'all';
+        const toISO = to ? to.toISOString() : 'all';
 
         // 3) categories (cached)
         const categories = await cacheGetOrSet(
@@ -114,15 +132,21 @@ router.get('/:slug/category-totals', verifyToken, async (req, res, next) => {
             keyTotals(budgetInfo.id, fromISO, toISO),
             TTL_TOTALS,
             async () => {
+                const where = {
+                    budgetId: budgetInfo.id,
+                    deletedAt: null,
+                };
+
+                if (period !== 'all') {
+                    where.paidAt = { gte: from, lte: to };
+                }
+
                 const rows = await prisma.purchase.groupBy({
                     by: ['categoryId'],
-                    where: {
-                        budgetId: budgetInfo.id,
-                        deletedAt: null,
-                        paidAt: { gte: from, lte: to },
-                    },
+                    where,
                     _sum: { amount: true },
                 });
+
                 const out = {};
                 for (const r of rows) out[r.categoryId] = Number(r._sum.amount || 0);
                 return out;

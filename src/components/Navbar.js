@@ -131,7 +131,7 @@ export default function Navbar({ loading, user, onboarding = false, handleLogout
                                 ].join(" ")
                             }
                         >
-                            <Button className="ba-glow" children="Sign in" type="button" />
+                            <Button variant="white" text="Sign in" type="button" />
                         </NavLink>
                     </div>
                 </motion.div>

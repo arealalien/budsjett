@@ -127,7 +127,7 @@ export default function LoginForm() {
                     {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
                     <div className="register-form-inner-bottom">
-                        <Button className="ba-purple" children="Sign in" type="submit" disabled={loading} />
+                        <Button variant="primary" text="Sign in" type="submit" disabled={loading} />
                         <p>Need an account? <NavLink to="/register">Register</NavLink></p>
                         <p>Forgot your password? <NavLink to="/forgot-password">Reset it here!</NavLink></p>
                     </div>

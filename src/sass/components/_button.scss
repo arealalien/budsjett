@@ -1,0 +1,321 @@
+@use "sass:math";
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+
+.button {
+  padding: 1em 1.3em;
+  position: relative;
+  border: none;
+  font: {
+    size: $paragraph;
+    weight: 500;
+  }
+  letter-spacing: .02em;
+  text-decoration: none;
+  border-radius: .75em;
+  cursor: pointer;
+  transition: opacity .15s cubic-bezier($transition-smooth, 1), box-shadow .25s cubic-bezier($transition-smooth, 1), transform .35s cubic-bezier($transition-smooth, 1), color .15s cubic-bezier($transition-smooth, 1);
+  @include align(center, center, row, $gap: .6em);
+
+  &-content {
+    position: relative;
+    z-index: 10;
+    @include align(center, center, row, $gap: .8em);
+  }
+
+  &-glow {
+    top: 6px;
+    width: 100%; height: 100%;
+    position: absolute;
+    background-color: inherit;
+    filter: blur(1rem);
+    transform: scale(.7);
+    opacity: 0;
+    transition: all .4s cubic-bezier($transition-smooth, 1);
+    z-index: -1;
+  }
+
+  &:hover {
+    .button-glow {
+      transform: scale(.9);
+      opacity: .4;
+    }
+  }
+  &:disabled {
+    opacity: .5;
+    pointer-events: none;
+  }
+
+  .material-symbols-rounded {
+    font: {
+      size: $paragraph-large;
+    }
+  }
+
+  &-primary {
+    color: color(primary-100);
+    background-color: color(primary-500);
+
+    &:hover, &:active {
+      color: color(white);
+    }
+  }
+  &-red {
+    color: color(red-100);
+    background-color: color(red-500);
+
+    &:hover, &:active {
+      color: color(white);
+    }
+  }
+  &-white {
+    color: color(gray-800);
+    background-color: color(white);
+
+    &:hover, &:active {
+      color: color(black);
+    }
+  }
+  &-blue {
+    color: color(skyblue-100);
+    background-color: color(skyblue-500);
+
+    &:hover, &:active {
+      color: color(white);
+    }
+  }
+  &-gray {
+    color: color(gray-300);
+    background-color: color(gray-900);
+
+    &:hover, &:active {
+      color: color(white);
+    }
+  }
+  &-gray-border {
+    color: color(gray-300);
+    background-color: color(gray-900);
+    box-shadow: 0 0 0 2px color(gray-800);
+
+    &:hover {
+      color: color(white);
+    }
+    &:active {
+      color: color(white);
+      box-shadow: 0 0 0 2px color(gray-800);
+    }
+  }
+  &-gray-shadow {
+    color: color(gray-300);
+    background-color: color(gray-900);
+    box-shadow: inset 0 0 0 1px color(black), 0 0 0 2px color(gray-800),
+    0 0 0 4px color(gray-800, .25), 0 7px 17px -3px color(gray-800, .43),
+    0 12px 12px -2px color(gray-800, .35);
+
+    &:hover {
+      color: color(white);
+    }
+    &:active {
+      color: color(white);
+      box-shadow: inset 0 0 0 1px color(black), 0 0 0 2px color(gray-800),
+      0 0 0 4px color(gray-800, .25), 0 4px 12px -5px color(gray-800, .53),
+      0 6px 6px -4px color(gray-800, .35);
+    }
+  }
+  &-magic {
+    color: color(purple-200);
+    background: radial-gradient(at center top, color(purple-900) 0%, color(purple-700) 100%);
+    box-shadow: 0 4px 12px -5px color(purple-800, .13),
+    0 6px 6px -4px color(purple-800, .05);
+    overflow: hidden;
+    isolation: isolate;
+
+    &:hover {
+      color: color(purple-100);
+      box-shadow: 0 1px 50px -3px color(purple-200, .3),
+      0 7px 27px -5px color(purple-800, .23),
+      0 11px 18px -3px color(purple-800, .15);
+    }
+    &:active {
+      color: color(purple-100);
+      box-shadow: 0 1px 25px -3px color(purple-300, .15),
+      0 4px 12px -5px color(purple-800, .13),
+      0 6px 6px -4px color(purple-800, .05);
+    }
+
+    &:disabled {
+      .spark {
+        background: conic-gradient(transparent, color(white, 0) 60deg, transparent 61deg);
+      }
+    }
+
+    .spark {
+      width: 100%;
+      aspect-ratio: 1;
+      inset: 50% auto auto 50%;
+      position: absolute;
+      translate: -50% -50%;
+      animation: lazy 3s infinite cubic-bezier($transition-spark, 1);
+      mask: linear-gradient(color(white), transparent 50%);
+      background: conic-gradient(transparent, color(white) 60deg, transparent 61deg);
+    }
+    .spark-backdrop {
+      inset: 2px;
+      position: absolute;
+      background: radial-gradient(at center top, color(purple-500) 0%, color(purple-900) 100%);
+      border-radius: calc(.75em - 1px);
+    }
+    .button-magic-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 220ms cubic-bezier($transition-smooth, 1);
+
+      &.is-on { opacity: 1; }
+    }
+    .button-star {
+      position: absolute;
+      color: currentColor;
+      transform: translate(-50%, -50%);
+      filter: drop-shadow(0 0 6px color(white, .25));
+      will-change: transform, opacity;
+      opacity: 0;
+      animation:
+          buttonStarInOut 1800ms ease-in-out infinite,
+          buttonStarPulse var(--dur) cubic-bezier($transition-smooth, 1) infinite;
+    }
+    .button-star.is-dying {
+      animation:
+          buttonStarFade var(--fade) ease-out forwards,
+          buttonStarPulse var(--dur) cubic-bezier($transition-smooth, 1) infinite;
+    }
+    .button-star-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+}
+
+.button-burst-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.button-burst-star {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  color: currentColor;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,0.25));
+  opacity: var(--alpha);
+
+  animation: buttonBurst var(--dur) cubic-bezier(.2, .9, .2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.button-burst-star .button-star-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.button.button-letters {
+  --font-size: #{$paragraph};
+  --duration: .45s;
+  --font-shadow: calc(var(--font-size) + .1rem);
+  --m: 0px;
+  --shadow-y: var(--font-shadow);
+
+  .button-text-letters {
+    display: flex;
+    overflow: hidden;
+    line-height: calc(var(--font-size) + .12rem);
+
+    span {
+      display: block;
+      backface-visibility: hidden;
+      transform: translateY(var(--m)) translateZ(0);
+      transition: transform var(--duration) cubic-bezier($transition-button, 1);
+      text-shadow: 0 var(--shadow-y) 0 currentColor;
+
+      $i: 1;
+      @while $i < 40 {
+        &:nth-child(#{$i}) { transition-delay: #{math.div($i, 60)}s; }
+        $i: $i + 1;
+      }
+    }
+  }
+
+  &:hover {
+    .button-text-letters span {
+      --m: calc((var(--font-size) + .125rem) * -1);
+    }
+  }
+
+  &.reverse {
+    --shadow-y: calc(var(--font-shadow) * -1);
+
+    &:hover {
+      .button-text-letters span {
+        --m: calc(var(--font-size) + .125rem);
+      }
+    }
+  }
+}
+
+@keyframes buttonBurst {
+  0% {
+    transform: translate(-50%, -50%) translate3d(0, 0, 0) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--alpha);
+  }
+  100% {
+    transform: translate(-50%, -50%) translate3d(var(--dx), var(--dy), 0) rotate(var(--rot)) scale(0.6);
+    opacity: 0;
+  }
+}
+
+@keyframes buttonStarInOut {
+  0%   { opacity: 0; }
+  20%  { opacity: var(--alpha); }
+  55%  { opacity: calc(var(--alpha) * 0.65); }
+  100% { opacity: 0; }
+}
+
+@keyframes buttonStarFade {
+  from { opacity: var(--alpha); }
+  to   { opacity: 0; }
+}
+
+@keyframes lazy {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes buttonStarPulse {
+  0% {
+    transform: translate(-50%, -50%)
+    rotate(var(--rot))
+    scale(0.7);
+  }
+  50% {
+    transform: translate(-50%, -50%)
+    rotate(calc(var(--rot) + 120deg))
+    scale(1.15);
+  }
+  100% {
+    transform: translate(-50%, -50%)
+    rotate(calc(var(--rot) + 240deg))
+    scale(0.75);
+  }
+}

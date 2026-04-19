@@ -1,6 +1,10 @@
-@use "../abstracts/colors";
-@use "../abstracts/mixins";
-@use "../abstracts/utilities";
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+@use "sass:math";
 
 *,
 *::before,
@@ -35,7 +39,7 @@ h4,
 h5,
 h6 {
   text-wrap: balance;
-  font-size: utilities.$heading-small;
+  font-size: $heading-small;
 }
 
 p,
@@ -49,7 +53,7 @@ a,
 button,
 input,
 textarea {
-  font-size: utilities.$paragraph;
+  font-size: $paragraph;
 }
 
 @media (prefers-reduced-motion: no-preference) {

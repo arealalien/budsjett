@@ -1,21 +1,27 @@
-@use "../abstracts/colors" as c;
-@use "../abstracts/mixins" as m;
-@use "../abstracts/utilities" as u;
+@use "sass:math";
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/fonts" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+@use "../tools/mixins/respond" as *;
 
 .register {
   width: 100%; height: 100dvh;
   position: relative;
-  background-color: m.hslac(c.$clr-black, 1);
+  background-color: color(black);
   gap: 2em;
   overflow: hidden;
-  @include m.flex-col();
+  @include align(center, center, column);
   
   &-transition {
     bottom: 0;
     width: 100%; height: 2em;
     position: absolute;
-    background-color: m.hslac(c.$clr-black, 1);
-    box-shadow: 0 0 100px 80px m.hslac(c.$clr-black, 1);
+    background-color: color(black);
+    box-shadow: 0 0 100px 80px color(black);
     z-index: 15;
   }
   &-rim {
@@ -24,7 +30,7 @@
     width:  55vw;
     aspect-ratio: 2 / 1;
     position: absolute;
-    background-color: m.hslac(c.$clr-white, 1);
+    background-color: color(white);
     border-radius: 50%;
     filter: blur(40rem);
     transform: translateX(-50%);
@@ -40,7 +46,7 @@
   .register-glow-primary {
     left: 50%; bottom: 10%;
     width: 42vw;
-    background-color: m.hslac(c.$clr-purple-500, 1);
+    background-color: color(purple-500);
     filter: blur(40rem);
     opacity: .3;
     z-index: 3;
@@ -48,7 +54,7 @@
   .register-glow-secondary {
     left: 38%; bottom: 30%;
     width: 40vw;
-    background-color: m.hslac(c.$clr-skyblue-400, 1);
+    background-color: color(skyblue-400);
     filter: blur(40rem);
     opacity: .2;
     z-index: 2;
@@ -56,7 +62,7 @@
   .register-glow-tertiary {
     left: 35%; bottom: 0;
     width: 38vw;
-    background-color: m.hslac(c.$clr-orange-400, 1);
+    background-color: color(orange-400);
     filter: blur(40rem);
     opacity: .25;
     z-index: 1;
@@ -69,22 +75,22 @@
     place-items: center;
     &-box {
       width: 100%; height: 100%;
-      border: 1px solid m.hslac(c.$clr-white, .04);
+      border: 1px solid color(white, .04);
     }
   }
   
   &-form {
-    height: calc(100% - calc(u.$navbar-height * 3));
+    height: calc(100% - calc($navbar-height * 3));
     position: relative;
     z-index: 100;
-    @include m.flex-col();
+    @include align(center, center, column);
 
     &-inner {
       padding: 2em;
       width: 100%; height: 100%;
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      background-color: m.hslac(c.$clr-black, .82);
+      background-color: color(black, .82);
       border-radius: 1.6em;
       gap: 2em;
 
@@ -94,13 +100,13 @@
           padding: 3em;
           width: 100%; height: 100%;
           position: relative;
-          background-color: m.hslac(c.$clr-black, 1);
+          background-color: color(black);
           border-radius: 1.6em;
           overflow: hidden;
           &-title {
             position: relative;
-            font-size: u.$heading-medium;
-            font-family: u.$font-title;
+            font-size: $heading-medium;
+            font-family: $font-title;
             font-weight: 600;
             line-height: 1;
             z-index: 105;
@@ -114,7 +120,7 @@
           .register-form-glow-primary {
             right: -20%; bottom: 20%;
             width: 90%;
-            background-color: m.hslac(c.$clr-purple-500, 1);
+            background-color: color(purple-500);
             filter: blur(20rem);
             opacity: .3;
             z-index: 103;
@@ -122,7 +128,7 @@
           .register-form-glow-secondary {
             left: 0; top: 0;
             width: 55%;
-            background-color: m.hslac(c.$clr-skyblue-400, 1);
+            background-color: color(skyblue-400);
             filter: blur(20rem);
             opacity: .2;
             z-index: 102;
@@ -130,7 +136,7 @@
           .register-form-glow-tertiary {
             left: 20%; bottom: 0;
             width: 65%;
-            background-color: m.hslac(c.$clr-orange-400, 1);
+            background-color: color(orange-400);
             filter: blur(20rem);
             opacity: .25;
             z-index: 101;
@@ -141,21 +147,21 @@
         padding: 2em;
         width: 100%; height: 100%;
         gap: 3em;
-        @include m.flex-col-start-center();
+        @include align(start, center, column);
       }
       &-header {
         width: 100%;
         gap: .5em;
-        @include m.flex-col-left-ns();
+        @include align(start, start, column);
 
         h3 {
-          font-size: u.$heading-medium;
+          font-size: $heading-medium;
           font-weight: 700;
         }
         p {
-          color: m.hslac(c.$clr-gray-500, 1);
+          color: color(gray-500);
           span {
-            color: m.hslac(c.$clr-orange-500, 1);
+            color: color(orange-500);
           }
         }
       }
@@ -164,51 +170,51 @@
         grid-template-columns: repeat(2, 1fr);
         gap: 1em;
 
-        @media (max-width: u.$layout-breakpoint-small) {
+        @include respond(sm) {
           grid-template-columns: 1fr;
         }
       }
       &-content {
         width: 100%;
         gap: 2em;
-        @include m.flex-col-start-center();
+        @include align(center, center, column);
 
         &-field {
           width: 100%;
           border: none;
           &-label {
             gap: .6em;
-            @include m.flex-col-left-ns();
+            @include align(start, start, column);
 
             &-name {
-              color: m.hslac(c.$clr-gray-500, 1);
+              color: color(gray-500);
               span {
-                color: m.hslac(c.$clr-orange-500, 1);
+                color: color(orange-500);
               }
             }
           }
           &-input {
             width: 100%;
             position: relative;
-            @include m.flex-center();
+            @include align(center, center);
 
             .register-taken {
-              border: 1px solid m.hslac(c.$clr-orange-500, 1);
+              border: 1px solid color(orange-500);
               &:focus {
-                border: 1px solid m.hslac(c.$clr-orange-500, 1);
+                border: 1px solid color(orange-500);
               }
             }
             .register-free {
-              border: 1px solid m.hslac(c.$clr-purple-500, 1);
+              border: 1px solid color(purple-500);
             }
             .register-taken-icon {
               path {
-                stroke: m.hslac(c.$clr-orange-500, 1);
+                stroke: color(orange-500);
               }
             }
             .register-free-icon {
               path {
-                stroke: m.hslac(c.$clr-purple-500, 1);
+                stroke: color(purple-500);
               }
             }
             .register-checking-icon {
@@ -216,7 +222,7 @@
               animation: rg-rotate 2s linear infinite;
             }
             .register-checking-icon .path {
-              stroke: m.hslac(c.$clr-white, 1);
+              stroke: color(white);
               stroke-linecap: round;
               animation: rg-dash 1.5s ease-in-out infinite;
             }
@@ -231,13 +237,13 @@
             &-field {
               padding: 1em 3.2em 1em 1.2em;
               width: 100%;
-              border: 1px solid m.hslac(c.$clr-white, .1);
+              border: 1px solid color(white, .1);
               border-radius: 1em;
-              background: m.hslac(c.$clr-black, .82);
-              color: m.hslac(c.$clr-gray-100, 1);
+              background: color(black, .82);
+              color: color(gray-100);
               &:focus {
                 outline: none;
-                border-color: m.hslac(c.$clr-purple-500, 1);
+                border-color: color(purple-500);
               }
             }
             &-text {
@@ -254,22 +260,22 @@
               position: absolute;
 
               path {
-                stroke: m.hslac(c.$clr-white, 1);
+                stroke: color(white);
               }
             }
           }
           &-checkbox {
-            color: m.hslac(c.$clr-gray-500, 1);
+            color: color(gray-500);
             gap: .6em;
             cursor: pointer;
-            @include m.flex-left-start();
+            @include align(start, center);
           }
           &-indicator {
-            font-size: u.$paragraph-small;
+            font-size: $paragraph-small;
           }
           &-line {
             width: 100%;
-            background-color: m.hslac(c.$clr-gray-900, 1);
+            background-color: color(gray-900);
             border-radius: 5em;
             overflow: hidden;
             &-inner {
@@ -281,25 +287,25 @@
       }
       .pass-strength {
         gap: .5em;
-        @include m.flex-col-left-ns();
+        @include align(start, start, column);
       }
       &-bottom {
         margin-top: 1em;
         width: 100%;
         gap: 2em;
-        @include m.flex-col();
+        @include align(center, center, column);
 
         button {
           width: 100%;
-          @include m.flex-center();
+          @include align(center, center);
         }
         p {
-          color: m.hslac(c.$clr-gray-500, 1);
+          color: color(gray-500);
           gap: .5em;
-          @include m.flex-center();
+          @include align(center, center);
 
           a {
-            color: m.hslac(c.$clr-white, 1);
+            color: color(white);
             font-weight: 600;
             text-decoration: none;
           }
@@ -313,11 +319,11 @@
   &-email {
     padding: 1px;
     position: relative;
-    background-color: m.hslac(c.$clr-gray-800, 1);
+    background-color: color(gray-800);
     border-radius: 1.6em;
     gap: 1em;
     overflow: hidden;
-    @include m.flex-col();
+    @include align(center, center, column);
 
     &-rim {
       $size: 15;
@@ -326,7 +332,7 @@
       width: $size + em;
       aspect-ratio: 1 / 1;
       position: absolute;
-      background-color: m.hslac(c.$clr-white, 1);
+      background-color: color(white);
       border-radius: 50%;
       filter: blur(calc($size / 1.5) + rem);
       pointer-events: none;
@@ -339,7 +345,7 @@
       width: $size + em;
       aspect-ratio: 1 / 1.5;
       position: absolute;
-      background-color: m.hslac(c.$clr-lime-500, 1);
+      background-color: color(lime-500);
       border-radius: 50%;
       filter: blur(calc($size * 1.2) + rem);
       pointer-events: none;
@@ -350,30 +356,30 @@
       width: 100%;
       height: 100%;
       display: grid;
-      background-color: m.hslac(c.$clr-gray-900, 1);
+      background-color: color(gray-900);
       border-radius: 1.6em;
       gap: 1em;
       &-title {
         font-weight: 700;
       }
       &-subtitle {
-        color: m.hslac(c.$clr-gray-300, 1);
+        color: color(gray-300);
       }
     }
   }
 }
 .success-panel {
-  height: calc(100% - calc(u.$navbar-height * 3));
+  height: calc(100% - calc($navbar-height * 3));
   position: relative;
   z-index: 100;
-  @include m.flex-col();
+  @include align(center, center, column);
 
   &-inner {
     padding: 2em;
     width: 100%; height: 100%;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    background-color: m.hslac(c.$clr-black, .82);
+    background-color: color(black, .82);
     border-radius: 1.6em;
     gap: 2em;
 
@@ -383,13 +389,13 @@
         padding: 3em;
         width: 100%; height: 100%;
         position: relative;
-        background-color: m.hslac(c.$clr-black, 1);
+        background-color: color(black);
         border-radius: 1.6em;
         overflow: hidden;
         &-title {
           position: relative;
-          font-size: u.$heading-medium;
-          font-family: u.$font-title;
+          font-size: $heading-medium;
+          font-family: $font-title;
           font-weight: 600;
           line-height: 1;
           z-index: 105;
@@ -403,7 +409,7 @@
         .register-form-glow-primary {
           right: -20%; bottom: 20%;
           width: 90%;
-          background-color: m.hslac(c.$clr-purple-500, 1);
+          background-color: color(purple-500);
           filter: blur(20rem);
           opacity: .3;
           z-index: 103;
@@ -411,7 +417,7 @@
         .register-form-glow-secondary {
           left: 0; top: 0;
           width: 55%;
-          background-color: m.hslac(c.$clr-skyblue-400, 1);
+          background-color: color(skyblue-400);
           filter: blur(20rem);
           opacity: .2;
           z-index: 102;
@@ -419,7 +425,7 @@
         .register-form-glow-tertiary {
           left: 20%; bottom: 0;
           width: 65%;
-          background-color: m.hslac(c.$clr-orange-400, 1);
+          background-color: color(orange-400);
           filter: blur(20rem);
           opacity: .25;
           z-index: 101;
@@ -430,30 +436,30 @@
       padding: 2em;
       width: 100%; height: 100%;
       gap: 3em;
-      @include m.flex-col();
+      @include align(center, center, column);
     }
     &-header {
-      @include m.flex-col();
+      @include align(center, center, column);
 
       h3 {
-        font-family: u.$font-title;
-        font-size: u.$heading-medium;
+        font-family: $font-title;
+        font-size: $heading-medium;
         font-weight: 700;
       }
       h4 {
-        font-family: u.$font-title;
-        font-size: u.$heading-small;
+        font-family: $font-title;
+        font-size: $heading-small;
         font-weight: 700;
       }
     }
     &-content {
       gap: 2em;
-      @include m.flex-col();
+      @include align(center, center, column);
 
       p {
         max-width: 40ch;
         text-align: center;
-        color: m.hslac(c.$clr-gray-300, 1);
+        color: color(gray-300);
         font-weight: 300;
         span {
           font-weight: 500;
@@ -464,16 +470,16 @@
         padding: 1em 1.8em;
         width: 100%;
         position: relative;
-        color: m.hslac(c.$clr-white, 1);
-        background-color: m.hslac(c.$clr-black, .82);
-        border: 1px solid m.hslac(c.$clr-white, .1);
-        box-shadow: 0 12px 15px -14px m.hslac(c.$clr-black, 1);
+        color: color(white);
+        background-color: color(black, .82);
+        border: 1px solid color(white, .1);
+        box-shadow: 0 12px 15px -14px color(black);
         backdrop-filter: blur(1rem);
         text-decoration: none;
         border-radius: 1em;
         gap: 1em;
-        transition: all .2s cubic-bezier(u.$transition-main, 1);
-        @include m.flex-center();
+        transition: all .2s cubic-bezier($transition-main, 1);
+        @include align(center, center);
 
         img {
           width: 1em;
@@ -481,13 +487,13 @@
         &:hover {
           top: -.2em;
           transform: scale(1.02);
-          box-shadow: 0 16px 20px -14px m.hslac(c.$clr-black, 1);
+          box-shadow: 0 16px 20px -14px color(black);
         }
       }
       &-receive {
-        color: m.hslac(c.$clr-white, 1);
+        color: color(white);
         span {
-          color: m.hslac(c.$clr-skyblue-400, 1);
+          color: color(skyblue-400);
           cursor: pointer;
         }
       }

@@ -1,10 +1,9 @@
 import React from 'react';
 import { useOutletContext } from 'react-router-dom';
-import PurchasesTable from "../components/dashboard/PurchasesTable";
 import SpendingTrend from "../components/dashboard/SpendingTrend";
+import CategoryTrend from "../components/dashboard/CategoryTrend";
 import CurrentBalance from "../components/dashboard/CurrentBalance";
 import CategoryTotals from "../components/dashboard/CategoryTotals";
-import IncomeTotals from "../components/dashboard/IncomeTotals";
 
 const toRgbTriplet = (color) => {
     const m = String(color).match(/^\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*$/);
@@ -24,13 +23,10 @@ export default function BudgetHome() {
 
     return (
         <div className="budget-home" style={{ ...catCssVars, width: '100%' }}>
-            <div>
-                <PurchasesTable size="compact" />
-                <SpendingTrend />
-                <CurrentBalance />
-                <CategoryTotals />
-                <IncomeTotals />
-            </div>
+            <CurrentBalance />
+            <SpendingTrend />
+            <CategoryTrend />
+            <CategoryTotals />
         </div>
     );
 }

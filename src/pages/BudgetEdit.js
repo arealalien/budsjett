@@ -1,5 +1,4 @@
-// src/pages/BudgetEdit.jsx
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useToast } from '../components/utils/ToastContext';
@@ -27,7 +26,9 @@ function hsvToRgb(h, s, v) {
     const p = v * (1 - s);
     const q = v * (1 - f * s);
     const t = v * (1 - (1 - f) * s);
+
     let r, g, b;
+
     switch (i % 6) {
         case 0: r = v; g = t; b = p; break;
         case 1: r = q; g = v; b = p; break;
@@ -36,26 +37,36 @@ function hsvToRgb(h, s, v) {
         case 4: r = t; g = p; b = v; break;
         default: r = v; g = p; b = q; break;
     }
-    const to255 = x => Math.min(255, Math.max(0, Math.round(x * 255)));
+
+    const to255 = (x) => Math.min(255, Math.max(0, Math.round(x * 255)));
     return `${to255(r)}, ${to255(g)}, ${to255(b)}`;
 }
 
 function randomNiceColor(existing = []) {
-    const used = new Set(existing.map(c => c.color?.trim()));
-    const candidates = NICE_RGBS.filter(c => !used.has(c));
+    const used = new Set(existing.map((c) => c.color?.trim()));
+    const candidates = NICE_RGBS.filter((c) => !used.has(c));
+
     if (candidates.length) {
         return candidates[Math.floor(Math.random() * candidates.length)];
     }
+
     const h = Math.random();
     const s = 0.6 + Math.random() * 0.35;
     const v = 0.75 + Math.random() * 0.2;
     return hsvToRgb(h, s, v);
 }
 
-export default function BudgetEdit() {
-    // Comes from BudgetLayout via <Outlet context={{ budget, reloadBudget }}>
-    const { budget, reloadBudget } = useOutletContext();
+function fmtCurrency(n) {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(Number(n) || 0);
+}
 
+export default function BudgetEdit() {
+    const { budget, reloadBudget } = useOutletContext();
     const navigate = useNavigate();
     const { showToast } = useToast();
 
@@ -63,19 +74,16 @@ export default function BudgetEdit() {
     const [categories, setCategories] = useState([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
-
     const [openPicker, setOpenPicker] = useState(null);
-    const pickerRef = useRef(null);
-    const swatchRef = useRef(null);
 
-    // Initialize categories from budget when it loads/changes
     useEffect(() => {
         if (!budget) return;
+
         setBudgetName(budget.name || '');
 
         const cats = (budget.categories || [])
             .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-            .map(c => ({
+            .map((c) => ({
                 id: c.id,
                 name: c.name,
                 color: c.color || "239, 68, 68",
@@ -85,45 +93,47 @@ export default function BudgetEdit() {
         setCategories(cats);
     }, [budget]);
 
-    const updateCat = (idx, patch) =>
-        setCategories(cs => cs.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+    const totalPlanned = useMemo(
+        () => categories.reduce((sum, c) => sum + Number(c.planMonthly || 0), 0),
+        [categories]
+    );
 
-    const addCat = () =>
-        setCategories(cs => [
+    const namedCategories = useMemo(
+        () => categories.filter((c) => c.name.trim().length > 0).length,
+        [categories]
+    );
+
+    const updateCat = (idx, patch) => {
+        setCategories((cs) => cs.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+    };
+
+    const addCat = () => {
+        setCategories((cs) => [
             ...cs,
-            { id: undefined, name: '', color: randomNiceColor(cs), planMonthly: 0 },
+            {
+                id: undefined,
+                name: '',
+                color: randomNiceColor(cs),
+                planMonthly: 0,
+            },
         ]);
+        setOpenPicker(null);
+    };
 
-    const removeCat = (idx) =>
-        setCategories(cs => cs.filter((_, i) => i !== idx));
+    const removeCat = (idx) => {
+        if (categories.length <= 1) {
+            showToast('A budget needs at least one category.', { type: 'error' });
+            return;
+        }
 
-    // click outside to close color picker
-    useEffect(() => {
-        const handler = (e) => {
-            if (openPicker === null) return;
-            const t = e.target;
-            const clickedInsidePicker = pickerRef.current?.contains(t);
-            const clickedOnSwatch = swatchRef.current?.contains?.(t);
-            if (!clickedInsidePicker && !clickedOnSwatch) {
-                setOpenPicker(null);
-            }
-        };
-        document.addEventListener('mousedown', handler);
-        document.addEventListener('touchstart', handler, { passive: true });
-        return () => {
-            document.removeEventListener('mousedown', handler);
-            document.removeEventListener('touchstart', handler);
-        };
-    }, [openPicker]);
+        setCategories((cs) => cs.filter((_, i) => i !== idx));
 
-    // ESC key closes picker
-    useEffect(() => {
-        const onKey = (e) => {
-            if (e.key === 'Escape') setOpenPicker(null);
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, []);
+        setOpenPicker((curr) => {
+            if (curr === idx) return null;
+            if (curr > idx) return curr - 1;
+            return curr;
+        });
+    };
 
     const submit = async (e) => {
         e.preventDefault();
@@ -134,29 +144,31 @@ export default function BudgetEdit() {
 
         try {
             const clean = categories
-                .map(c => ({
+                .map((c) => ({
                     ...c,
                     name: c.name.trim(),
+                    color: (c.color || '').trim(),
                     planMonthly: Number(c.planMonthly || 0),
                 }))
-                .filter(c => c.name.length > 0);
+                .filter((c) => c.name.length > 0);
 
-            if (!budgetName.trim()) throw new Error('Please enter a budget name.');
-            if (clean.length === 0) throw new Error('Add at least one category.');
+            if (!budgetName.trim()) {
+                throw new Error('Please enter a budget name.');
+            }
+
+            if (clean.length === 0) {
+                throw new Error('Add at least one category.');
+            }
 
             const body = {
                 name: budgetName.trim(),
                 categories: clean,
             };
 
-            const { data } = await api.patch(`/budgets/${encodeURIComponent(budget.slug)}`, body);
+            await api.patch(`/budgets/${encodeURIComponent(budget.slug)}`, body);
 
             showToast('Budget updated', { type: 'success', duration: 2200 });
-
-            // refresh layout context
             await reloadBudget?.();
-
-            // go back to budget dashboard
             navigate(`/${budget.slug}`);
         } catch (err) {
             const msg = err.response?.data?.error || err.message;
@@ -168,147 +180,198 @@ export default function BudgetEdit() {
     };
 
     if (!budget) {
-        return <main className="dashboard"><p>Loading budget…</p></main>;
+        return <div className="budgetedit"><p>Loading budget…</p></div>;
     }
 
     return (
-        <main className="onboarding">
-            <form className="onboarding-form" onSubmit={submit}>
-                <div className="onboarding-form-rim"></div>
-                <div className="onboarding-form-glow"></div>
-                <div className="onboarding-form-inner">
-                    <header className="onboarding-form-inner-header">
-                        <h2 className="onboarding-form-inner-header-title">Edit your budget</h2>
-                        <p className="onboarding-form-inner-header-subtitle">
-                            Update the name, categories, colors, and monthly targets.
-                        </p>
-                    </header>
+        <div className="budgetedit">
+            <form className="budgetedit-form" onSubmit={submit}>
+                <div className="budgetedit-form-rim" />
+                <div className="budgetedit-form-glow" />
 
-                    <fieldset className="onboarding-form-inner-fieldset">
-                        <label className="onboarding-form-inner-fieldset-label">Budget name</label>
-                        <input
-                            className="onboarding-form-inner-fieldset-input"
-                            type="text"
-                            value={budgetName}
-                            onChange={e => setBudgetName(e.target.value)}
-                            placeholder="e.g. My Budget"
-                            required
-                        />
-                    </fieldset>
-
-                    <section className="onboarding-form-inner-cats">
-                        <div className="onboarding-form-inner-cats-header">
-                            <h3 className="onboarding-form-inner-cats-header-title">Categories</h3>
-                            <Button className="ba-white" type="button" onClick={addCat}>
-                                Add category
-                            </Button>
+                <div className="budgetedit-form-inner">
+                    <header className="budgetedit-header">
+                        <div className="budgetedit-header-copy">
+                            <p className="budgetedit-header-eyebrow">
+                                {budget.name} · Setup
+                            </p>
+                            <h2 className="budgetedit-header-title">Edit budget</h2>
+                            <p className="budgetedit-header-subtitle">
+                                Update the budget name, category labels, colors, and monthly targets.
+                            </p>
                         </div>
 
-                        <div className="onboarding-form-inner-field">
+                        <div className="budgetedit-header-stats">
+                            <div className="budgetedit-header-stat">
+                                <span>Categories</span>
+                                <strong>{namedCategories}</strong>
+                            </div>
+
+                            <div className="budgetedit-header-stat">
+                                <span>Planned total</span>
+                                <strong>{fmtCurrency(totalPlanned)}</strong>
+                            </div>
+                        </div>
+                    </header>
+
+                    <section className="budgetedit-section">
+                        <div className="budgetedit-section-head">
+                            <div>
+                                <h3>Budget name</h3>
+                                <p>Choose a name that makes this budget easy to recognize.</p>
+                            </div>
+                        </div>
+
+                        <label className="budgetedit-field">
+                            <span className="budgetedit-field-label">Name</span>
+                            <input
+                                className="budgetedit-input"
+                                type="text"
+                                value={budgetName}
+                                onChange={(e) => setBudgetName(e.target.value)}
+                                placeholder="e.g. Home budget"
+                                required
+                            />
+                        </label>
+                    </section>
+
+                    <section className="budgetedit-section">
+                        <div className="budgetedit-section-head">
+                            <div>
+                                <h3>Categories</h3>
+                                <p>Give each category a clear name, target, and color.</p>
+                            </div>
+
+                            <Button variant="primary" text="Add category" type="button" onClick={addCat} />
+                        </div>
+
+                        <div className="budgetedit-categories">
                             {categories.map((c, i) => {
-                                const swatchBg = `rgb(${c.color || '0, 0, 0'})`;
-                                const isOpen = openPicker === i;
+                                const isPickerOpen = openPicker === i;
+
                                 return (
-                                    <div key={c.id || `new-${i}`} className="onboarding-form-inner-field-inner">
-                                        <button
-                                            type="button"
-                                            className="onboarding-form-inner-field-inner-color"
-                                            style={{ backgroundColor: swatchBg }}
-                                            onPointerDown={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                swatchRef.current = e.currentTarget;
-                                                setOpenPicker(curr => (curr === i ? null : i));
-                                            }}
-                                            aria-expanded={isOpen}
-                                            aria-label="Choose category color"
-                                            title="Choose category color"
-                                        >
-                                            <svg className="onboarding-form-inner-field-inner-color-icon" xmlns="http://www.w3.org/2000/svg" width="13.5" height="15.608" viewBox="0 0 13.5 15.608">
-                                                <path id="vector" d="M6.209,2.5.311,9.859a.711.711,0,0,0-.171.418L0,13.3a.766.766,0,0,0,.787.687l3-.711a.733.733,0,0,0,.385-.244L10.212,5.5m-4-3L7.8.52A1.2,1.2,0,0,1,9.429.2l2.237,1.862A1.153,1.153,0,0,1,11.657,3.7L10.212,5.5m-4-3a3.56,3.56,0,0,0,4,3" transform="translate(0.75 0.854)" fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/>
-                                            </svg>
-                                        </button>
-
-                                        <div className="onboarding-form-inner-field-inner-input">
-                                            <svg className="onboarding-form-inner-field-inner-input-icon" xmlns="http://www.w3.org/2000/svg" width="13.5" height="19.5" viewBox="0 0 13.5 19.5">
-                                                <path id="Vector" d="M.885,3.672,4.529.527a2.315,2.315,0,0,1,2.942,0l3.644,3.145a1.659,1.659,0,0,1,.6,1.253L12,15a3,3,0,0,1-3,3H3a3,3,0,0,1-3-3L.282,4.925A1.659,1.659,0,0,1,.885,3.672Z" transform="translate(0.75 0.75)" fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/>
-                                                <path id="Vector-2" d="M4,11H8M3,14H9M4.5,5.5a1.5,1.5,0,1,1,.439,1.061A1.5,1.5,0,0,1,4.5,5.5Z" transform="translate(0.75 0.75)" fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/>
-                                            </svg>
-                                            <input
-                                                className="onboarding-form-inner-field-inner-input-field"
-                                                type="text"
-                                                value={c.name}
-                                                onChange={e => updateCat(i, { name: e.target.value })}
-                                                placeholder="Category name"
-                                                required
-                                            />
-                                        </div>
-
-                                        <div className="onboarding-form-inner-field-inner-input">
-                                            <p className="onboarding-form-inner-field-inner-input-text">€</p>
-                                            <input
-                                                className="onboarding-form-inner-field-inner-input-field"
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={c.planMonthly}
-                                                onChange={e => updateCat(i, { planMonthly: Number(e.target.value) })}
-                                                placeholder="Monthly plan"
-                                            />
-                                        </div>
-
-                                        <button
-                                            className="onboarding-form-inner-field-inner-button"
-                                            type="button"
-                                            onClick={() => removeCat(i)}
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="11.5" height="15.5" viewBox="0 0 11.5 15.5">
-                                                <g transform="translate(-6.25 -4.25)">
-                                                    <path d="M9.167,4H.833A.833.833,0,0,0,0,4.833V11.5A2.5,2.5,0,0,0,2.5,14h5A2.5,2.5,0,0,0,10,11.5V4.833A.833.833,0,0,0,9.167,4Z" transform="translate(7 5)" fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/>
-                                                    <path d="M8,2,7.276.553A1,1,0,0,0,6.382,0H3.618a1,1,0,0,0-.894.553L2,2Z" transform="translate(7 5)" fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/>
-                                                    <path d="M3.333,7.333v3.333M6.667,7.333v3.333M8,2h2M2,2H0" transform="translate(7 5)" fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/>
-                                                </g>
-                                            </svg>
-                                        </button>
-
-                                        {isOpen && (
-                                            <div className="colorpicker" ref={pickerRef}>
-                                                <ColorPicker
-                                                    value={c.color}
-                                                    onChange={(rgb) => updateCat(i, { color: rgb })}
-                                                    label="Category color"
-                                                    commitOnEnd
-                                                />
+                                    <article
+                                        key={c.id || `new-${i}`}
+                                        className="budgetedit-category"
+                                        style={{ "--cat-color": c.color || "239, 68, 68" }}
+                                    >
+                                        <div className="budgetedit-category-top">
+                                            <div className="budgetedit-category-preview">
+                                                <div className="budgetedit-category-preview-swatch" />
+                                                <div className="budgetedit-category-preview-copy">
+                                                    <strong>
+                                                        {c.name.trim() || `Category ${i + 1}`}
+                                                    </strong>
+                                                    <span>
+                                                        {fmtCurrency(c.planMonthly || 0)} monthly plan
+                                                    </span>
+                                                </div>
                                             </div>
-                                        )}
-                                    </div>
+
+                                            <button
+                                                className="budgetedit-category-remove"
+                                                type="button"
+                                                onClick={() => removeCat(i)}
+                                                title="Remove category"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+
+                                        <div className="budgetedit-category-grid">
+                                            <label className="budgetedit-field">
+                                                <span className="budgetedit-field-label">Category name</span>
+                                                <input
+                                                    className="budgetedit-input"
+                                                    type="text"
+                                                    value={c.name}
+                                                    onChange={(e) => updateCat(i, { name: e.target.value })}
+                                                    placeholder="Category name"
+                                                    required
+                                                />
+                                            </label>
+
+                                            <label className="budgetedit-field">
+                                                <span className="budgetedit-field-label">Monthly plan</span>
+                                                <div className="budgetedit-input budgetedit-input-with-prefix">
+                                                    <span className="budgetedit-input-prefix">€</span>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={c.planMonthly}
+                                                        onChange={(e) => updateCat(i, { planMonthly: Number(e.target.value) })}
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
+                                            </label>
+                                        </div>
+
+                                        <div className="budgetedit-category-color">
+                                            <div className="budgetedit-category-color-head">
+                                                <div>
+                                                    <span className="budgetedit-field-label">Color</span>
+                                                    <p className="budgetedit-category-color-help">
+                                                        Pick a preset or fine-tune it manually.
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    className={`budgetedit-category-custom ${isPickerOpen ? 'is-active' : ''}`}
+                                                    onClick={() => setOpenPicker((curr) => (curr === i ? null : i))}
+                                                >
+                                                    {isPickerOpen ? 'Hide custom' : 'Custom color'}
+                                                </button>
+                                            </div>
+
+                                            <div className="budgetedit-category-swatches">
+                                                {NICE_RGBS.map((rgb) => {
+                                                    const active = (c.color || '').trim() === rgb.trim();
+
+                                                    return (
+                                                        <button
+                                                            key={rgb}
+                                                            type="button"
+                                                            className={`budgetedit-category-swatch ${active ? 'is-active' : ''}`}
+                                                            style={{ "--swatch": rgb }}
+                                                            onClick={() => updateCat(i, { color: rgb })}
+                                                            aria-label={`Choose color ${rgb}`}
+                                                            title={rgb}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {isPickerOpen && (
+                                                <div className="budgetedit-category-picker">
+                                                    <ColorPicker
+                                                        value={c.color}
+                                                        onChange={(rgb) => updateCat(i, { color: rgb })}
+                                                        label="Custom category color"
+                                                        commitOnEnd
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </article>
                                 );
                             })}
                         </div>
                     </section>
 
                     {error && (
-                        <p style={{ color: 'crimson', marginTop: '.75rem' }}>{error}</p>
+                        <div className="budgetedit-error">
+                            {error}
+                        </div>
                     )}
 
-                    <div className="onboarding-form-inner-footer">
-                        <Button
-                            type="submit"
-                            className="ba-primary"
-                            disabled={saving}
-                        >
-                            {saving ? 'Saving…' : 'Save changes'}
-                        </Button>
-                        <Button
-                            type="button"
-                            className="ba-white"
-                            onClick={() => navigate(`/${budget.slug}`)}
-                        >
-                            Cancel
-                        </Button>
+                    <div className="budgetedit-footer">
+                        <Button variant="primary" text={saving ? 'Saving…' : 'Save changes'} type="submit" disabled={saving} />
+                        <Button variant="primary" text="Cancel" type="button" onClick={() => navigate(`/${budget.slug}`)} />
                     </div>
                 </div>
             </form>
-        </main>
+        </div>
     );
 }

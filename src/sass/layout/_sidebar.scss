@@ -1,0 +1,263 @@
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+@use "sass:math";
+
+.sidebar {
+  top: 0;
+  width: $sidebar-width; height: 100dvh;
+  position: fixed;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background-color: color(gray-900);
+  gap: 1em;
+  will-change: width;
+  @include z-index(navbar);
+
+  &.is-collapsed {
+    .sidebar-toggle {
+      justify-content: center;
+      span {
+        margin: 0;
+      }
+    }
+    .sidebar-bottom-account {
+      padding: 1.5em 1em;
+    }
+    .sidebar-bottom-user {
+      width: auto;
+    }
+    .sidebar-menu-useritem-link {
+      padding: .5em .8em;
+    }
+    .sidebar-menu-item-link {
+      padding: 0;
+      aspect-ratio: 1 / 1;
+      justify-content: center;
+    }
+    .sidebar-bottom-shortcuts,
+    .sidebar-bottom-account {
+      @include align(center, center);
+    }
+  }
+  &-top {
+    padding: 1.5em 0 0 0;
+    width: 100%;
+    @include align(between, center);
+
+    &-icon {
+      margin: 0 0 0 1.6em;
+      svg {
+        height: 1.5em;
+        path, rect, polygon {
+          fill: color(white);
+        }
+      }
+    }
+  }
+  &-toggle {
+    height: 2em;
+    position: relative;
+    cursor: pointer;
+    @include align(start, center, $gap: 1em);
+
+    span {
+      margin: 0 .8em 0 0;
+    }
+    &-title {
+      left: 0;
+      padding: 0 0 0 1.2em;
+      position: relative;
+      font-size: $paragraph;
+      font-weight: 500;
+      user-select: none;
+      transition: all .3s cubic-bezier($transition-main, 1);
+    }
+  }
+  &-center {
+    padding: 0 1em;
+    width: 100%; max-height: 100%;
+    position: relative;
+    overflow-y: auto;
+    @include align(start, center, column, $gap: .5em);
+  }
+  &-divider {
+    width: 100%; height: 1px;
+    background-color: color(gray-800);
+  }
+  &-menu {
+    width: 100%;
+    @include align(center, start, column);
+
+    &-title {
+      padding: 0 1.2em; margin-bottom: .5em;
+      height: 1.2em;
+      display: block;
+      position: relative;
+      font-size: $paragraph-small;
+      color: color(gray-500);
+      font-weight: 400;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      transition: all .3s cubic-bezier($transition-main, 1);
+
+      .smt-row {
+        display: inline-flex;
+        gap: 0;
+        pointer-events: none;
+      }
+
+      .smt-char {
+        display: inline-block;
+        transform: translateY(0);
+        opacity: 1;
+        will-change: transform, opacity;
+        transition-property: transform, opacity;
+        transition-duration: 260ms;
+        transition-timing-function: cubic-bezier($transition-main, 1);
+        transition-delay: var(--delay, 0ms);
+      }
+
+      &.is-collapsed {
+        .smt-hide-collapsed {
+          transform: translateY(120%);
+          opacity: 0;
+        }
+      }
+    }
+    &-useritem {
+      width: 100%;
+      display: none !important;
+      @include align(start, center);
+
+      &-link {
+        padding: .6em 1.2em;
+        width: 100%;
+        position: relative;
+        color: color(gray-300);
+        text-decoration: none;
+        overflow: hidden;
+        transition: all .15s cubic-bezier($transition-main, 1);
+        @include align(start, center, $gap: .5em);
+
+        &:hover {
+          color: color(white);
+        }
+        &-avatar {
+          width: 2em; height: 2em;
+          &-skeleton {
+            width: 2em; height: 2em;
+            background-color: color(gray-800);
+          }
+        }
+      }
+    }
+    &-item {
+      width: 100%;
+      position: relative;
+      @include align(start, center, $gap: .4em);
+
+      &-button {
+        padding: 0 .6em;
+        height: 100%;
+        border-radius: .9em;
+        cursor: pointer;
+        transition: all .05s cubic-bezier($transition-main, 1);
+        @include align(center, center);
+
+        &:hover {
+          background-color: color(gray-800, .5);
+        }
+        .material-symbols-rounded {
+          font-size: $paragraph-large;
+        }
+      }
+      &-link.active {
+        color: color(white);
+        background-color: color(primary-200, .15);
+        > .material-symbols-rounded {
+          color: color(primary-500);
+          font-variation-settings:
+              'FILL' 1
+        }
+        &:hover {
+          color: color(white);
+          background-color: color(primary-200, .15);
+        }
+      }
+      &-link {
+        padding: 1.1em 1.2em;
+        width: 100%;
+        position: relative;
+        color: color(gray-100);
+        text-decoration: none;
+        border-radius: 1em;
+        overflow: hidden;
+        transition: all .05s cubic-bezier($transition-main, 1);
+        @include align(start, center, $gap: .75em);
+
+        & div {
+          margin-top: -50px; margin-left: -50px;
+          width: 100px; height: 100px;
+          position: absolute;
+          background-color: color(primary-100, .2);
+          border-radius: 50%;
+          animation: ripple .6s cubic-bezier($transition-smooth, 1);
+          opacity: 0;
+        }
+
+        &:hover {
+          color: color(white);
+          background-color: color(gray-800, .5);
+          svg {
+            path {
+              stroke: color(white);
+            }
+          }
+        }
+        svg {
+          height: 1.3em;
+          path {
+            stroke: color(gray-100);
+            transition: all .15s cubic-bezier($transition-main, 1);
+          }
+        }
+      }
+    }
+  }
+  &-bottom {
+    padding: 1em;
+    width: 100%;
+    position: relative;
+    @include align(center, center, column);
+  }
+  &-logout {
+    color: color(white);
+    cursor: pointer;
+    > .material-symbols-rounded {
+      color: color(white);
+    }
+    &:hover {
+      color: color(white);
+      background-color: color(primary-200, .15);
+      > .material-symbols-rounded {
+        color: color(primary-500);
+      }
+    }
+  }
+}
+
+@keyframes ripple {
+  0% {
+    opacity: 1;
+    transform: scale(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3);
+  }
+}

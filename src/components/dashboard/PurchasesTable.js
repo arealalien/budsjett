@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useOutletContext, useParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { format } from 'date-fns';
 import nb from 'date-fns/locale/nb';
@@ -14,22 +14,30 @@ const fmtCurrency = (n) =>
 const fmtDate = (isoOrDate) => {
     try {
         const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
-        return format(d, 'd.M.yyyy', { locale: nb });
-    } catch { return ''; }
+        return format(d, 'd. MMM yyyy', { locale: nb });
+    } catch {
+        return '';
+    }
 };
 
-const fmtDateCompact = (isoOrDate) => {
+const fmtTime = (isoOrDate) => {
     try {
         const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
-        return format(d, 'd. MMMM yyyy', { locale: nb });
-    } catch { return ''; }
+        return format(d, 'HH:mm');
+    } catch {
+        return '';
+    }
 };
 
 function applySettleLocal(row, nextValue) {
     const paidById = row.paidBy?.id;
     const shares = (row.shares || []).map(s => {
         if (paidById && s.userId !== paidById && s.percent > 0) {
-            return { ...s, isSettled: nextValue, settledAt: nextValue ? new Date().toISOString() : null };
+            return {
+                ...s,
+                isSettled: nextValue,
+                settledAt: nextValue ? new Date().toISOString() : null
+            };
         }
         return s;
     });
@@ -39,14 +47,13 @@ function applySettleLocal(row, nextValue) {
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 function myNetForPurchase(row, myUserId, nameOf) {
-    const amount = Number(row.amount) || 0;
+    const amount = Math.abs(Number(row.amount) || 0);
     const payerId = row.paidBy?.id;
 
     if (!myUserId || !payerId || !row.shared) return null;
 
     const shares = Array.isArray(row.shares) ? row.shares : [];
 
-    // I PAID -> show each other user's unsettled amount to me
     if (payerId === myUserId) {
         const lines = shares
             .filter(s => s.userId !== myUserId && (Number(s.percent) || 0) > 0 && !s.isSettled)
@@ -62,11 +69,10 @@ function myNetForPurchase(row, myUserId, nameOf) {
         return {
             dir: total > 0 ? 'OWED_TO_ME' : 'SETTLED',
             amount: total,
-            lines, // tooltip
+            lines,
         };
     }
 
-    // SOMEONE ELSE PAID -> show my unsettled amount to payer
     const myShare = shares.find(s => s.userId === myUserId);
     if (!myShare || (Number(myShare.percent) || 0) <= 0) return null;
 
@@ -88,12 +94,30 @@ async function toggleSettle(purchaseId, nextValue, setRows) {
     setRows(prev => prev.map(r => (r.id === purchaseId ? applySettleLocal(r, nextValue) : r)));
 }
 
+function getCategoryName(category) {
+    if (!category) return '—';
+    if (typeof category === 'string') return category;
+    return category.name || '—';
+}
+
+function getPaidByName(paidBy) {
+    if (!paidBy) return '—';
+    return paidBy.name || paidBy.displayName || paidBy.username || '—';
+}
+
+function getNotePreview(notes) {
+    if (!notes) return '';
+    if (notes.length <= 70) return notes;
+    return `${notes.slice(0, 70)}…`;
+}
+
 export default function PurchasesTable({ size = 'full' }) {
     const isCompact = size === 'compact';
+    const navigate = useNavigate();
     const { slug } = useParams();
-    const { budget } = useOutletContext(); // contains owner, members, categories
+    const { budget } = useOutletContext();
+    const { user } = useAuth();
 
-    // Build users list (for Paid By filter)
     const users = useMemo(() => {
         const ids = new Set([budget.owner?.id, ...budget.members.map(m => m.userId)]);
         const arr = Array.from(ids).map(id => {
@@ -104,7 +128,6 @@ export default function PurchasesTable({ size = 'full' }) {
         return arr;
     }, [budget]);
 
-    // Categories for filter
     const categories = budget.categories || [];
 
     const [rows, setRows] = useState([]);
@@ -112,19 +135,17 @@ export default function PurchasesTable({ size = 'full' }) {
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState('');
 
-    // controls
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(isCompact ? 8 : 10);
     const [q, setQ] = useState('');
     const [categoryId, setCategoryId] = useState('');
-    const [shared, setShared] = useState(''); // '', 'true', 'false'
+    const [shared, setShared] = useState('');
     const [paidById, setPaidById] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [sortBy, setSortBy] = useState('paidAt');
     const [sortDir, setSortDir] = useState('desc');
 
-    const { user } = useAuth();
     const myUserId = user?.id;
 
     const userNameById = useMemo(() => {
@@ -143,7 +164,7 @@ export default function PurchasesTable({ size = 'full' }) {
     const params = useMemo(() => {
         const p = { page, pageSize, sortBy, sortDir };
         if (q.trim()) p.q = q.trim();
-        if (categoryId) p.categoryId = categoryId;      // <-- categoryId
+        if (categoryId) p.categoryId = categoryId;
         if (shared) p.shared = shared;
         if (paidById) p.paidById = paidById;
         if (dateFrom) p.dateFrom = dateFrom;
@@ -153,6 +174,7 @@ export default function PurchasesTable({ size = 'full' }) {
 
     useEffect(() => {
         let ignore = false;
+
         (async () => {
             try {
                 setLoading(true);
@@ -161,6 +183,7 @@ export default function PurchasesTable({ size = 'full' }) {
                     params,
                     withCredentials: true,
                 });
+
                 if (!ignore) {
                     setRows(data.items || []);
                     setTotal(data.total || 0);
@@ -171,6 +194,7 @@ export default function PurchasesTable({ size = 'full' }) {
                 if (!ignore) setLoading(false);
             }
         })();
+
         return () => { ignore = true; };
     }, [slug, params]);
 
@@ -178,7 +202,10 @@ export default function PurchasesTable({ size = 'full' }) {
 
     const onHeaderSort = (field) => {
         if (sortBy === field) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-        else { setSortBy(field); setSortDir('asc'); }
+        else {
+            setSortBy(field);
+            setSortDir('asc');
+        }
     };
 
     const resetFilters = () => {
@@ -204,35 +231,40 @@ export default function PurchasesTable({ size = 'full' }) {
     async function bulkSettle(nextValue) {
         if (!eligibleRows.length) return;
         const ids = new Set(eligibleRows.map(r => r.id));
+
         try {
             const requests = [...ids].map(id =>
                 api.patch(`/purchases/${id}/settle`, { settled: nextValue }, { withCredentials: true })
             );
             const results = await Promise.allSettled(requests);
             setRows(prev => prev.map(r => (ids.has(r.id) ? applySettleLocal(r, nextValue) : r)));
+
             const failures = results.filter(r => r.status === 'rejected');
-            if (failures.length) alert(`${failures.length} item(s) failed to update. The rest were updated.`);
+            if (failures.length) {
+                alert(`${failures.length} item(s) failed to update. The rest were updated.`);
+            }
         } catch {}
     }
 
     async function deletePurchase(id) {
         const ok = window.confirm('Are you sure you want to delete this purchase?');
         if (!ok) return;
+
         try {
             setRows(prev => prev.filter(r => r.id !== id));
             setTotal(t => Math.max(0, t - 1));
-
             await api.delete(`/budgets/purchases/${id}`, { withCredentials: true });
         } catch (e) {
             alert(e.response?.data?.error || e.message);
         }
     }
 
+    const goToPurchase = (purchaseId) => {
+        navigate(`/${slug}/purchases/${purchaseId}`);
+    };
+
     return (
         <div className={`purchases-wrap ${isCompact ? 'compact' : ''}`}>
-            <div className="purchase-wrap-tooltip">
-                <p>Test</p>
-            </div>
             {!isCompact && (
                 <div className="purchases-wrap-filters">
                     <label className="purchases-wrap-filters-item">
@@ -240,7 +272,7 @@ export default function PurchasesTable({ size = 'full' }) {
                         <input
                             className="purchases-wrap-filters-item-search"
                             value={q}
-                            onChange={e=>{setQ(e.target.value); setPage(1);}}
+                            onChange={e => { setQ(e.target.value); setPage(1); }}
                             placeholder="Item name…"
                         />
                     </label>
@@ -250,7 +282,7 @@ export default function PurchasesTable({ size = 'full' }) {
                         <select
                             className="purchases-wrap-filters-item-select"
                             value={categoryId}
-                            onChange={e=>{setCategoryId(e.target.value); setPage(1);}}
+                            onChange={e => { setCategoryId(e.target.value); setPage(1); }}
                         >
                             <option value="">All</option>
                             {categories.map(c => (
@@ -267,19 +299,18 @@ export default function PurchasesTable({ size = 'full' }) {
                                 className={`toggle-btn ${shared === 'true' ? 'active' : ''}`}
                                 aria-pressed={shared === 'true'}
                                 onClick={() => { setShared(prev => toggleShared(prev, 'true')); setPage(1); }}
-                                title="Shared"
                             >
-                                {shared === 'true' ? <CheckIcon/> : null}
+                                {shared === 'true' ? <CheckIcon /> : null}
                                 <span>Shared</span>
                             </button>
+
                             <button
                                 type="button"
                                 className={`toggle-btn ${shared === 'false' ? 'active' : ''}`}
                                 aria-pressed={shared === 'false'}
                                 onClick={() => { setShared(prev => toggleShared(prev, 'false')); setPage(1); }}
-                                title="Personal"
                             >
-                                {shared === 'false' ? <CheckIcon/> : null}
+                                {shared === 'false' ? <CheckIcon /> : null}
                                 <span>Personal</span>
                             </button>
                         </div>
@@ -298,9 +329,8 @@ export default function PurchasesTable({ size = 'full' }) {
                                             className={`toggle-btn ${active ? 'active' : ''}`}
                                             aria-pressed={active}
                                             onClick={() => { setPaidById(prev => togglePaidBy(prev, u.id)); setPage(1); }}
-                                            title={u.name}
                                         >
-                                            {active ? <CheckIcon/> : null}
+                                            {active ? <CheckIcon /> : null}
                                             <span>{u.name}</span>
                                         </button>
                                     );
@@ -313,7 +343,7 @@ export default function PurchasesTable({ size = 'full' }) {
                             <select
                                 className="purchases-wrap-filters-item-select"
                                 value={paidById}
-                                onChange={e=>{ setPaidById(e.target.value); setPage(1); }}
+                                onChange={e => { setPaidById(e.target.value); setPage(1); }}
                             >
                                 <option value="">Anyone</option>
                                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -323,56 +353,85 @@ export default function PurchasesTable({ size = 'full' }) {
 
                     <label className="purchases-wrap-filters-item">
                         <span>From</span>
-                        <input className="purchases-wrap-filters-item-date" type="date"
-                               value={dateFrom} onChange={e=>{setDateFrom(e.target.value); setPage(1);}} />
+                        <input
+                            className="purchases-wrap-filters-item-date"
+                            type="date"
+                            value={dateFrom}
+                            onChange={e => { setDateFrom(e.target.value); setPage(1); }}
+                        />
                     </label>
+
                     <label className="purchases-wrap-filters-item">
                         <span>To</span>
-                        <input className="purchases-wrap-filters-item-date" type="date"
-                               value={dateTo} onChange={e=>{setDateTo(e.target.value); setPage(1);}} />
+                        <input
+                            className="purchases-wrap-filters-item-date"
+                            type="date"
+                            value={dateTo}
+                            onChange={e => { setDateTo(e.target.value); setPage(1); }}
+                        />
                     </label>
 
                     <label className="purchases-wrap-filters-item">
                         <span>Sort by</span>
-                        <select className="purchases-wrap-filters-item-select" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+                        <select
+                            className="purchases-wrap-filters-item-select"
+                            value={sortBy}
+                            onChange={e => setSortBy(e.target.value)}
+                        >
                             <option value="paidAt">Date</option>
                             <option value="amount">Amount</option>
                             <option value="itemName">Item</option>
                             <option value="category">Category</option>
                         </select>
                     </label>
+
                     <label className="purchases-wrap-filters-item">
                         <span>Direction</span>
-                        <select className="purchases-wrap-filters-item-select" value={sortDir} onChange={e=>setSortDir(e.target.value)}>
+                        <select
+                            className="purchases-wrap-filters-item-select"
+                            value={sortDir}
+                            onChange={e => setSortDir(e.target.value)}
+                        >
                             <option value="desc">Desc</option>
                             <option value="asc">Asc</option>
                         </select>
                     </label>
+
                     <label className="purchases-wrap-filters-item">
                         <span>Page size</span>
-                        <select className="purchases-wrap-filters-item-select"
-                                value={pageSize}
-                                onChange={e=>{setPageSize(Number(e.target.value)); setPage(1);}}>
-                            {[10,20,50,100].map(s => <option key={s} value={s}>{s}</option>)}
+                        <select
+                            className="purchases-wrap-filters-item-select"
+                            value={pageSize}
+                            onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+                        >
+                            {[10, 20, 50, 100].map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                     </label>
 
                     <div className="purchases-wrap-filters-button">
-                        <Button className="ba-purple" type="button" onClick={resetFilters}>Reset</Button>
+                        <Button className="ba-purple" type="button" onClick={resetFilters}>
+                            Reset
+                        </Button>
                     </div>
+
                     <div className="purchases-wrap-filters-button">
-                        <Button className="ba-gray" type="button"
-                                disabled={eligibleRows.length === 0}
-                                onClick={() => bulkSettle(true)}
-                                title={eligibleRows.length ? `Settle ${eligibleRows.length} visible item(s)` : 'Nothing to settle'}>
+                        <Button
+                            className="ba-gray"
+                            type="button"
+                            disabled={eligibleRows.length === 0}
+                            onClick={() => bulkSettle(true)}
+                        >
                             Settle all visible
                         </Button>
                     </div>
+
                     <div className="purchases-wrap-filters-button">
-                        <Button className="ba-gray" type="button"
-                                disabled={eligibleRows.length === 0}
-                                onClick={() => bulkSettle(false)}
-                                title={eligibleRows.length ? `Unsettle ${eligibleRows.length} visible item(s)` : 'Nothing to unsettle'}>
+                        <Button
+                            className="ba-gray"
+                            type="button"
+                            disabled={eligibleRows.length === 0}
+                            onClick={() => bulkSettle(false)}
+                        >
                             Unsettle all visible
                         </Button>
                     </div>
@@ -380,30 +439,29 @@ export default function PurchasesTable({ size = 'full' }) {
             )}
 
             <div className="purchases-wrap-table">
-                <div className="purchases-wrap-table-rim"></div>
-                <div className="purchases-wrap-table-glow"></div>
+                <div className="purchases-wrap-table-rim" />
+                <div className="purchases-wrap-table-glow" />
+
                 <table className="purchases-wrap-table-inner">
                     <thead>
                     <tr>
-                        <Th onClick={()=>onHeaderSort('paidAt')}   active={sortBy==='paidAt'}   dir={sortDir}>Date</Th>
-                        <Th onClick={()=>onHeaderSort('itemName')} active={sortBy==='itemName'} dir={sortDir}>Item</Th>
-                        <Th onClick={()=>onHeaderSort('category')} active={sortBy==='category'} dir={sortDir}>Category</Th>
+                        <Th onClick={() => onHeaderSort('paidAt')} active={sortBy === 'paidAt'} dir={sortDir}>Date</Th>
+                        <Th onClick={() => onHeaderSort('itemName')} active={sortBy === 'itemName'} dir={sortDir}>Purchase</Th>
                         <Th>Paid by</Th>
-                        <Th onClick={()=>onHeaderSort('amount')}   active={sortBy==='amount'}   dir={sortDir} align="right">Amount</Th>
-                        <Th align="right">Balance</Th>
-                        <Th>Shared</Th>
-                        <Th>Notes</Th>
-                        <Th>Settled</Th>
-                        <Th>Delete</Th>
+                        <Th onClick={() => onHeaderSort('amount')} active={sortBy === 'amount'} dir={sortDir} align="right">Amount</Th>
+                        <Th align="right">Your balance</Th>
+                        {!isCompact && <Th>Status</Th>}
+                        <Th align="right">Actions</Th>
                     </tr>
                     </thead>
+
                     <tbody>
                     {loading ? (
-                        <tr><td colSpan={10} style={{padding:16}}><Loader/></td></tr>
+                        <tr><td colSpan={isCompact ? 6 : 7} className="purchases-wrap-table-state"><Loader /></td></tr>
                     ) : err ? (
-                        <tr><td colSpan={10} style={{padding:16, color:'crimson'}}>{err}</td></tr>
+                        <tr><td colSpan={isCompact ? 6 : 7} className="purchases-wrap-table-state is-error">{err}</td></tr>
                     ) : rows.length === 0 ? (
-                        <tr><td colSpan={10} style={{padding:16}}>No purchases found</td></tr>
+                        <tr><td colSpan={isCompact ? 6 : 7} className="purchases-wrap-table-state">No purchases found</td></tr>
                     ) : rows.map(r => {
                         const paidByIdRow = r.paidBy?.id;
                         const debtor = (r.shares || []).find(s => s.userId !== paidByIdRow && s.percent > 0);
@@ -412,88 +470,127 @@ export default function PurchasesTable({ size = 'full' }) {
                         const net = myNetForPurchase(r, myUserId, nameOf);
 
                         return (
-                            <tr key={r.id}>
-                                {!isCompact ? (
-                                    <td className="date">{fmtDateCompact(r.paidAt)}</td>
-                                ) : (
-                                    <td className="date">{fmtDate(r.paidAt)}</td>
-                                )}
-                                <td>{r.itemName}</td>
-                                <td className="category"><p>{r.category || '—'}</p></td>
-                                <td className="paidBy"><p>{r.paidBy?.name ?? '—'}</p></td>
-                                <td style={{ textAlign: 'right' }}>{fmtCurrency(Number(r.amount))}</td>
-                                <td className="balance" style={{ textAlign: 'right', whiteSpace: 'nowrap', position: 'relative' }}>
-                                    {!net ? (
-                                        '—'
-                                    ) : net.dir === 'I_OWE' ? (
-                                        <>
-                                            <span style={{ color: 'crimson' }}>-{fmtCurrency(net.amount)}</span>
-                                            {!!net.lines?.length && (
-                                                <div className="purchases-wrap-table-inner-balance">
-                                                    {net.lines.map((l, idx) => (
-                                                        <p key={idx}>
-                                                            <strong>{l.from}</strong> owes <strong>{l.to}</strong>: {fmtCurrency(l.amount)}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : net.dir === 'OWED_TO_ME' ? (
-                                        <>
-                                            <span style={{ color: 'green' }}>{fmtCurrency(net.amount)}</span>
-                                            {!!net.lines?.length && (
-                                                <div className="purchases-wrap-table-inner-balance">
-                                                    {net.lines.map((l, idx) => (
-                                                        <p key={idx}>
-                                                            <strong>{l.from}</strong> owes <strong>{l.to}</strong>: {fmtCurrency(l.amount)}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <span style={{ color: '#64748b' }}>—</span>
+                            <tr
+                                key={r.id}
+                                className="purchases-wrap-table-row"
+                                onClick={() => goToPurchase(r.id)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        goToPurchase(r.id);
+                                    }
+                                }}
+                                tabIndex={0}
+                            >
+                                <td className="date">
+                                    <div className="purchase-date-cell">
+                                        <span>{fmtDate(r.paidAt)}</span>
+                                        {!isCompact && <small>{fmtTime(r.paidAt)}</small>}
+                                    </div>
+                                </td>
+
+                                <td className="purchase-main">
+                                    <div className="purchase-main-title">{r.itemName}</div>
+
+                                    <div className="purchase-main-meta">
+                                        <span className="purchase-pill purchase-pill-category">
+                                            {getCategoryName(r.category)}
+                                        </span>
+
+                                        <span className={`purchase-pill ${r.shared ? 'is-shared' : 'is-personal'}`}>
+                                            {r.shared ? 'Shared' : 'Personal'}
+                                        </span>
+
+                                        {r.notes && (
+                                            <span className="purchase-pill has-note">Note</span>
+                                        )}
+                                    </div>
+
+                                    {r.notes && !isCompact && (
+                                        <div className="purchase-main-note">
+                                            {getNotePreview(r.notes)}
+                                        </div>
                                     )}
                                 </td>
-                                <td className="shared">{r.shared ? 'Yes' : 'No'}</td>
-                                <td className="notes">{r.notes ?
-                                    (
-                                        <>
-                                            <p>📝</p>
-                                            <div className="purchases-wrap-table-inner-notes">
-                                                <p>{r.notes}</p>
-                                            </div>
-                                        </>
-                                    ) :
-                                    (
-                                        <p>—</p>
-                                    )
-                                }</td>
-                                <td>
-                                    {r.shared && hasDebtor ? (
-                                        <input
-                                            className="check-purple"
-                                            type="checkbox"
-                                            checked={!!isSettled}
-                                            onChange={async (e) => {
-                                                try { await toggleSettle(r.id, e.target.checked, setRows); }
-                                                catch (err) { alert(err.response?.data?.error || err.message); }
-                                            }}
-                                            title={debtor?.settledAt
-                                                ? `Settled on ${fmtDate(debtor.settledAt)}`
-                                                : 'Toggle settled state'}
-                                        />
-                                    ) : '—'}
+
+                                <td className="paidBy">
+                                    <span className="purchase-user-pill">
+                                        {getPaidByName(r.paidBy)}
+                                    </span>
                                 </td>
-                                <td>
-                                    <button
-                                        type="button"
-                                        className="purchases-delete-btn"
-                                        onClick={() => deletePurchase(r.id)}
-                                        title="Delete this purchase"
-                                    >
-                                        Delete
-                                    </button>
+
+                                <td className="amount" style={{ textAlign: 'right' }}>
+                                    {fmtCurrency(Number(r.amount))}
+                                </td>
+
+                                <td className="balance" style={{ textAlign: 'right' }}>
+                                    {!net ? (
+                                        <span className="purchase-balance-pill is-neutral">—</span>
+                                    ) : net.dir === 'I_OWE' ? (
+                                        <span
+                                            className="purchase-balance-pill is-negative"
+                                            title={net.lines?.map(l => `${l.from} owes ${l.to}: ${fmtCurrency(l.amount)}`).join('\n')}
+                                        >
+                                            You owe {fmtCurrency(net.amount)}
+                                        </span>
+                                    ) : net.dir === 'OWED_TO_ME' ? (
+                                        <span
+                                            className="purchase-balance-pill is-positive"
+                                            title={net.lines?.map(l => `${l.from} owes ${l.to}: ${fmtCurrency(l.amount)}`).join('\n')}
+                                        >
+                                            Owes you {fmtCurrency(net.amount)}
+                                        </span>
+                                    ) : (
+                                        <span className="purchase-balance-pill is-neutral">Settled</span>
+                                    )}
+                                </td>
+
+                                {!isCompact && (
+                                    <td className="status">
+                                        <div className="purchase-status-group">
+                                            <span className={`purchase-pill ${r.shared ? 'is-shared' : 'is-personal'}`}>
+                                                {r.shared ? 'Shared' : 'Personal'}
+                                            </span>
+
+                                            {r.shared && hasDebtor && (
+                                                <span className={`purchase-pill ${isSettled ? 'is-settled' : 'is-open'}`}>
+                                                    {isSettled ? 'Settled' : 'Open'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+                                )}
+
+                                <td className="actions" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'right' }}>
+                                    <div className="purchase-actions">
+                                        {r.shared && hasDebtor ? (
+                                            <label className="purchase-checkbox">
+                                                <input
+                                                    className="check-purple"
+                                                    type="checkbox"
+                                                    checked={!!isSettled}
+                                                    onChange={async (e) => {
+                                                        try {
+                                                            await toggleSettle(r.id, e.target.checked, setRows);
+                                                        } catch (error) {
+                                                            alert(error.response?.data?.error || error.message);
+                                                        }
+                                                    }}
+                                                />
+                                            </label>
+                                        ) : (
+                                            <span className="purchase-actions-spacer" />
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            className="purchases-delete-btn"
+                                            onClick={() => deletePurchase(r.id)}
+                                            title="Delete this purchase"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         );
@@ -504,11 +601,11 @@ export default function PurchasesTable({ size = 'full' }) {
 
             {!isCompact && (
                 <div className="purchases-wrap-pager">
-                    <button className="purchases-wrap-pager-button" disabled={page<=1} onClick={()=>setPage(1)}>{'≪'}</button>
-                    <button className="purchases-wrap-pager-button" disabled={page<=1} onClick={()=>setPage(p=>Math.max(1, p-1))}>{'‹'}</button>
+                    <button className="purchases-wrap-pager-button" disabled={page <= 1} onClick={() => setPage(1)}>{'≪'}</button>
+                    <button className="purchases-wrap-pager-button" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>{'‹'}</button>
                     <span className="purchases-wrap-pager-text">Page {page} / {totalPages} • {total} items</span>
-                    <button className="purchases-wrap-pager-button" disabled={page>=totalPages} onClick={()=>setPage(p=>Math.min(totalPages, p+1))}>{'›'}</button>
-                    <button className="purchases-wrap-pager-button" disabled={page>=totalPages} onClick={()=>setPage(totalPages)}>{'≫'}</button>
+                    <button className="purchases-wrap-pager-button" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>{'›'}</button>
+                    <button className="purchases-wrap-pager-button" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>{'≫'}</button>
                 </div>
             )}
         </div>
@@ -530,8 +627,15 @@ function Th({ children, onClick, active, dir, align }) {
 function CheckIcon() {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" width="12.121" height="12.121" viewBox="0 0 12.121 12.121">
-            <path d="M0,10,5,5M5,5l5-5M5,5l5,5M5,5,0,0" transform="translate(1.061 1.061)"
-                  fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/>
+            <path
+                d="M0,10,5,5M5,5l5-5M5,5l5,5M5,5,0,0"
+                transform="translate(1.061 1.061)"
+                fill="none"
+                stroke="#000"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+            />
         </svg>
     );
 }

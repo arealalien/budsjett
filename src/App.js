@@ -26,7 +26,7 @@ function App() {
     }, [location.pathname]);
 
   return (
-    <div className={!loading && user && !user.needsOnboarding ? "app-container user" : "app-container"}>
+    <div className={!loading && user && !user.needsOnboarding ? "app-container user" : "app-container nouser"}>
         <Navbar loading={loading} user={user} onboarding={needsOnboarding} handleLogout={handleLogout} />
         {user ? (
             <Sidebar loading={loading} user={user} onboarding={needsOnboarding} handleLogout={handleLogout} />

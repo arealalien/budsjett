@@ -56,8 +56,13 @@ model User {
   passwordHash    String
   emailVerifiedAt DateTime?
   displayName     String?   @db.VarChar(100)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+
+  avatarUrl        String?   @db.Text
+  avatarStorageKey String?   @db.VarChar(255)
+  avatarUpdatedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Ownership & membership
   budgetsOwned      Budget[]       @relation("BudgetOwner")
