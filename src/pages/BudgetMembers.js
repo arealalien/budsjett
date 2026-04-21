@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { api } from '../lib/api';
 import Button from '../components/Button';
 import { useToast } from '../components/utils/ToastContext';
+import Avatar from '../components/Avatar';
 
 function canInvite(role) {
     return role === 'OWNER' || role === 'ADMIN';
@@ -18,11 +19,6 @@ function roleClass(role) {
     if (role === 'OWNER') return 'is-owner';
     if (role === 'ADMIN') return 'is-admin';
     return 'is-member';
-}
-
-function initialsOf(user) {
-    const source = user?.displayName || user?.username || '?';
-    return source.trim().charAt(0).toUpperCase();
 }
 
 function displayName(user) {
@@ -232,9 +228,15 @@ function MembersSection({ budget, myRole, onChanged }) {
                 return (
                     <div key={m.userId} className="budget-members-list-item">
                         <div className="budget-members-list-item-user">
-                            <div className={`budget-members-avatar ${roleClass(m.role)}`}>
-                                {initialsOf(m.user)}
-                            </div>
+                            <Avatar
+                                user={m.user}
+                                alt={displayName(m.user)}
+                                size="3.5em"
+                                n={3}
+                                className={`budget-members-avatar ${roleClass(m.role)}`}
+                                version={m.user?.avatarStorageKey || m.user?.avatarUpdatedAt || undefined}
+                                fallbackSrc="/images/avatar-placeholder.jpg"
+                            />
 
                             <div className="budget-members-list-item-user-copy">
                                 <div className="budget-members-list-item-user-top">

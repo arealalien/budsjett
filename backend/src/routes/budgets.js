@@ -177,10 +177,28 @@ router.get('/:slug', async (req, res, next) => {
                 ],
             },
             include: {
-                owner: { select: { id: true, username: true, displayName: true } },
+                owner: {
+                    select: {
+                        id: true,
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true,
+                        avatarStorageKey: true,
+                        avatarUpdatedAt: true,
+                    },
+                },
                 members: {
                     include: {
-                        user: { select: { id: true, username: true, displayName: true } },
+                        user: {
+                            select: {
+                                id: true,
+                                username: true,
+                                displayName: true,
+                                avatarUrl: true,
+                                avatarStorageKey: true,
+                                avatarUpdatedAt: true,
+                            },
+                        },
                     },
                     orderBy: { joinedAt: 'asc' },
                 },
@@ -956,7 +974,16 @@ router.patch('/:slug', async (req, res, next) => {
                         userId: true,
                         role: true,
                         joinedAt: true,
-                        user: { select: { id: true, username: true, displayName: true } },
+                        user: {
+                            select: {
+                                id: true,
+                                username: true,
+                                displayName: true,
+                                avatarUrl: true,
+                                avatarStorageKey: true,
+                                avatarUpdatedAt: true,
+                            },
+                        },
                     },
                     orderBy: { joinedAt: 'asc' },
                 },

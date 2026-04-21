@@ -452,7 +452,7 @@ export default function PurchaseDetails() {
                                 <Avatar
                                     user={purchase.paidBy}
                                     size="2.4rem"
-                                    n={4.5}
+                                    n={3.25}
                                     version={avatarVersionOf(purchase.paidBy)}
                                     alt={nameOf(purchase.paidBy)}
                                     fallbackSrc="/images/avatar-placeholder.jpg"
@@ -479,7 +479,7 @@ export default function PurchaseDetails() {
                                 <Avatar
                                     user={purchase.createdBy}
                                     size="2.4rem"
-                                    n={4.5}
+                                    n={3.25}
                                     version={avatarVersionOf(purchase.createdBy)}
                                     alt={nameOf(purchase.createdBy)}
                                     fallbackSrc="/images/avatar-placeholder.jpg"
@@ -539,7 +539,7 @@ export default function PurchaseDetails() {
                                             <Avatar
                                                 user={s.user}
                                                 size="2.6rem"
-                                                n={4.5}
+                                                n={3.25}
                                                 version={avatarVersionOf(s.user)}
                                                 alt={nameOf(s.user)}
                                                 fallbackSrc="/images/avatar-placeholder.jpg"

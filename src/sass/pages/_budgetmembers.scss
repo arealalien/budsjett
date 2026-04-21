@@ -264,29 +264,7 @@
   }
 
   &-avatar {
-    width: 2.7em;
-    height: 2.7em;
-    border-radius: 50%;
-    font-weight: 700;
-    @include align(center, center);
-
-    &.is-owner {
-      color: color(lime-100);
-      background: color(lime-700, .18);
-      border: 1px solid color(lime-700);
-    }
-
-    &.is-admin {
-      color: color(cyan-100);
-      background: color(cyan-700, .18);
-      border: 1px solid color(cyan-700);
-    }
-
-    &.is-member {
-      color: color(gray-100);
-      background: color(gray-800, .5);
-      border: 1px solid color(gray-700);
-    }
+    flex-shrink: 0;
   }
 
   &-pill {

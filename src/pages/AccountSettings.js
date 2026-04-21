@@ -306,6 +306,7 @@ export default function AccountSettings() {
                             <div className="accountsettings-avatar-preview">
                                 <Avatar
                                     user={form}
+                                    n={3.25}
                                     version={form.avatarStorageKey || form.avatarUpdatedAt || undefined}
                                     alt="Profile"
                                 />
