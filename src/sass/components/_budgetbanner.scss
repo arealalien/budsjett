@@ -1,0 +1,123 @@
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+@use "sass:math";
+
+.budget-banner {
+  width: 100%;
+  position: relative;
+  @include align(center, center);
+
+  &-inner {
+    padding: 0;
+    width: 100%;
+    position: relative;
+    @include align(center, center);
+
+    &::before {
+      content: "";
+      width: 100%; height: 100%;
+      position: absolute;
+      backdrop-filter: blur(1.5rem);
+      mask: linear-gradient(
+              -165deg,
+              rgba(0, 0, 0, 0) 75%,
+              rgba(0, 0, 0, 1) 87.5%,
+              rgba(0, 0, 0, 1) 100%
+      );
+      @include z-index(bannerOverlay);
+    }
+    &::after {
+      content: "";
+      width: 100%; height: 100%;
+      position: absolute;
+      backdrop-filter: blur(2.5rem);
+      mask: linear-gradient(
+              -165deg,
+              rgba(0, 0, 0, 0) 87.5%,
+              rgba(0, 0, 0, 1) 100%
+      );
+      @include z-index(bannerOverlay);
+    }
+  }
+
+  &-image {
+    width: 100%;
+  }
+
+  &-fallback {
+    width: 100%;
+  }
+
+  &-overlay {
+    inset: 0;
+    position: absolute;
+    background:
+        linear-gradient(45deg, color(black, .45) 0%, color(black, 0) 100%);
+    pointer-events: none;
+    @include z-index(bannerOverlay);
+
+    &::before {
+      content: "";
+      width: 100%; height: 100%;
+      position: absolute;
+      backdrop-filter: blur(.15rem);
+      mask: linear-gradient(
+              -165deg,
+              rgba(0, 0, 0, 0) 50%,
+              rgba(0, 0, 0, 1) 62.5%,
+              rgba(0, 0, 0, 1) 75%,
+              rgba(0, 0, 0, 0) 87.5%
+      );
+      @include z-index(bannerOverlay);
+    }
+    &::after {
+      content: "";
+      width: 100%; height: 100%;
+      position: absolute;
+      backdrop-filter: blur(.5rem);
+      mask: linear-gradient(
+              -165deg,
+              rgba(0, 0, 0, 0) 62.5%,
+              rgba(0, 0, 0, 1) 75%,
+              rgba(0, 0, 0, 1) 87.5%,
+              rgba(0, 0, 0, 0) 100%
+      );
+      @include z-index(bannerOverlay);
+    }
+  }
+
+  &-top, &-bottom {
+    left: 0;
+    padding: 1.8em;
+    position: absolute;
+    @include z-index(bannerContent);
+    @include align(start, start, column, wrap, .75em);
+  }
+  &-top {
+    top: 0;
+
+    &-title {
+      color: color(white);
+      font-size: $heading-medium;
+      font-weight: 700;
+    }
+  }
+  &-bottom {
+    bottom: 0;
+
+    &-subtitle {
+      color: color(white, .7);
+      font-size: $paragraph-medium;
+      font-weight: 400;
+    }
+    &-title {
+      color: color(white);
+      font-size: $heading-large;
+      font-weight: 700;
+    }
+  }
+}

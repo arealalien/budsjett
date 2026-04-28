@@ -14,10 +14,18 @@
   }
 }
 .highcharts {
-  padding: 1.6em;
   width: 100%;
   background-color: color(gray-900);
-  border-radius: .6em;
+
+  &.is-compact {
+    .highcharts-range-selector-group,
+    .highcharts-navigator,
+    .highcharts-scrollbar,
+    .highcharts-axis-labels,
+    .highcharts-axis {
+      display: none;
+    }
+  }
   .highcharts-button {
     &-box {
       fill: color(gray-800);
@@ -30,8 +38,8 @@
     }
     &-pressed {
       .highcharts-button-box {
-        fill: var(--color);
-        stroke: var(--color);
+        fill: rgb(var(--color));
+        stroke: rgb(var(--color));
       }
       text {
         fill: color(gray-100) !important;
@@ -60,16 +68,16 @@
   .highcharts-input-group {
     .highcharts-label:nth-child(2), .highcharts-label:nth-child(4) {
       text {
-        fill: var(--color) !important;
+        fill: rgb(var(--color)) !important;
       }
     }
   }
 
   .highcharts-navigator-outline, .highcharts-grid-line {
-    stroke: color(white, .1);
+    stroke: color(white, .05);
   }
   .highcharts-navigator-mask-inside {
-    fill: var(--color);
+    fill: rgb(var(--color));
     opacity: .1;
   }
   .highcharts-navigator-handle {
@@ -78,12 +86,12 @@
   }
   .highcharts-yaxis-labels {
     text {
-      fill: color(gray-400) !important;
+      fill: color(white, .6) !important;
     }
   }
   .highcharts-xaxis-labels {
     text {
-      fill: color(gray-400) !important;
+      fill: color(white, .6) !important;
     }
   }
   .highcharts-navigator-xaxis {
@@ -104,14 +112,18 @@
     }
     &-header {
       text, tspan {
-        fill: color(gray-300) !important;
+        fill: color(white, .7) !important;
       }
     }
     &-box {
       text {
-        fill: color(gray-300) !important;
+        fill: color(white, .7) !important;
       }
     }
+  }
+
+  .highcharts-scrollbar {
+    display: none;
   }
 
   .highcharts-credits {

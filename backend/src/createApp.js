@@ -17,6 +17,7 @@ import notificationsRoute from './routes/notifications.js';
 import incomeTotalsRoutes from './routes/reports.incomeTotals.js';
 import userSettingsRoute from './routes/users.settings.js';
 import userAvatarRoute from './routes/users.avatar.js';
+import budgetSettingsRoute from './routes/budget.settings.js';
 
 export function createApp() {
     const app = express();
@@ -41,6 +42,7 @@ export function createApp() {
     app.use('/api/reports', categoryTotalsRoutes);
     app.use('/api/reports', incomeTotalsRoutes);
     app.use('/api/budgets', trendRoute);
+    app.use('/api/budget', budgetSettingsRoute);
     app.use('/api/budgets', categoryTrendRoute);
     app.use('/api/budgets', budgetsRoute);
     app.use('/api/invites', invitesRoute);

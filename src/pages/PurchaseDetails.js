@@ -7,6 +7,7 @@ import Loader from '../components/Loader';
 import Highcharts from "highcharts/highstock";
 import HighchartsReact from "highcharts-react-official";
 import Avatar from '../components/Avatar';
+import {SquircleFrame} from "../components/utils/SquircleFrame";
 
 Highcharts.setOptions({
     chart: {
@@ -54,6 +55,41 @@ Highcharts.setOptions({
         borderRadius: 6
     }
 });
+
+function toRGB(color, fallback = '121, 159, 236') {
+    if (!color) return `rgb(${fallback})`;
+
+    if (/^rgb\(/i.test(color) || /^#/.test(color)) {
+        return color;
+    }
+
+    if (/^\s*\d+\s*,\s*\d+\s*,\s*\d+\s*$/.test(color)) {
+        return `rgb(${color})`;
+    }
+
+    return `rgb(${fallback})`;
+}
+
+function toRGBA(color, alpha = 1, fallback = '121, 159, 236') {
+    if (!color) return `rgba(${fallback}, ${alpha})`;
+
+    if (/^rgba\(/i.test(color)) {
+        return color.replace(
+            /^rgba\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)$/i,
+            `rgba($1, $2, $3, ${alpha})`
+        );
+    }
+
+    if (/^rgb\(/i.test(color)) {
+        return color.replace(/^rgb\((.*)\)$/i, `rgba($1, ${alpha})`);
+    }
+
+    if (/^\s*\d+\s*,\s*\d+\s*,\s*\d+\s*$/.test(color)) {
+        return `rgba(${color}, ${alpha})`;
+    }
+
+    return `rgba(${fallback}, ${alpha})`;
+}
 
 const fmtCurrency = (n) =>
     (Number.isFinite(n) ? n : Number(n))
@@ -165,6 +201,13 @@ export default function PurchaseDetails() {
         const purchaseTs = new Date(purchase.paidAt).getTime();
         const purchaseAmount = Math.abs(Number(purchase.amount) || 0);
 
+        const categoryBaseColor = purchase?.category?.color || '121, 159, 236';
+        const categoryRgb = toRGB(categoryBaseColor);
+        const categoryGlow = toRGBA(categoryBaseColor, 0.75);
+        const categoryFillTop = toRGBA(categoryBaseColor, 0.3);
+        const categoryFillMid = toRGBA(categoryBaseColor, 0.18);
+        const categoryFillBottom = toRGBA(categoryBaseColor, 0.06);
+
         let areaPoints = [];
 
         if (trendData?.series?.length) {
@@ -262,17 +305,17 @@ export default function PurchaseDetails() {
                     const points = this.points || [];
 
                     let html = `
-                        <div style="display:flex;flex-direction:column;gap:6px;">
-                            <div style="font-size:12px;opacity:.6;margin-bottom:2px;">${date}</div>
-                    `;
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                        <div style="font-size:12px;opacity:.6;margin-bottom:2px;">${date}</div>
+                `;
 
                     points.forEach((p) => {
                         html += `
-                            <div style="display:flex;justify-content:space-between;gap:20px;">
-                                <span style="color:${p.color}">${p.series.name}</span>
-                                <b>${fmtCurrency(p.y)}</b>
-                            </div>
-                        `;
+                        <div style="display:flex;justify-content:space-between;gap:20px;">
+                            <span style="color:${p.color}">${p.series.name}</span>
+                            <b>${fmtCurrency(p.y)}</b>
+                        </div>
+                    `;
                     });
 
                     html += `</div>`;
@@ -281,18 +324,9 @@ export default function PurchaseDetails() {
             },
 
             legend: { enabled: false },
-
-            navigator: {
-                enabled: false
-            },
-
-            scrollbar: {
-                enabled: false
-            },
-
-            rangeSelector: {
-                enabled: false
-            },
+            navigator: { enabled: false },
+            scrollbar: { enabled: false },
+            rangeSelector: { enabled: false },
 
             plotOptions: {
                 series: {
@@ -310,13 +344,20 @@ export default function PurchaseDetails() {
                     name: "Budget spending",
                     type: "areaspline",
                     data: areaPoints,
-                    color: CHART_COLORS.area,
+                    color: categoryRgb,
+                    shadow: {
+                        color: categoryGlow,
+                        offsetX: 0,
+                        offsetY: 0,
+                        opacity: 0.25,
+                        width: 15
+                    },
                     fillColor: {
                         linearGradient: [0, 0, 0, 300],
                         stops: [
-                            [0, "rgba(121, 159, 236,0.3)"],
-                            [0.7, "rgba(121, 159, 236,0.18)"],
-                            [1, "rgba(121, 159, 236,0.06)"]
+                            [0, categoryFillTop],
+                            [0.7, categoryFillMid],
+                            [1, categoryFillBottom]
                         ]
                     },
                     zIndex: 1
@@ -325,13 +366,13 @@ export default function PurchaseDetails() {
                     name: "This purchase",
                     type: "scatter",
                     data: [[purchaseTs, purchaseAmount]],
-                    color: CHART_COLORS.point,
+                    color: categoryRgb,
                     marker: {
                         enabled: true,
                         radius: 6,
                         lineWidth: 2,
                         lineColor: "#fff",
-                        fillColor: CHART_COLORS.point,
+                        fillColor: categoryRgb,
                         symbol: "circle"
                     },
                     dataLabels: {
@@ -366,25 +407,23 @@ export default function PurchaseDetails() {
     }
 
     return (
-        <div className="purchase-details">
+        <div className="purchase-details" style={{ '--color': purchase?.category?.color }}>
             <div className="purchase-details-top">
                 <Link to={`/${slug}/purchases`} className="purchase-details-back">
                     ← Back to purchases
                 </Link>
 
-                <div className="purchase-details-hero">
+                <SquircleFrame
+                    className="purchase-details-hero"
+                    n={5}
+                    radius="28%"
+                >
                     <div className="purchase-details-hero-rim" />
                     <div className="purchase-details-hero-glow" />
 
                     <div className="purchase-details-hero-inner">
                         <div className="purchase-details-heading">
-                            <div>
-                                <p className="purchase-details-eyebrow">
-                                    {budget?.name || 'Budget'} · Purchase
-                                </p>
-
-                                <h1>{purchase.itemName}</h1>
-
+                            <div  className="purchase-details-heading-left">
                                 <div className="purchase-details-pills">
                                     <span className="purchase-details-pill">
                                         {purchase.category?.name || 'No category'}
@@ -400,6 +439,7 @@ export default function PurchaseDetails() {
                                         </span>
                                     )}
                                 </div>
+                                <h1>{purchase.itemName}</h1>
                             </div>
 
                             <div className="purchase-details-amount">
@@ -408,30 +448,32 @@ export default function PurchaseDetails() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </SquircleFrame>
             </div>
 
             <div className="purchase-details-grid">
-                <section className="purchase-details-card purchase-details-card-chart">
-                    <div className="purchase-details-card-head">
-                        <div>
-                            <h3>Purchase in timeline</h3>
-                            <p>See where this purchase happened in your spending history.</p>
-                        </div>
-                    </div>
+                {chartOptions && (
+                    <SquircleFrame
+                        className={`purchase-details-card purchase-details-card-chart highcharts`}
+                        style={{ '--color': purchase?.category?.color }}
+                        n={5}
+                        radius="12%"
+                    >
+                        <h3 className="hc-title">Purchase in timeline</h3>
 
-                    <div className="purchase-details-chart">
-                        {chartOptions && (
-                            <HighchartsReact
-                                highcharts={Highcharts}
-                                constructorType="stockChart"
-                                options={chartOptions}
-                            />
-                        )}
-                    </div>
-                </section>
+                        <HighchartsReact
+                            highcharts={Highcharts}
+                            constructorType="stockChart"
+                            options={chartOptions}
+                        />
+                    </SquircleFrame>
+                )}
 
-                <section className="purchase-details-card">
+                <SquircleFrame
+                    className="purchase-details-card"
+                    n={5}
+                    radius="12%"
+                >
                     <div className="purchase-details-card-head">
                         <div>
                             <h3>Overview</h3>
@@ -499,9 +541,13 @@ export default function PurchaseDetails() {
                             <strong>{fmtDateTime(purchase.updatedAt)}</strong>
                         </div>
                     </div>
-                </section>
+                </SquircleFrame>
 
-                <section className="purchase-details-card">
+                <SquircleFrame
+                    className="purchase-details-card"
+                    n={5}
+                    radius="12%"
+                >
                     <div className="purchase-details-card-head">
                         <div>
                             <h3>Notes</h3>
@@ -518,9 +564,13 @@ export default function PurchaseDetails() {
                             No note added for this purchase.
                         </div>
                     )}
-                </section>
+                </SquircleFrame>
 
-                <section className="purchase-details-card purchase-details-card-wide">
+                <SquircleFrame
+                    className="purchase-details-card purchase-details-card-wide"
+                    n={5}
+                    radius="26%"
+                >
                     <div className="purchase-details-card-head">
                         <div>
                             <h3>Split details</h3>
@@ -566,7 +616,7 @@ export default function PurchaseDetails() {
                             ))}
                         </div>
                     )}
-                </section>
+                </SquircleFrame>
             </div>
         </div>
     );

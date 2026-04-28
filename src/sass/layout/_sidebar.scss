@@ -12,7 +12,8 @@
   position: fixed;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  background-color: color(gray-900);
+  background-color: color(black);
+  border-right: 1px solid color(gray-900);
   gap: 1em;
   will-change: width;
   @include z-index(navbar);

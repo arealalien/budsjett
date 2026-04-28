@@ -163,7 +163,19 @@ $colors: (
     primary-600: hsl(343 87% 40%),
     primary-700: hsl(343 87% 30%),
     primary-800: hsl(343 87% 17.5%),
-    primary-900: hsl(343 87% 7.5%)
+    primary-900: hsl(343 87% 7.5%),
+
+    background-light: hsl(249, 89%, 95.5%),
+    background-100: hsl(249, 89%, 95%),
+    background-200: hsl(249, 89%, 82.5%),
+    background-300: hsl(249, 89%, 70%),
+    background-400: hsl(249, 89%, 60%),
+    background-500: hsl(249, 89%, 55%),
+    background-600: hsl(249, 89%, 40%),
+    background-700: hsl(249, 89%, 30%),
+    background-800: hsl(249, 89%, 17.5%),
+    background-900: hsl(249, 89%, 7.5%),
+    background-dark: hsl(249, 89%, 2%),
 );
 
 /* Direct getter (no alpha) */

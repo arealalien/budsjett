@@ -25,12 +25,10 @@
   }
 
   &-top {
-    gap: .9em;
-    @include align(start, stretch, column);
+    @include align(start, stretch, column, wrap, 1.4em);
   }
 
   &-back {
-    width: fit-content;
     color: color(gray-300);
     text-decoration: none;
     transition: opacity .15s cubic-bezier($transition-main, 1);
@@ -41,23 +39,22 @@
   }
 
   &-hero {
-    padding: 1px;
     position: relative;
-    border-radius: 1.5em;
-    overflow: hidden;
-    background-color: color(gray-800);
+    width: 100%;
+    background-color: color(gray-900);
 
     &-rim {
       $size: 28;
       top: - calc($size / 1.6) + em;
-      left: - calc($size / 2.8) + em;
+      left: 50%;
+      transform: translateX(-50%);
       width: $size + em;
       aspect-ratio: 1 / 1;
       position: absolute;
       background-color: color(white);
       border-radius: 50%;
       filter: blur(calc($size / 1.6) + rem);
-      opacity: .12;
+      opacity: .08;
       pointer-events: none;
     }
 
@@ -68,68 +65,55 @@
       width: $size + em;
       aspect-ratio: 1 / 1;
       position: absolute;
-      background-color: color(purple-500);
+      background-color: rgb(var(--color));
       border-radius: 50%;
       filter: blur(calc($size / 2) + rem);
       opacity: .18;
       pointer-events: none;
     }
-
-    &-inner {
-      padding: 1.8em;
-      width: 100%;
-      position: relative;
-      background: linear-gradient(180deg, color(gray-900) 0%, color(gray-900, .92) 100%);
-      border-radius: 1.5em;
-    }
   }
 
   &-heading {
     @include align(between, start, $gap: 1.2em);
-  }
 
-  &-eyebrow {
-    margin-bottom: .4em;
-    color: color(gray-500);
-    font-size: $paragraph-small;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-  }
+    &-left {
+      @include align(start, start, column, $gap: .6em);
 
-  h1 {
-    margin: 0;
-    font-size: $heading-large;
-    line-height: 1.05;
+      h1 {
+        margin: 0;
+        font-size: $heading-large;
+        font-weight: 700;
+      }
+    }
   }
 
   &-pills {
-    margin-top: .9em;
     flex-wrap: wrap;
     @include align(start, center, $gap: .55em);
   }
 
   &-pill {
     padding: .45em .8em;
-    border: 1px solid color(gray-700);
-    border-radius: 999px;
-    background: color(gray-800, .35);
-    color: color(gray-200);
+    border: 1px solid rgba(var(--color), .8);
+    border-radius: 5em;
+    background: rgba(var(--color), .15);
+    color: color(white, .8);
     font-size: $paragraph-small;
 
     &.is-shared {
-      color: color(cyan-100);
+      color: color(cyan-100, .8);
       border-color: color(cyan-700);
       background: color(cyan-700, .15);
     }
 
     &.is-personal {
-      color: color(gray-200);
+      color: color(gray-200, .8);
       border-color: color(gray-700);
       background: color(gray-800, .45);
     }
 
     &.has-note {
-      color: color(purple-200);
+      color: color(purple-200, .8);
       border-color: color(purple-700);
       background: color(purple-700, .16);
     }
@@ -137,22 +121,20 @@
 
   &-amount {
     padding: 1em 1.2em;
-    min-width: 12em;
-    border: 1px solid color(white, .08);
+    border: 1px solid color(white, .1);
     border-radius: 1.2em;
     background: color(white, .04);
-    @include align(start, start, column, $gap: .2em);
+    @include align(start, start, column, $gap: .4em);
 
     span {
       color: color(gray-500);
       font-size: $paragraph-small;
-      text-transform: uppercase;
-      letter-spacing: .06em;
+      font-weight: 300;
     }
 
     strong {
       font-size: $heading-medium;
-      line-height: 1.1;
+      font-weight: 600;
     }
   }
 
@@ -163,10 +145,6 @@
   }
 
   &-card {
-    padding: 1.25em;
-    border: 1px solid color(gray-800);
-    border-radius: 1.25em;
-    background: linear-gradient(180deg, color(gray-900) 0%, color(gray-800, .18) 100%);
     gap: 1em;
     @include align(start, stretch, column);
 

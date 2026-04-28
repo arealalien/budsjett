@@ -40,11 +40,14 @@
 @use "components/toast";
 @use "components/avatar";
 @use "components/imagecropper";
+@use "components/squircleframe";
+@use "components/budgetbanner";
 
 /* Pages */
 @use "pages/accountsettings";
 @use "pages/register";
 @use "pages/budget";
+@use "pages/budgetsettings";
 @use "pages/budgetmembers";
 @use "pages/budgetedit";
 @use "pages/purchaseform";

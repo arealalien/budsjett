@@ -3,6 +3,9 @@
 $z-index: (
     modal: 10000,
     navbar: 9900,
+    bannerContent: 30,
+    bannerOverlay: 20,
+    behind: -1,
 );
 
 @function zi($key) {

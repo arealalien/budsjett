@@ -144,6 +144,17 @@ model Budget {
 
   slug String @unique @db.VarChar(100)
 
+  bannerUrl               String?   @db.Text
+  bannerStorageKey        String?   @db.VarChar(255)
+  bannerUpdatedAt         DateTime?
+  bannerColor             String?   @db.VarChar(20)
+  bannerColorVibrant      String?   @db.VarChar(20)
+  bannerColorDarkVibrant  String?   @db.VarChar(20)
+  bannerColorLightVibrant String?   @db.VarChar(20)
+  bannerColorMuted        String?   @db.VarChar(20)
+  bannerColorDarkMuted    String?   @db.VarChar(20)
+  bannerColorLightMuted   String?   @db.VarChar(20)
+
   members    BudgetMember[]
   categories Category[]
   purchases  Purchase[]
