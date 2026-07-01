@@ -441,20 +441,27 @@ export default function PurchaseForm() {
 
     const payerSplit = Math.max(0, Math.min(100, Number(form.splitPercentForPayer) || 0));
     const otherSplit = 100 - payerSplit;
+    const activeCategoryId = form.categoryIds?.[0] || form.categoryId || categories[0]?.id || '';
+    const activeCategory = useMemo(
+        () => categories.find((category) => category.id === activeCategoryId) || categories[0] || null,
+        [categories, activeCategoryId]
+    );
+    const activeCategoryColor = asCssColor(activeCategory?.color || '121, 159, 236');
 
     return (
-        <form onSubmit={onSubmit} className="purchase-form">
-            <div className="purchase-form-rim" />
-            <div className="purchase-form-glow" />
-
+        <form
+            onSubmit={onSubmit}
+            className="purchase-form"
+            style={{ '--purchase-form-accent': activeCategoryColor }}
+        >
             <div className="purchase-form-inner">
                 <div className="purchase-form-inner-header">
                     <div className="purchase-form-inner-header-copy">
-                        <h3>Add a purchase</h3>
-                        <p>Create a new expense and preview how it will be split before saving.</p>
+                        <h3>New purchase</h3>
+                        <p>Add the receipt details, choose who paid, and confirm the split before saving.</p>
                     </div>
 
-                    <div className="purchase-form-inner-header-status">
+                    <div className="purchase-form-inner-header-status" aria-live="polite">
                         {ok && <span className="purchase-form-inner-header-badge pf-success">Saved</span>}
                         {err && <span className="purchase-form-inner-header-badge pf-error">{err}</span>}
                     </div>
@@ -463,12 +470,12 @@ export default function PurchaseForm() {
                 <section className="purchase-form-section">
                     <div className="purchase-form-section-heading">
                         <h4>Basics</h4>
-                        <p>Start with the purchase details.</p>
+                        <p>These fields decide how the purchase appears in lists and reports.</p>
                     </div>
 
                     <div className="purchase-form-inner-grid">
                         <label className="purchase-form-inner-grid-field">
-                            <span className="purchase-form-inner-grid-field-label">Item name</span>
+                            <span className="purchase-form-inner-grid-field-label">Purchase name</span>
                             <input
                                 name="itemName"
                                 value={form.itemName}
@@ -480,7 +487,7 @@ export default function PurchaseForm() {
                         </label>
 
                         <label className="purchase-form-inner-grid-field">
-                            <span className="purchase-form-inner-grid-field-label">Amount</span>
+                            <span className="purchase-form-inner-grid-field-label">Total amount</span>
                             <div className="purchase-form-inner-grid-field-input pf-input-with-prefix">
                                 <span className="purchase-form-inner-grid-field-input-prefix">€</span>
                                 <input
@@ -498,12 +505,15 @@ export default function PurchaseForm() {
                                     placeholder="0,00"
                                 />
                             </div>
+                            <small className="purchase-form-inner-grid-field-help">
+                                The full receipt amount before any split or private amounts.
+                            </small>
                         </label>
                     </div>
 
                     <div className="purchase-form-inner-grid">
                         <label className="purchase-form-inner-grid-field">
-                            <span className="purchase-form-inner-grid-field-label">Date</span>
+                            <span className="purchase-form-inner-grid-field-label">Purchase date</span>
                             <input
                                 type="date"
                                 name="paidAt"
@@ -512,10 +522,13 @@ export default function PurchaseForm() {
                                 required
                                 className="purchase-form-inner-grid-field-input"
                             />
+                            <small className="purchase-form-inner-grid-field-help">
+                                Used for timelines, filters, and monthly totals.
+                            </small>
                         </label>
 
                         <div className="purchase-form-inner-grid-field">
-                            <span className="purchase-form-inner-grid-field-label">Category</span>
+                            <span className="purchase-form-inner-grid-field-label">Categories</span>
                             <Dropdown
                                 name="categoryIds"
                                 value={form.categoryIds}
@@ -538,12 +551,15 @@ export default function PurchaseForm() {
                                 disabled={!categoryOptions.length}
                                 required
                             />
+                            <small className="purchase-form-inner-grid-field-help">
+                                Select one or more categories. The first selected category is the main one.
+                            </small>
                         </div>
                     </div>
 
                     <div className="purchase-form-inner-grid">
                         <div className="purchase-form-inner-grid-field pf-col-span-2">
-                            <span className="purchase-form-inner-grid-field-label">Who paid?</span>
+                            <span className="purchase-form-inner-grid-field-label">Paid by</span>
                             <Dropdown
                                 name="paidById"
                                 value={form.paidById}
@@ -563,6 +579,9 @@ export default function PurchaseForm() {
                                 disabled={!payerOptions.length}
                                 required
                             />
+                            <small className="purchase-form-inner-grid-field-help">
+                                This is the person who actually paid at checkout.
+                            </small>
                         </div>
                     </div>
                 </section>
@@ -570,8 +589,8 @@ export default function PurchaseForm() {
                 {!singleMember && (
                     <section className="purchase-form-section">
                         <div className="purchase-form-section-heading">
-                            <h4>Who should this count for?</h4>
-                            <p>Choose whether this expense is only for the payer or shared with others.</p>
+                            <h4>Split settings</h4>
+                            <p>Choose who is responsible for the expense. This can be different from who paid.</p>
                         </div>
 
                         <div className="purchase-form-inner-grid">
@@ -583,7 +602,7 @@ export default function PurchaseForm() {
                                         onClick={() => setShared(false)}
                                         aria-pressed={!form.shared}
                                     >
-                                        Just me
+                                        Only payer
                                     </button>
 
                                     <button
@@ -592,15 +611,15 @@ export default function PurchaseForm() {
                                         onClick={() => setShared(true)}
                                         aria-pressed={form.shared}
                                     >
-                                        Shared
+                                        Shared with members
                                     </button>
                                 </div>
 
                                 <small className="purchase-form-inner-grid-field-help">
                                     {!form.shared
-                                        ? `${payer?.label || 'The payer'} covers the full amount.`
+                                        ? `${payer?.label || 'The payer'} is responsible for the full amount.`
                                         : exactlyTwo
-                                            ? `Split this between ${payer?.label || 'the payer'} and ${otherMember?.label || 'the other person'}.`
+                                            ? `Choose how much belongs to ${payer?.label || 'the payer'} and ${otherMember?.label || 'the other person'}.`
                                             : `Split this across all ${members.length} members.`}
                                 </small>
                             </div>
@@ -612,10 +631,10 @@ export default function PurchaseForm() {
                                     <div className="purchase-form-inner-grid-field pf-col-span-2">
                                         <div className="purchase-form-inner-grid-field-split-row">
                                             <span className="purchase-form-inner-grid-field-split-row-label">
-                                                Split mode
+                                                Split method
                                             </span>
                                             <span className="purchase-form-inner-grid-field-split-row-chip">
-                                                {payer?.label || 'Payer'} {payerSplit}% • {otherMember?.label || 'Other'} {otherSplit}%
+                                                {payer?.label || 'Payer'} {payerSplit}% / {otherMember?.label || 'Other'} {otherSplit}%
                                             </span>
                                         </div>
 
@@ -646,7 +665,7 @@ export default function PurchaseForm() {
                                         {splitMode === 'quick' ? (
                                             <div className="purchase-form-split-panel">
                                                 <small className="purchase-form-inner-grid-field-help">
-                                                    Pick a common split quickly.
+                                                    Each option is payer share / other person's share.
                                                 </small>
 
                                                 <div className="purchase-form-inner-grid-field-split-pills">
@@ -671,7 +690,7 @@ export default function PurchaseForm() {
                                             <div className="purchase-form-split-panel">
                                                 <div className="purchase-form-inner-grid-field-split-row">
                                                     <span className="purchase-form-inner-grid-field-split-row-label">
-                                                        How much should {payer?.label || 'the payer'} cover?
+                                                        Payer responsibility
                                                     </span>
                                                     <span className="purchase-form-inner-grid-field-split-row-chip">
                                                         {payerSplit}% / {otherSplit}%
@@ -702,11 +721,11 @@ export default function PurchaseForm() {
                                         className={`purchase-form-toggle ${showPrivateBreakdown ? 'active' : ''}`}
                                         onClick={() => setShowPrivateBreakdown((v) => !v)}
                                     >
-                                        {showPrivateBreakdown ? 'Hide private part' : 'Add a private part of this purchase'}
+                                        {showPrivateBreakdown ? 'Hide private amounts' : 'Add private amounts'}
                                     </button>
 
                                     <small className="purchase-form-inner-grid-field-help">
-                                        Use this if part of the receipt should belong to one person before the rest is shared.
+                                        Use this when one person has receipt items that only belong to them. The remainder is split.
                                     </small>
                                 </div>
                             </div>
@@ -752,13 +771,13 @@ export default function PurchaseForm() {
 
                 <section className="purchase-form-section">
                     <div className="purchase-form-section-heading">
-                        <h4>Preview</h4>
-                        <p>See what this expense means before you save it.</p>
+                        <h4>Split preview</h4>
+                        <p>Shows each person's responsibility and any reimbursement before saving.</p>
                     </div>
 
                     {!preview ? (
                         <div className="purchase-form-preview is-empty">
-                            Enter an amount to see the breakdown.
+                            Enter a total amount to preview the split.
                         </div>
                     ) : preview.mode === 'personal' ? (
                         <div className="purchase-form-preview">
@@ -768,12 +787,12 @@ export default function PurchaseForm() {
                             </div>
 
                             <div className="purchase-form-preview-row">
-                                <span>Covered by</span>
+                                <span>Paid by</span>
                                 <strong>{preview.payer.label}</strong>
                             </div>
 
                             <div className="purchase-form-preview-highlight">
-                                Only {preview.payer.label} covers this expense.
+                                This purchase is not shared.
                             </div>
                         </div>
                     ) : preview.mode === 'two' ? (
@@ -797,7 +816,7 @@ export default function PurchaseForm() {
 
                             {preview.rows.map((row) => (
                                 <div key={row.id} className="purchase-form-preview-row">
-                                    <span>{row.label} covers</span>
+                                    <span>{row.label} is responsible for</span>
                                     <strong>{formatCurrency(fromCents(row.responsibleC))}</strong>
                                 </div>
                             ))}
@@ -840,7 +859,7 @@ export default function PurchaseForm() {
                 <section className="purchase-form-section">
                     <div className="purchase-form-section-heading">
                         <h4>Optional details</h4>
-                        <p>Add notes or repeat this purchase automatically.</p>
+                        <p>Add a note or create future copies of this purchase.</p>
                     </div>
 
                     <div className="purchase-form-inner-grid">
@@ -850,7 +869,7 @@ export default function PurchaseForm() {
                                 name="notes"
                                 value={form.notes}
                                 onChange={onChange}
-                                placeholder="Optional notes"
+                                placeholder="Anything useful to remember about this purchase"
                                 className="purchase-form-inner-grid-field-input purchase-form-textarea"
                                 rows="3"
                             />
@@ -867,7 +886,7 @@ export default function PurchaseForm() {
                                     checked={form.makeRecurring}
                                     onChange={onChange}
                                 />
-                                Repeat this purchase automatically
+                                Make this a recurring purchase
                             </label>
 
                             {form.makeRecurring && (
@@ -926,7 +945,13 @@ export default function PurchaseForm() {
                 </section>
 
                 <div className="purchase-form-inner-actions">
-                    <Button variant="primary" text={loading ? 'Saving…' : 'Add purchase'} type="submit" disabled={loading} />
+                    <Button
+                        className="purchase-form-submit"
+                        variant="primary"
+                        text={loading ? 'Saving...' : 'Add purchase'}
+                        type="submit"
+                        disabled={loading}
+                    />
                 </div>
             </div>
         </form>
