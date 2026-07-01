@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { queryKeys } from '../lib/queryKeys';
 import BudgetBanner from "../components/dashboard/BudgetBanner";
 import SpendingTrend from "../components/dashboard/SpendingTrend";
 import CategoryTrend from "../components/dashboard/CategoryTrend";
@@ -75,34 +77,19 @@ function buildBannerSummary(data) {
 
 export default function BudgetHome() {
     const { budget } = useOutletContext();
+    const balanceParams = useMemo(() => ({}), []);
 
-    const [balanceData, setBalanceData] = useState(null);
-
-    useEffect(() => {
-        if (!budget?.slug) return;
-        let ignore = false;
-
-        (async () => {
-            try {
-                const { data } = await api.get(
-                    `/reports/${encodeURIComponent(budget.slug)}/reports/current-balance`,
-                    { withCredentials: true }
-                );
-
-                if (!ignore) {
-                    setBalanceData(data);
-                }
-            } catch (err) {
-                if (!ignore) {
-                    setBalanceData(null);
-                }
-            }
-        })();
-
-        return () => {
-            ignore = true;
-        };
-    }, [budget?.slug]);
+    const { data: balanceData = null } = useQuery({
+        queryKey: queryKeys.reports.currentBalance(budget?.slug, balanceParams),
+        enabled: !!budget?.slug,
+        queryFn: async () => {
+            const { data } = await api.get(
+                `/reports/${encodeURIComponent(budget.slug)}/reports/current-balance`,
+                { withCredentials: true }
+            );
+            return data;
+        },
+    });
 
     const balanceSummary = useMemo(
         () => buildBannerSummary(balanceData),

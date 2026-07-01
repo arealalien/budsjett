@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import crypto from 'crypto';
 import { verifyToken } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
-import { cacheGetOrSet } from '../lib/cache.js';
+import { CACHE_TAGS, cacheGetOrSet, makeCacheKey } from '../lib/cache.js';
 
 const router = Router();
 
@@ -68,15 +67,18 @@ function computeRange(period, anchor) {
     };
 }
 
-// ---------- cache keys ----------
-const keyBudgetInfo = (slug) => `budget:info:${slug}:v1`;           // -> { id, memberIds[] }
-const keyBudgetCats = (budgetId) => `budget:${budgetId}:cats:v1`;   // -> categories[]
-const keyTotals = (budgetId, fromISO, toISO) =>
-    `report:catTotals:${budgetId}:${fromISO}:${toISO}:v1`;
+function categoryIdsForPurchase(purchase) {
+    const ids = [...new Set(
+        (purchase.categories || [])
+            .map((entry) => entry.categoryId)
+            .filter(Boolean)
+    )];
 
-// ---------- helpers ----------
-function sha(payload) {
-    return crypto.createHash('sha1').update(JSON.stringify(payload)).digest('hex');
+    if (!ids.length && purchase.categoryId) {
+        ids.push(purchase.categoryId);
+    }
+
+    return ids;
 }
 
 // GET /api/reports/:slug/category-totals
@@ -87,19 +89,29 @@ router.get('/:slug/category-totals', verifyToken, async (req, res, next) => {
         const today = anchorDate ?? new Date();
         const requesterId = req.userId || req.user?.id;
 
-        // 1) membership + budgetId (cached)
-        const budgetInfo = await cacheGetOrSet(
-            keyBudgetInfo(slug),
-            TTL_BUDGET_INFO,
-            async () => {
+        const budgetInfo = await cacheGetOrSet('budget-info', {
+            key: { slug, route: 'category-totals' },
+            ttl: TTL_BUDGET_INFO,
+            tags: [
+                CACHE_TAGS.budgets,
+                CACHE_TAGS.budgetSlug(slug),
+            ],
+            factory: async () => {
                 const b = await prisma.budget.findUnique({
                     where: { slug },
-                    select: { id: true, members: { select: { userId: true } } },
+                    select: {
+                        id: true,
+                        ownerId: true,
+                        members: { select: { userId: true } },
+                    },
                 });
                 if (!b) return undefined; // don't cache hard "not found"
-                return { id: b.id, memberIds: b.members.map((m) => m.userId) };
-            }
-        );
+                return {
+                    id: b.id,
+                    memberIds: [...new Set([b.ownerId, ...b.members.map((m) => m.userId)])],
+                };
+            },
+        });
 
         if (!budgetInfo?.id) return res.status(404).json({ error: 'Budget not found' });
         if (!requesterId || !budgetInfo.memberIds.includes(requesterId)) {
@@ -114,24 +126,33 @@ router.get('/:slug/category-totals', verifyToken, async (req, res, next) => {
         const fromISO = from ? from.toISOString() : 'all';
         const toISO = to ? to.toISOString() : 'all';
 
-        // 3) categories (cached)
-        const categories = await cacheGetOrSet(
-            keyBudgetCats(budgetInfo.id),
-            TTL_CATEGORIES,
-            async () => {
+        const categories = await cacheGetOrSet('reports:category-totals:categories', {
+            key: { budgetId: budgetInfo.id },
+            ttl: TTL_CATEGORIES,
+            tags: [
+                CACHE_TAGS.budget(budgetInfo.id),
+                CACHE_TAGS.budgetCategories(budgetInfo.id),
+            ],
+            factory: async () => {
                 return prisma.category.findMany({
                     where: { budgetId: budgetInfo.id },
                     select: { id: true, name: true, slug: true, color: true, sortOrder: true },
                     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
                 });
-            }
-        );
+            },
+        });
 
-        // 4) totals grouped by category (cached per range)
-        const groupedMap = await cacheGetOrSet(
-            keyTotals(budgetInfo.id, fromISO, toISO),
-            TTL_TOTALS,
-            async () => {
+        const groupedMap = await cacheGetOrSet('reports:category-totals', {
+            key: { budgetId: budgetInfo.id, period, fromISO, toISO },
+            ttl: TTL_TOTALS,
+            tags: [
+                CACHE_TAGS.reports,
+                CACHE_TAGS.budget(budgetInfo.id),
+                CACHE_TAGS.budgetReports(budgetInfo.id),
+                CACHE_TAGS.budgetPurchases(budgetInfo.id),
+                CACHE_TAGS.budgetCategories(budgetInfo.id),
+            ],
+            factory: async () => {
                 const where = {
                     budgetId: budgetInfo.id,
                     deletedAt: null,
@@ -141,17 +162,27 @@ router.get('/:slug/category-totals', verifyToken, async (req, res, next) => {
                     where.paidAt = { gte: from, lte: to };
                 }
 
-                const rows = await prisma.purchase.groupBy({
-                    by: ['categoryId'],
+                const rows = await prisma.purchase.findMany({
+                    select: {
+                        amount: true,
+                        categoryId: true,
+                        categories: { select: { categoryId: true } },
+                    },
                     where,
-                    _sum: { amount: true },
                 });
 
                 const out = {};
-                for (const r of rows) out[r.categoryId] = Number(r._sum.amount || 0);
+                for (const r of rows) {
+                    const categoryIds = categoryIdsForPurchase(r);
+                    const share = Number(r.amount || 0) / Math.max(1, categoryIds.length);
+
+                    for (const categoryId of categoryIds) {
+                        out[categoryId] = (out[categoryId] || 0) + share;
+                    }
+                }
                 return out;
-            }
-        );
+            },
+        });
 
         // 5) merge + sort (always include zero totals)
         const items = categories.map((c) => ({
@@ -181,7 +212,7 @@ router.get('/:slug/category-totals', verifyToken, async (req, res, next) => {
         };
 
         // 6) ETag / 304
-        const etag = sha(payload);
+        const etag = makeCacheKey(payload);
         if (req.headers['if-none-match'] === etag) {
             res.status(304).end();
             return;

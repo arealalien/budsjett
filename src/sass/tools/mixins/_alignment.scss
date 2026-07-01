@@ -1,4 +1,6 @@
 @use "sass:map";
+@use "sass:meta";
+@use "../../config/spacing" as spacing;
 
 $justify-map: (
     start: flex-start,
@@ -17,6 +19,24 @@ $align-map: (
     baseline: baseline
 );
 
+@function _align-space($value) {
+  @if $value == null {
+    @return null;
+  }
+
+  @if map.has-key(spacing.$spacing-scale, $value) {
+    @return spacing.space($value);
+  }
+
+  $key: meta.inspect($value);
+
+  @if map.has-key(spacing.$spacing-scale, $key) {
+    @return spacing.space($key);
+  }
+
+  @return $value;
+}
+
 @mixin align(
   $main: center,
   $cross: center,
@@ -25,19 +45,50 @@ $align-map: (
   $gap: null,
   $row-gap: null,
   $col-gap: null,
-  $display: flex
+  $display: flex,
+  $important: false
 ) {
   @if $display != none {
-    display: $display;
+    @if $important {
+      display: $display !important;
+    } @else {
+      display: $display;
+    }
   }
 
-  flex-direction: $dir;
-  flex-wrap: $wrap;
-
-  justify-content: map.get($justify-map, $main);
-  align-items: map.get($align-map, $cross);
+  @if $important {
+    flex-direction: $dir !important;
+    flex-wrap: $wrap !important;
+    justify-content: map.get($justify-map, $main) !important;
+    align-items: map.get($align-map, $cross) !important;
+  } @else {
+    flex-direction: $dir;
+    flex-wrap: $wrap;
+    justify-content: map.get($justify-map, $main);
+    align-items: map.get($align-map, $cross);
+  }
 
   @if $gap != null {
-    gap: $gap;
+    @if $important {
+      gap: _align-space($gap) !important;
+    } @else {
+      gap: _align-space($gap);
+    }
+  }
+
+  @if $row-gap != null {
+    @if $important {
+      row-gap: _align-space($row-gap) !important;
+    } @else {
+      row-gap: _align-space($row-gap);
+    }
+  }
+
+  @if $col-gap != null {
+    @if $important {
+      column-gap: _align-space($col-gap) !important;
+    } @else {
+      column-gap: _align-space($col-gap);
+    }
   }
 }

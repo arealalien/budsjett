@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useOutletContext, useParams } from 'react-router-dom';
 import { upload } from '@vercel/blob/client';
@@ -6,6 +7,7 @@ import Button from '../components/Button';
 import ImageCropper from '../components/utils/ImageCropper';
 import { useToast } from '../components/utils/ToastContext';
 import { extractPaletteFromBlob, pickBannerColor } from '../lib/palette';
+import { invalidateBudgetData } from '../lib/queryInvalidation';
 
 const MAX_BANNER_SIZE = 6 * 1024 * 1024;
 const ALLOWED_BANNER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -14,6 +16,7 @@ export default function BudgetSettings() {
     const { slug } = useParams();
     const { budget, reloadBudget } = useOutletContext();
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
 
     const fileInputRef = useRef(null);
 
@@ -85,6 +88,7 @@ export default function BudgetSettings() {
                 },
                 { withCredentials: true }
             );
+            invalidateBudgetData(queryClient, slug);
 
             await reloadBudget?.();
             showToast('Banner updated', { type: 'success' });
@@ -127,6 +131,7 @@ export default function BudgetSettings() {
             await api.delete(`/budget/${encodeURIComponent(slug)}/banner`, {
                 withCredentials: true,
             });
+            invalidateBudgetData(queryClient, slug);
 
             await reloadBudget?.();
             showToast('Banner removed', { type: 'success' });

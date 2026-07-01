@@ -223,6 +223,7 @@ model Category {
 
   budget    Budget     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   purchases Purchase[]
+  purchaseCategories PurchaseCategory[]
 
   // back relation from RecurringRule.category
   RecurringRule RecurringRule[]
@@ -259,6 +260,7 @@ model Purchase {
   createdById String @db.VarChar(25)
 
   shares PurchaseShare[]
+  categories PurchaseCategory[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -269,6 +271,19 @@ model Purchase {
   @@index([budgetId, paidById, paidAt])
   @@index([budgetId, createdById, paidAt])
   @@index([paidAt])
+}
+
+model PurchaseCategory {
+  purchaseId String @db.VarChar(25)
+  categoryId String @db.VarChar(25)
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([purchaseId, categoryId])
+  @@index([categoryId])
 }
 
 model PurchaseShare {

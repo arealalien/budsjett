@@ -18,6 +18,7 @@ export default function useSidebarTransition({
                                                  easing = "cubic-bezier(.175, .685, .32, 1)",
                                                  storageKey = "sidebar:collapsed",
                                                  animated,
+                                                 onCollapsedChange,
                                              } = {}) {
     const { isStatic } = useAnimationMode(animated);
 
@@ -42,11 +43,13 @@ export default function useSidebarTransition({
 
     useEffect(() => {
         if (phase === "open" || phase === "closed") {
+            const collapsed = phase === "closed";
             try {
-                localStorage.setItem(storageKey, phase === "closed" ? "1" : "0");
+                localStorage.setItem(storageKey, collapsed ? "1" : "0");
             } catch {}
+            onCollapsedChange?.(collapsed);
         }
-    }, [phase, storageKey]);
+    }, [phase, storageKey, onCollapsedChange]);
 
     const toggle = () => {
         if (isAnimating) return;

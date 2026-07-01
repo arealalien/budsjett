@@ -1,10 +1,9 @@
 // routes/purchases.js
 import { Router } from 'express';
 import { z } from 'zod';
-import crypto from 'crypto';
 import { prisma } from '../lib/prisma.js';
 import { verifyToken } from '../middleware/auth.js';
-import { cacheGetOrSet, cacheDel } from '../lib/cache.js';
+import { CACHE_TAGS, cacheGetOrSet, invalidateCacheTags, makeCacheKey } from '../lib/cache.js';
 
 const router = Router();
 
@@ -26,16 +25,6 @@ const listSchema = z.object({
     sortBy: z.enum(['paidAt','amount','itemName','category']).default('paidAt'),
     sortDir: z.enum(['asc','desc']).default('desc'),
 });
-
-// ---------- helpers ----------
-function sha1(obj) {
-    const json = typeof obj === 'string' ? obj : JSON.stringify(obj);
-    return crypto.createHash('sha1').update(json).digest('hex');
-}
-
-// Keep key space user-scoped and query-stable (dates normalized)
-const keyForList = (userId, query) =>
-    `purchases:list:u:${userId}:q:${sha1(query)}`;
 
 // Small helper to shape one row for the client
 function shapeRow(p) {
@@ -60,7 +49,7 @@ function shapeRow(p) {
 
 // Strong 304 helper
 function withEtag(req, res, payload, cacheSeconds = 60) {
-    const etag = sha1(payload);
+    const etag = makeCacheKey(payload);
     if (req.headers['if-none-match'] === etag) {
         res.status(304).end();
         return true;
@@ -73,7 +62,11 @@ function withEtag(req, res, payload, cacheSeconds = 60) {
 
 // Exportable invalidation for writers elsewhere
 export function invalidatePurchasesListForUser(userId) {
-    cacheDel(`purchases:list:u:${userId}:`);
+    invalidateCacheTags([
+        CACHE_TAGS.purchases,
+        CACHE_TAGS.user(userId),
+        CACHE_TAGS.userPurchases(userId),
+    ]);
 }
 
 // ---------- route ----------
@@ -118,46 +111,54 @@ router.get('/', verifyToken, async (req, res, next) => {
         // category is a scalar enum here, so direct orderBy is fine
         const orderBy = { [sortBy]: sortDir };
 
-        // ---------- caching ----------
-        const cacheKey = keyForList(req.user.id, {
+        const queryKey = {
             page, pageSize, q, category, shared, paidById,
             dateFrom: dateFrom ? dateFrom.toISOString() : null,
             dateTo:   dateTo   ? dateTo.toISOString()   : null,
             sortBy, sortDir,
-        });
+        };
 
-        const payload = await cacheGetOrSet(cacheKey, TTL_LIST, async () => {
-            const [total, itemsRaw] = await Promise.all([
-                prisma.purchase.count({ where }),
-                prisma.purchase.findMany({
-                    where,
-                    orderBy,
-                    skip: (page - 1) * pageSize,
-                    take: pageSize,
-                    select: {
-                        id: true,
-                        itemName: true,
-                        amount: true,
-                        paidAt: true,
-                        shared: true,
-                        notes: true,
-                        category: true,
-                        paidBy:   { select: { id: true, name: true } },
-                        shares:   {
-                            select: {
-                                userId: true,
-                                percent: true,
-                                isSettled: true,
-                                settledAt: true,
-                                user: { select: { id: true, name: true } },
-                            }
+        const payload = await cacheGetOrSet('purchases:list', {
+            key: { userId: req.user.id, query: queryKey },
+            ttl: TTL_LIST,
+            tags: [
+                CACHE_TAGS.purchases,
+                CACHE_TAGS.user(req.user.id),
+                CACHE_TAGS.userPurchases(req.user.id),
+            ],
+            factory: async () => {
+                const [total, itemsRaw] = await Promise.all([
+                    prisma.purchase.count({ where }),
+                    prisma.purchase.findMany({
+                        where,
+                        orderBy,
+                        skip: (page - 1) * pageSize,
+                        take: pageSize,
+                        select: {
+                            id: true,
+                            itemName: true,
+                            amount: true,
+                            paidAt: true,
+                            shared: true,
+                            notes: true,
+                            category: true,
+                            paidBy:   { select: { id: true, name: true } },
+                            shares:   {
+                                select: {
+                                    userId: true,
+                                    percent: true,
+                                    isSettled: true,
+                                    settledAt: true,
+                                    user: { select: { id: true, name: true } },
+                                }
+                            },
                         },
-                    },
-                }),
-            ]);
+                    }),
+                ]);
 
-            const items = itemsRaw.map(shapeRow);
-            return { total, items };
+                const items = itemsRaw.map(shapeRow);
+                return { total, items };
+            },
         });
 
         if (withEtag(req, res, payload, 60)) return;

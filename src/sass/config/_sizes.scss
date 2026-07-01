@@ -1,22 +1,275 @@
-/* Headings */
-$heading-xlarge: clamp(4.2rem, 3.2399999999999998rem + 3.8vw, 5.6rem);
-$heading-large: clamp(2.5rem, 2.2399999999999998rem + 2.8vw, 4.2rem);
-$heading-medium: clamp(1.4rem, 1.68rem + 1.6vw, 2rem);
-$heading-small: clamp(1.2rem, 1.578rem + 0.59vw, 1.5rem);
+@use "sass:map";
 
-/* Paragraphs */
-$paragraph-xxlarge: clamp(1.69rem, 1.578rem + 1.51vw, 1.75rem);
-$paragraph-xlarge: clamp(1.1rem, 1.378rem + 1.31vw, 1.4rem);
-$paragraph-large: clamp(.95rem, 1.278rem + 1.21vw, 1.1rem);
-$paragraph-medium: clamp(.875rem, 1.178rem + 1.11vw, .95rem);
-$paragraph: clamp(.7rem, 0.978rem + 0.11vw, .875rem);
-$paragraph-small: clamp(0.66rem, 0.778rem + 0.088vw, 0.75rem);
-$paragraph-xsmall: clamp(0.5rem, 0.578rem + 0.066vw, 0.66rem);
+@function fluid-type($min, $fluid, $max) {
+  @return clamp($min, $fluid, $max);
+}
+
+/* Font weights */
+$type-weight-extralight: 200 !default;
+$type-weight-light: 300 !default;
+$type-weight-regular: 400 !default;
+$type-weight-medium: 500 !default;
+$type-weight-semibold: 600 !default;
+$type-weight-bold: 700 !default;
+$type-weight-extrabold: 800 !default;
+
+/* Line heights */
+$type-line-height-solid: 1 !default;
+$type-line-height-display: 1.02 !default;
+$type-line-height-heading: 1.12 !default;
+$type-line-height-title: 1.2 !default;
+$type-line-height-body: 1.5 !default;
+$type-line-height-ui: 1.2 !default;
+$type-line-height-compact: 1.15 !default;
+
+/* Letter spacing */
+$type-letter-spacing: 0 !default;
+
+/* Display and headings */
+$type-display-size: fluid-type(3rem, calc(2.15rem + 4vw), 6rem) !default;
+$type-hero-size: fluid-type(2.5rem, calc(1.85rem + 3vw), 4.5rem) !default;
+$type-h1-size: fluid-type(2rem, calc(1.55rem + 2.3vw), 3.25rem) !default;
+$type-h2-size: fluid-type(1.65rem, calc(1.3rem + 1.6vw), 2.5rem) !default;
+$type-h3-size: fluid-type(1.35rem, calc(1.15rem + .9vw), 1.875rem) !default;
+$type-h4-size: fluid-type(1.15rem, calc(1.05rem + .4vw), 1.375rem) !default;
+$type-h5-size: fluid-type(1rem, calc(.95rem + .25vw), 1.125rem) !default;
+$type-h6-size: fluid-type(.9rem, calc(.86rem + .16vw), 1rem) !default;
+
+/* Body, UI, and small text */
+$type-lead-size: fluid-type(1.125rem, calc(1rem + .55vw), 1.5rem) !default;
+$type-body-xl-size: fluid-type(1rem, calc(.95rem + .22vw), 1.2rem) !default;
+$type-body-lg-size: fluid-type(.9375rem, calc(.9rem + .16vw), 1.0625rem) !default;
+$type-body-md-size: fluid-type(.875rem, calc(.84rem + .12vw), .9375rem) !default;
+$type-body-size: fluid-type(.8125rem, calc(.79rem + .12vw), .9375rem) !default;
+$type-body-sm-size: fluid-type(.75rem, calc(.73rem + .08vw), .8125rem) !default;
+$type-note-size: fluid-type(.6875rem, calc(.67rem + .06vw), .75rem) !default;
+$type-caption-size: fluid-type(.625rem, calc(.61rem + .05vw), .6875rem) !default;
+$type-meta-size: $type-note-size !default;
+$type-label-size: $type-note-size !default;
+$type-tag-size: $type-caption-size !default;
+$type-badge-size: $type-caption-size !default;
+$type-button-size: fluid-type(.8125rem, calc(.79rem + .12vw), .9375rem) !default;
+$type-input-size: fluid-type(.8125rem, calc(.79rem + .12vw), .9375rem) !default;
+$type-code-size: .875em !default;
+
+/* Icons */
+$icon-size-xs: .875rem !default;
+$icon-size-sm: 1rem !default;
+$icon-size-md: 1.25rem !default;
+$icon-size-lg: 1.5rem !default;
+$icon-size-xl: 2rem !default;
+$icon-size-2xl: 2.5rem !default;
+$icon-size-3xl: 3rem !default;
+$icon-size-button: 1.25em !default;
+
+$icon-sizes: (
+  xs: $icon-size-xs,
+  sm: $icon-size-sm,
+  md: $icon-size-md,
+  lg: $icon-size-lg,
+  xl: $icon-size-xl,
+  2xl: $icon-size-2xl,
+  3xl: $icon-size-3xl,
+  button: $icon-size-button
+) !default;
+
+@function icon-size($key) {
+  @if map.has-key($icon-sizes, $key) {
+    @return map.get($icon-sizes, $key);
+  }
+
+  @error "Unknown icon size `#{$key}`. Available sizes: #{map.keys($icon-sizes)}.";
+}
+
+$type-scale: (
+  display: (
+    size: $type-display-size,
+    line-height: $type-line-height-display,
+    weight: $type-weight-bold,
+    letter-spacing: $type-letter-spacing
+  ),
+  hero: (
+    size: $type-hero-size,
+    line-height: $type-line-height-display,
+    weight: $type-weight-bold,
+    letter-spacing: $type-letter-spacing
+  ),
+  h1: (
+    size: $type-h1-size,
+    line-height: $type-line-height-heading,
+    weight: $type-weight-extrabold,
+    letter-spacing: $type-letter-spacing
+  ),
+  h2: (
+    size: $type-h2-size,
+    line-height: $type-line-height-heading,
+    weight: $type-weight-bold,
+    letter-spacing: $type-letter-spacing
+  ),
+  h3: (
+    size: $type-h3-size,
+    line-height: $type-line-height-title,
+    weight: $type-weight-semibold,
+    letter-spacing: $type-letter-spacing
+  ),
+  h4: (
+    size: $type-h4-size,
+    line-height: $type-line-height-title,
+    weight: $type-weight-semibold,
+    letter-spacing: $type-letter-spacing
+  ),
+  h5: (
+    size: $type-h5-size,
+    line-height: $type-line-height-title,
+    weight: $type-weight-semibold,
+    letter-spacing: $type-letter-spacing
+  ),
+  h6: (
+    size: $type-h6-size,
+    line-height: $type-line-height-title,
+    weight: $type-weight-semibold,
+    letter-spacing: $type-letter-spacing
+  ),
+  lead: (
+    size: $type-lead-size,
+    line-height: $type-line-height-body,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  ),
+  body-xl: (
+    size: $type-body-xl-size,
+    line-height: $type-line-height-body,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  ),
+  body-lg: (
+    size: $type-body-lg-size,
+    line-height: $type-line-height-body,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  ),
+  body-md: (
+    size: $type-body-md-size,
+    line-height: $type-line-height-body,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  ),
+  body: (
+    size: $type-body-size,
+    line-height: $type-line-height-body,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  ),
+  body-sm: (
+    size: $type-body-sm-size,
+    line-height: $type-line-height-body,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  ),
+  note: (
+    size: $type-note-size,
+    line-height: $type-line-height-ui,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  ),
+  caption: (
+    size: $type-caption-size,
+    line-height: $type-line-height-ui,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  ),
+  meta: (
+    size: $type-meta-size,
+    line-height: $type-line-height-ui,
+    weight: $type-weight-medium,
+    letter-spacing: $type-letter-spacing
+  ),
+  label: (
+    size: $type-label-size,
+    line-height: $type-line-height-ui,
+    weight: $type-weight-semibold,
+    letter-spacing: $type-letter-spacing
+  ),
+  tag: (
+    size: $type-tag-size,
+    line-height: $type-line-height-compact,
+    weight: $type-weight-bold,
+    letter-spacing: $type-letter-spacing
+  ),
+  badge: (
+    size: $type-badge-size,
+    line-height: $type-line-height-compact,
+    weight: $type-weight-bold,
+    letter-spacing: $type-letter-spacing
+  ),
+  button: (
+    size: $type-button-size,
+    line-height: $type-line-height-ui,
+    weight: $type-weight-medium,
+    letter-spacing: $type-letter-spacing
+  ),
+  input: (
+    size: $type-input-size,
+    line-height: $type-line-height-ui,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  ),
+  code: (
+    size: $type-code-size,
+    line-height: $type-line-height-ui,
+    weight: $type-weight-regular,
+    letter-spacing: $type-letter-spacing
+  )
+) !default;
+
+@function type-token($role, $property) {
+  @if not map.has-key($type-scale, $role) {
+    @error "Unknown type role `#{$role}`. Available roles: #{map.keys($type-scale)}.";
+  }
+
+  $role-map: map.get($type-scale, $role);
+
+  @if not map.has-key($role-map, $property) {
+    @error "Unknown type property `#{$property}` for role `#{$role}`.";
+  }
+
+  @return map.get($role-map, $property);
+}
+
+@function type-size($role) {
+  @return type-token($role, size);
+}
+
+@function type-line-height($role) {
+  @return type-token($role, line-height);
+}
+
+@function type-weight($role) {
+  @return type-token($role, weight);
+}
+
+@function type-letter-spacing($role) {
+  @return type-token($role, letter-spacing);
+}
+
+/* Backwards-compatible aliases used throughout the existing Sass */
+$heading-xlarge: $type-display-size !default;
+$heading-large: $type-h1-size !default;
+$heading-medium: $type-h3-size !default;
+$heading-small: $type-h4-size !default;
+
+$paragraph-xxlarge: $type-lead-size !default;
+$paragraph-xlarge: $type-body-xl-size !default;
+$paragraph-large: $type-body-lg-size !default;
+$paragraph-medium: $type-body-md-size !default;
+$paragraph: $type-body-size !default;
+$paragraph-small: $type-body-sm-size !default;
+$paragraph-xsmall: $type-caption-size !default;
 
 /* Special */
-$banner: clamp(2.8rem, 3.2399999999999998rem + 3.8vw, 8.9rem);
+$banner: $type-display-size !default;
 
-/* Sizes */
-$navbar-height: 4.5em;
-$sidebar-width: 20em;
-$profile-size: 15em;
+/* Layout sizes */
+$navbar-height: 4.5em !default;
+$sidebar-width: 20em !default;
+$profile-size: 15em !default;

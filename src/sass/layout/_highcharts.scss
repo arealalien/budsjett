@@ -8,14 +8,19 @@
 
 .hc {
   &-title {
-    margin-bottom: .6em;
-    font-size: $paragraph-large;
-    font-weight: 600;
+    margin-bottom: space(sm);
+    font-size: type-size(body-lg);
+    font-weight: type-weight(h3);
   }
 }
 .highcharts {
   width: 100%;
-  background-color: color(gray-900);
+  padding: $card-padding;
+  position: relative;
+  background-color: color(black, .9);
+  border: 1px solid color(gray-800);
+  border-radius: $card-radius;
+  overflow: hidden;
 
   &.is-compact {
     .highcharts-range-selector-group,

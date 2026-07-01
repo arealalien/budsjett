@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Highcharts from "highcharts/highstock";
 import HighchartsReact from "highcharts-react-official";
 import { api } from "../../lib/api";
-import { SquircleFrame } from "../utils/SquircleFrame";
+import { queryKeys } from "../../lib/queryKeys";
 
 Highcharts.setOptions({
     chart: {
@@ -74,50 +75,29 @@ export default function CategoryTrend({ size, budget }) {
     const compact = size === 'compact';
     const defaultPeriod = compact ? 'month' : 'all';
 
-    const [data, setData] = useState(null);
     const [period, setPeriod] = useState(defaultPeriod);
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         setPeriod(defaultPeriod);
     }, [defaultPeriod]);
 
-    useEffect(() => {
-        let ignore = false;
+    const {
+        data = null,
+        error,
+        isLoading: loading,
+    } = useQuery({
+        queryKey: queryKeys.reports.categoryTrend(slug, period),
+        enabled: !!slug && !!period,
+        queryFn: async () => {
+            const { data } = await api.get(
+                `/budgets/${encodeURIComponent(slug)}/category-trend`,
+                { params: { period }, withCredentials: true }
+            );
+            return data;
+        },
+    });
 
-        (async () => {
-            try {
-                setLoading(true);
-                setError('');
-
-                const res = await api.get(
-                    `/budgets/${encodeURIComponent(slug)}/category-trend?period=${period}`,
-                    { withCredentials: true }
-                );
-
-                if (!ignore) {
-                    setData(res.data);
-                }
-            } catch (e) {
-                if (!ignore) {
-                    console.error("Failed to load category trend:", e);
-                    setError(e.response?.data?.error || e.message || 'Failed to load category trend');
-                    setData(null);
-                }
-            } finally {
-                if (!ignore) {
-                    setLoading(false);
-                }
-            }
-        })();
-
-        return () => { ignore = true; };
-    }, [slug, period]);
-
-    const C = {
-        category: "237, 74, 84",
-    };
+    const errorMessage = error?.response?.data?.error || error?.message || 'Failed to load category trend';
 
     const chartHeight = compact ? 340 : 500;
 
@@ -239,18 +219,16 @@ export default function CategoryTrend({ size, budget }) {
     }), [data, compact, chartHeight]);
 
     return (
-        <SquircleFrame
+        <div
             className={`highcharts ${compact ? 'is-compact' : ''}`}
             style={{ "--color": bannerColor }}
-            n={5}
-            radius="12%"
         >
             <h3 className="hc-title">Spending Trend (Categories)</h3>
 
             {loading ? (
                 <div className="highcharts-state"></div>
             ) : error ? (
-                <div className="highcharts-state is-error">{error}</div>
+                <div className="highcharts-state is-error">{errorMessage}</div>
             ) : (
                 <HighchartsReact
                     highcharts={Highcharts}
@@ -258,6 +236,6 @@ export default function CategoryTrend({ size, budget }) {
                     options={chartOptions}
                 />
             )}
-        </SquircleFrame>
+        </div>
     );
 }

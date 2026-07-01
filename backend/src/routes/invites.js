@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { prisma } from '../lib/prisma.js';
 import { verifyToken } from '../middleware/auth.js';
 import { canInvite } from '../lib/roles.js';
+import { invalidateBudgetCaches } from '../lib/cacheInvalidation.js';
 
 const router = Router();
 router.use(verifyToken);
@@ -149,6 +150,12 @@ router.post('/:id/accept', async (req, res, next) => {
                 where: { userId: me.id, type: 'INVITE', inviteId: invite.id },
                 data: { readAt: new Date() },
             });
+        });
+
+        invalidateBudgetCaches({
+            budgetId: invite.budget.id,
+            slug: invite.budget.slug,
+            userIds: [me.id, invite.budget.ownerId],
         });
 
         res.json({ ok: true, slug: invite.budget.slug });

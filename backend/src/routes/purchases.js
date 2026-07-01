@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { verifyToken } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
-import { cacheDel } from '../lib/cache.js';
+import { invalidateUserCaches } from '../lib/cacheInvalidation.js';
 
 const router = Router();
 
@@ -64,8 +64,7 @@ router.post('/', verifyToken, async (req, res, next) => {
             }
         });
 
-        cacheDel('purchases:');
-        cacheDel(`user:${req.user.id}:purchases:`);
+        invalidateUserCaches(req.user.id);
 
         res.status(201).json(purchase);
     } catch (err) {

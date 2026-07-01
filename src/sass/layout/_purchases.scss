@@ -1,216 +1,437 @@
 @use "../config/colors" as *;
 @use "../abstracts/utilities" as *;
 @use "../config/sizes" as *;
-@use "../config/z-index" as *;
 @use "../tools/functions/encode-colors" as *;
 @use "../tools/mixins/alignment" as *;
-@use "sass:math";
 
 .purchases-wrap {
   width: 100%;
-  gap: 1em;
-  @include align(center, center, column);
+  gap: 1.25em;
+  @include align(stretch, stretch, column);
 
   &.compact {
     width: 60vw;
+
+    .purchases-virtual-scroll {
+      max-height: 42rem;
+    }
   }
+}
 
-  &-filters {
+.purchases-toolbar {
+  width: 100%;
+  gap: 1em;
+  @include align(stretch, stretch, column);
+
+  &-head {
     width: 100%;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15em, 1fr));
     gap: 1em;
+    @include align(space-between, center);
 
-    &-button {
-      height: 100%;
-      @include align(start, end);
+    h2 {
+      color: color(white);
+      font-size: $heading-small;
+      font-weight: 700;
+      margin: 0;
     }
 
-    &-item {
-      height: 100%;
-      gap: .2em;
-      @include align(start, start, column);
+    p {
+      color: color(gray-500);
+      margin-top: .25em;
+    }
+  }
 
-      &:first-child {
-        grid-column: 1 / 4;
+  &-actions {
+    flex-wrap: wrap;
+    @include align(end, center, $gap: .75em);
+  }
+}
+
+.purchases-action-button {
+  min-height: 3.25em;
+  min-width: 0;
+  padding: 0 1.1em;
+  color: color(gray-100);
+  background: color(gray-900);
+  border: 1px solid color(gray-800);
+  border-radius: 1em;
+  cursor: pointer;
+  font: inherit;
+  font-size: $paragraph-small;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transition: border-color .18s ease, background-color .18s ease, color .18s ease, opacity .18s ease;
+  @include align(center, center);
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    color: color(white);
+    background: color(gray-800);
+    border-color: color(gray-700);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color(purple-500, .18);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: .45;
+  }
+
+  &-primary {
+    color: color(white);
+    background: color(purple-700, .22);
+    border-color: color(purple-700);
+
+    &:hover:not(:disabled),
+    &:focus-visible {
+      background: color(purple-700, .32);
+      border-color: color(purple-500);
+    }
+  }
+}
+
+.purchases-wrap-filters {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13.5em, 1fr));
+  gap: .9em;
+
+  &-button {
+    height: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: flex-end;
+
+    .purchases-action-button {
+      width: 100%;
+    }
+  }
+
+  &-item {
+    height: 100%;
+    min-width: 0;
+    gap: .3em;
+    @include align(start, stretch, column);
+
+    &-searchbox {
+      grid-column: span 2;
+    }
+
+    > span {
+      color: color(gray-500);
+      font-size: $paragraph-small;
+      margin-left: .85em;
+    }
+
+    &-search,
+    &-date {
+      width: 100%;
+      padding: 1em 1.1em;
+      color: color(gray-100);
+      background: color(gray-900);
+      border: 1px solid color(gray-800);
+      border-radius: 1em;
+      min-height: 3.25em;
+
+      &:focus {
+        outline: none;
+        border-color: color(purple-500);
+        box-shadow: 0 0 0 2px color(purple-500, .18);
       }
+    }
 
-      span {
-        margin-left: 1em;
-      }
+    &-shared-toggle {
+      width: 100%;
+      min-height: 3.25em;
+      @include align(stretch, stretch);
 
-      &-search,
-      &-select,
-      &-date {
-        padding: 1em 1.2em;
-        width: 100%;
-        border: 1px solid color(gray-800);
-        border-radius: 1em;
+      button {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 1em 1.05em;
+        color: color(gray-300);
         background: color(gray-900);
-        color: color(gray-100);
-
-        &:focus {
-          outline: none;
-          border-color: color(purple-500);
-        }
-      }
-
-      &-paidby-toggle,
-      &-shared-toggle {
+        border: 1px solid color(gray-800);
+        gap: .5em;
+        cursor: pointer;
+        font: inherit;
+        font-size: $paragraph-small;
+        font-weight: 700;
+        white-space: nowrap;
         @include align(center, center);
 
-        button {
-          padding: 1em 1.2em;
+        + button {
+          border-left: 0;
+        }
+
+        svg {
+          width: .75em;
+          height: .75em;
+
+          path {
+            stroke: color(white);
+          }
+        }
+
+        span {
+          margin: 0;
+        }
+
+        &:first-child {
+          border-top-left-radius: 1em;
+          border-bottom-left-radius: 1em;
+        }
+
+        &:last-child {
+          border-top-right-radius: 1em;
+          border-bottom-right-radius: 1em;
+        }
+
+        &.active {
+          position: relative;
+          z-index: 1;
           color: color(white);
-          background: color(gray-900);
-          border-top: 1px solid color(gray-800);
-          border-bottom: 1px solid color(gray-800);
-          border-right: 1px solid color(gray-800);
-          gap: .5em;
-          cursor: pointer;
-          @include align(center, center);
-
-          svg {
-            width: .75em;
-            height: .75em;
-
-            path {
-              stroke: color(white);
-            }
-          }
-
-          span {
-            margin-left: 0;
-          }
-
-          &:first-child {
-            border-top-left-radius: 1em;
-            border-bottom-left-radius: 1em;
-            border-left: 1px solid color(gray-800);
-            border-right: none;
-          }
-
-          &:last-child {
-            border-top-right-radius: 1em;
-            border-bottom-right-radius: 1em;
-            border-left: 1px solid color(gray-800);
-          }
+          background: color(purple-700, .24);
+          border-color: color(purple-700);
         }
 
-        button.active {
-          opacity: .75;
-        }
-      }
-    }
-  }
-
-  &-table {
-    margin-top: 2em;
-    padding: 1px;
-    width: 100%;
-    position: relative;
-    background-color: color(gray-800);
-    border-radius: 1em;
-    overflow: hidden;
-
-    &-rim {
-      $size: 40;
-      top: - calc($size / 1.5) + em;
-      left: - calc($size / 2.5) + em;
-      width: $size + em;
-      aspect-ratio: 1 / 1;
-      position: absolute;
-      background-color: color(white);
-      border-radius: 50%;
-      filter: blur(calc($size / 1.5) + rem);
-      pointer-events: none;
-      opacity: .1;
-    }
-
-    &-glow {
-      $size: 140;
-      right: - calc($size / 3) + em;
-      bottom: - calc($size / 1.1) + em;
-      width: $size + em;
-      aspect-ratio: 1 / 1;
-      position: absolute;
-      background-color: color(purple-500);
-      border-radius: 50%;
-      filter: blur(calc($size / 2) + rem);
-      pointer-events: none;
-      opacity: .2;
-    }
-
-    &-inner {
-      width: 100%;
-      background-color: color(gray-900);
-      border-radius: 1em;
-      border-collapse: collapse;
-
-      thead {
-        border-bottom: 1px solid color(gray-800);
-
-        th {
-          padding: 1em !important;
-          color: color(gray-300);
-          user-select: none;
+        &:hover,
+        &:focus-visible {
+          color: color(white);
+          background: color(gray-800);
         }
 
-        tr:hover {
-          background-color: transparent;
+        &:focus-visible {
+          outline: none;
+          box-shadow: 0 0 0 2px color(purple-500, .18);
         }
-      }
-
-      td {
-        padding: 1em;
-        vertical-align: middle;
-      }
-    }
-
-    &-row {
-      cursor: pointer;
-      transition: background-color .12s cubic-bezier($transition-main, 1);
-
-      &:hover {
-        background-color: color(gray-800);
-      }
-
-      &:focus-visible {
-        outline: 2px solid color(purple-500);
-        outline-offset: -2px;
-      }
-    }
-
-    &-state {
-      padding: 1.25em;
-      text-align: center;
-
-      &.is-error {
-        color: color(red-300);
-      }
-    }
-  }
-
-  &-pager {
-    gap: 1em;
-    @include align(center, center);
-
-    &-button {
-      padding: 1em;
-      background-color: color(gray-900);
-      border: 1px solid color(gray-800);
-      border-radius: .9em;
-      cursor: pointer;
-
-      &:disabled {
-        opacity: .5;
-        cursor: default;
       }
     }
   }
 }
 
+.purchases-filter-dropdown {
+  width: 100%;
+
+  .dropdown__trigger {
+    min-width: 0;
+    min-height: 3.25em;
+  }
+
+  .dropdown__menu {
+    width: 100%;
+  }
+}
+
+.purchases-wrap-table {
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  padding: 1px;
+  background-color: color(gray-800);
+  border-radius: 1em;
+  overflow: hidden;
+
+  &-rim {
+    $size: 40;
+    top: - calc($size / 1.5) + em;
+    left: - calc($size / 2.5) + em;
+    width: $size + em;
+    aspect-ratio: 1 / 1;
+    position: absolute;
+    background-color: color(white);
+    border-radius: 50%;
+    filter: blur(calc($size / 1.5) + rem);
+    pointer-events: none;
+    opacity: .1;
+  }
+
+  &-glow {
+    $size: 140;
+    right: - calc($size / 3) + em;
+    bottom: - calc($size / 1.1) + em;
+    width: $size + em;
+    aspect-ratio: 1 / 1;
+    position: absolute;
+    background-color: color(purple-500);
+    border-radius: 50%;
+    filter: blur(calc($size / 2) + rem);
+    pointer-events: none;
+    opacity: .2;
+  }
+
+  &-state {
+    min-height: 16em;
+    padding: 1.25em;
+    position: relative;
+    z-index: 1;
+    color: color(gray-400);
+    text-align: center;
+    @include align(center, center);
+
+    &.is-error {
+      color: color(red-300);
+    }
+  }
+}
+
+.purchases-virtual-scroll {
+  width: 100%;
+  max-height: min(72vh, 58rem);
+  min-height: 34rem;
+  position: relative;
+  z-index: 1;
+  overflow: auto;
+  background-color: color(gray-900);
+  border-radius: 1em;
+  scrollbar-color: color(gray-700) transparent;
+}
+
+.purchases-virtual-table {
+  width: 100%;
+  min-height: 100%;
+  position: relative;
+}
+
+.purchases-virtual-header {
+  min-height: 58px;
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: color(gray-900);
+  border-bottom: 1px solid color(gray-800);
+}
+
+.purchases-virtual-header-cell {
+  min-width: 0;
+  padding: 0 1em;
+  position: relative;
+  color: color(gray-400);
+  cursor: default;
+  user-select: none;
+  @include align(start, center);
+
+  &.align-right {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  &.is-sortable {
+    cursor: pointer;
+  }
+
+  &.is-active {
+    color: color(white);
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  b {
+    color: color(purple-300);
+    font-size: $paragraph-small;
+    font-weight: 600;
+    margin-left: .35em;
+  }
+}
+
+.purchases-column-resizer {
+  width: .6em;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: -.3em;
+  z-index: 2;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: col-resize;
+
+  &::after {
+    content: "";
+    width: 2px;
+    height: 42%;
+    position: absolute;
+    top: 29%;
+    right: .25em;
+    border-radius: 999px;
+    background: color(gray-700);
+    opacity: .55;
+    transition: opacity .12s cubic-bezier($transition-main, 1),
+    background-color .12s cubic-bezier($transition-main, 1);
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    opacity: 1;
+    background: color(purple-400);
+  }
+}
+
+.purchases-virtual-body {
+  position: relative;
+}
+
+.purchases-virtual-row {
+  width: 100%;
+  display: grid;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-bottom: 1px solid color(gray-800, .65);
+  cursor: pointer;
+  transition: background-color .12s cubic-bezier($transition-main, 1);
+
+  &:hover {
+    background-color: color(gray-800, .62);
+  }
+
+  &:focus-visible {
+    outline: 2px solid color(purple-500);
+    outline-offset: -2px;
+  }
+
+  &-loading {
+    color: color(gray-500);
+    cursor: default;
+  }
+}
+
+.purchases-cell {
+  min-width: 0;
+  padding: 1em;
+  overflow: hidden;
+  @include align(start, center);
+
+  &.align-right {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  &-span {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}
+
+.purchases-virtual-footer {
+  padding: 1em;
+  color: color(gray-500);
+  border-top: 1px solid color(gray-800);
+  text-align: center;
+}
+
 .purchase-date-cell {
+  min-width: 0;
   @include align(start, start, column, $gap: .15em);
 
   small {
@@ -219,10 +440,17 @@
 }
 
 .purchase-main {
+  min-width: 0;
+  display: block;
+
   &-title {
+    max-width: 100%;
+    overflow: hidden;
     color: color(white);
     font-weight: 600;
     line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &-meta {
@@ -232,10 +460,13 @@
   }
 
   &-note {
+    max-width: 100%;
     margin-top: .55em;
+    overflow: hidden;
     color: color(gray-400);
     line-height: 1.35;
-    max-width: 34em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -250,7 +481,10 @@
   white-space: nowrap;
 
   &.purchase-pill-category {
+    max-width: 100%;
+    overflow: hidden;
     background: color(gray-800, .5);
+    text-overflow: ellipsis;
   }
 
   &.is-shared {
@@ -285,15 +519,20 @@
 }
 
 .purchase-user-pill {
+  max-width: 100%;
   padding: .35em .8em;
   display: inline-flex;
+  overflow: hidden;
   border: 1px solid color(gray-700);
   border-radius: 999px;
   background: color(gray-800, .4);
   color: color(white);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .purchase-status-group {
+  min-width: 0;
   flex-wrap: wrap;
   @include align(start, center, $gap: .45em);
 }
@@ -350,5 +589,28 @@
 
   &:hover {
     opacity: .8;
+  }
+}
+
+@media (max-width: 820px) {
+  .purchases-toolbar-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .purchases-toolbar-actions {
+    justify-content: stretch;
+  }
+
+  .purchases-wrap-filters {
+    grid-template-columns: 1fr;
+
+    &-item-searchbox {
+      grid-column: auto;
+    }
+  }
+
+  .purchases-virtual-scroll {
+    max-height: 70vh;
   }
 }

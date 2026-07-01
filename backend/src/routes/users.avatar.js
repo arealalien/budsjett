@@ -4,6 +4,7 @@ import { del } from '@vercel/blob';
 import { handleUpload } from '@vercel/blob/client';
 import { prisma } from '../lib/prisma.js';
 import { verifyToken } from '../middleware/auth.js';
+import { invalidateUserCaches } from '../lib/cacheInvalidation.js';
 
 const router = Router();
 
@@ -153,6 +154,8 @@ router.patch('/me/avatar', verifyToken, async (req, res, next) => {
             },
         });
 
+        invalidateUserCaches(userId);
+
         res.json({
             user: shapeUser(updatedUser),
         });
@@ -200,6 +203,8 @@ router.delete('/me/avatar', verifyToken, async (req, res, next) => {
                 console.error('Failed to delete avatar blob:', deleteErr);
             }
         }
+
+        invalidateUserCaches(userId);
 
         res.json({
             user: shapeUser(updatedUser),

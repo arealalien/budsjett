@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import Button from '../components/Button';
 import { useToast } from '../components/utils/ToastContext';
+import { queryKeys } from '../lib/queryKeys';
 
 function RoleBadge({ role }) {
     const cls =
@@ -33,32 +35,31 @@ function OwnerLine({ owner }) {
 }
 
 export default function BudgetsIndex() {
-    const [budgets, setBudgets] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [err, setErr] = useState('');
     const [createOpen, setCreateOpen] = useState(false);
     const navigate = useNavigate();
     const { showToast } = useToast();
+    const lastErrorToast = useRef('');
 
-    const fetchBudgets = async () => {
-        setLoading(true);
-        setErr('');
-        try {
+    const {
+        data: budgets = [],
+        error,
+        isLoading: loading,
+        refetch: fetchBudgets,
+    } = useQuery({
+        queryKey: queryKeys.budgets.list(),
+        queryFn: async () => {
             const { data } = await api.get('/budgets');
-            setBudgets(Array.isArray(data) ? data : []);
-        } catch (e) {
-            const msg = e.response?.data?.error || e.message || 'Failed to load budgets';
-            setErr(msg);
-            showToast(msg, { type: 'error' });
-        } finally {
-            setLoading(false);
-        }
-    };
+            return Array.isArray(data) ? data : [];
+        },
+    });
+
+    const err = error?.response?.data?.error || error?.message || '';
 
     useEffect(() => {
-        fetchBudgets();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        if (!err || lastErrorToast.current === err) return;
+        lastErrorToast.current = err;
+        showToast(err, { type: 'error' });
+    }, [err, showToast]);
 
     return (
         <main className="max-w-5xl mx-auto px-4 py-8">
@@ -132,28 +133,35 @@ export default function BudgetsIndex() {
 
 function CreateBudgetDialog({ onClose, onCreated }) {
     const [name, setName] = useState('');
-    const [busy, setBusy] = useState(false);
     const [err, setErr] = useState('');
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
 
+    const createBudgetMutation = useMutation({
+        mutationFn: async (budgetName) => {
+            const { data } = await api.post('/budgets', { name: budgetName });
+            return data;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all });
+            onCreated?.(data);
+            onClose?.();
+        },
+        onError: (e) => {
+            const msg = e?.response?.data?.error || e?.message || 'Failed to create budget';
+            setErr(msg);
+            showToast(msg, { type: 'error' });
+        },
+    });
+
+    const busy = createBudgetMutation.isPending;
     const canSubmit = useMemo(() => name.trim().length > 0 && !busy, [name, busy]);
 
     const submit = async (e) => {
         e.preventDefault();
         if (!canSubmit) return;
-        setBusy(true);
         setErr('');
-        try {
-            const { data } = await api.post('/budgets', { name: name.trim() });
-            onCreated?.(data);
-            onClose?.();
-        } catch (e) {
-            const msg = e.response?.data?.error || e.message || 'Failed to create budget';
-            setErr(msg);
-            showToast(msg, { type: 'error' });
-        } finally {
-            setBusy(false);
-        }
+        createBudgetMutation.mutate(name.trim());
     };
 
     // very light modal styling; replace with your own component if you have one

@@ -1,5 +1,4 @@
 import React from 'react';
-import { SquircleFrame } from '../utils/SquircleFrame';
 
 const toRgbTriplet = (color) => {
     const m = String(color || '').match(/^\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*$/);
@@ -11,14 +10,11 @@ export default function BudgetBanner({ budget, balanceSummary }) {
     const hasBanner = Boolean(budget?.bannerUrl);
 
     return (
-        <>
-            <SquircleFrame
-                className="budget-banner"
-                innerClassName="budget-banner-inner"
-                style={{ '--color': bannerColor }}
-                n={5}
-                radius="12%"
-            >
+        <div
+            className="budget-banner"
+            style={{ '--color': bannerColor }}
+        >
+            <div className="budget-banner-inner">
                 <div className="budget-banner-top">
                     <h2 className="budget-banner-top-title">
                         {budget?.name || 'Untitled budget'}
@@ -46,7 +42,7 @@ export default function BudgetBanner({ budget, balanceSummary }) {
                 ) : (
                     <div className="budget-banner-fallback" />
                 )}
-            </SquircleFrame>
-        </>
+            </div>
+        </div>
     );
 }

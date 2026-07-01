@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import crypto from 'crypto';
 import { verifyToken } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
-import { cacheGetOrSet, cacheDel } from '../lib/cache.js';
+import { CACHE_TAGS, cacheGetOrSet, makeCacheKey } from '../lib/cache.js';
 
 const router = Router();
 
@@ -14,18 +13,6 @@ const qSchema = z.object({
 
 const userName = (u) => u?.displayName ?? u?.username ?? 'Unknown';
 
-// ---- cache keys ----
-const keyBudgetInfo = (slug) => `budget:info:${slug}:withOwner`; // -> { id, ownerId, memberIds[] }
-const keyMembers    = (budgetId) => `budget:${budgetId}:members:v1`; // -> [{id,displayName,username}]
-const keyIncomeByUser = (budgetId, fromISO, toISO) =>
-    `report:incomeTotals:byUser:${budgetId}:${fromISO || 'null'}:${toISO || 'null'}`;
-const keyIncomeSum = (budgetId, fromISO, toISO) =>
-    `report:incomeTotals:sum:${budgetId}:${fromISO || 'null'}:${toISO || 'null'}`;
-
-function sha1(payload) {
-    return crypto.createHash('sha1').update(JSON.stringify(payload)).digest('hex');
-}
-
 router.get('/:slug/income-totals', verifyToken, async (req, res, next) => {
     try {
         const { slug } = req.params;
@@ -35,18 +22,29 @@ router.get('/:slug/income-totals', verifyToken, async (req, res, next) => {
         const fromISO = dateFrom ? new Date(dateFrom).toISOString() : null;
         const toISO   = dateTo   ? new Date(dateTo).toISOString()   : null;
 
-        // 1) Budget + memberIds + owner (cached)
-        const budgetInfo = await cacheGetOrSet(keyBudgetInfo(slug), 60_000, async () => {
-            const b = await prisma.budget.findUnique({
-                where: { slug },
-                select: {
-                    id: true,
-                    ownerId: true,
-                    members: { select: { userId: true } },
-                },
-            });
-            if (!b) return null;
-            return { id: b.id, ownerId: b.ownerId, memberIds: [b.ownerId, ...b.members.map(m => m.userId)] };
+        const budgetInfo = await cacheGetOrSet('budget-info', {
+            key: { slug, route: 'income-totals' },
+            ttl: 60_000,
+            tags: [
+                CACHE_TAGS.budgets,
+                CACHE_TAGS.budgetSlug(slug),
+            ],
+            factory: async () => {
+                const b = await prisma.budget.findUnique({
+                    where: { slug },
+                    select: {
+                        id: true,
+                        ownerId: true,
+                        members: { select: { userId: true } },
+                    },
+                });
+                if (!b) return null;
+                return {
+                    id: b.id,
+                    ownerId: b.ownerId,
+                    memberIds: [...new Set([b.ownerId, ...b.members.map((m) => m.userId)])],
+                };
+            },
         });
         if (!budgetInfo) return res.status(404).json({ error: 'Budget not found' });
 
@@ -55,13 +53,21 @@ router.get('/:slug/income-totals', verifyToken, async (req, res, next) => {
             return res.status(403).json({ error: 'Forbidden' });
         }
 
-        // 2) Member display names (cached)
-        const users = await cacheGetOrSet(keyMembers(budgetInfo.id), 5 * 60_000, async () => {
-            const rows = await prisma.user.findMany({
-                where: { id: { in: budgetInfo.memberIds } },
-                select: { id: true, displayName: true, username: true },
-            });
-            return rows;
+        const users = await cacheGetOrSet('budget-members', {
+            key: { budgetId: budgetInfo.id, shape: 'income-totals-v1' },
+            ttl: 5 * 60_000,
+            tags: [
+                CACHE_TAGS.budget(budgetInfo.id),
+                CACHE_TAGS.budgetMembers(budgetInfo.id),
+                ...budgetInfo.memberIds.map((userId) => CACHE_TAGS.user(userId)),
+            ],
+            factory: async () => {
+                const rows = await prisma.user.findMany({
+                    where: { id: { in: budgetInfo.memberIds } },
+                    select: { id: true, displayName: true, username: true },
+                });
+                return rows;
+            },
         });
         const userMap = new Map(users.map((u) => [u.id, u]));
 
@@ -76,11 +82,17 @@ router.get('/:slug/income-totals', verifyToken, async (req, res, next) => {
                 }
                 : {};
 
-        // 4) Grouped income by receiver (cached per window)
-        const grouped = await cacheGetOrSet(
-            keyIncomeByUser(budgetInfo.id, fromISO, toISO),
-            60_000,
-            async () => {
+        const reportTags = [
+            CACHE_TAGS.reports,
+            CACHE_TAGS.budget(budgetInfo.id),
+            CACHE_TAGS.budgetReports(budgetInfo.id),
+        ];
+
+        const grouped = await cacheGetOrSet('reports:income-totals:by-user', {
+            key: { budgetId: budgetInfo.id, fromISO, toISO },
+            ttl: 60_000,
+            tags: reportTags,
+            factory: async () => {
                 const rows = await prisma.income.groupBy({
                     by: ['receivedById'],
                     _sum: { amount: true },
@@ -94,14 +106,14 @@ router.get('/:slug/income-totals', verifyToken, async (req, res, next) => {
                     receivedById: r.receivedById,
                     total: Number(r._sum.amount || 0),
                 }));
-            }
-        );
+            },
+        });
 
-        // 5) Aggregate grand total (cached per window)
-        const totalIncome = await cacheGetOrSet(
-            keyIncomeSum(budgetInfo.id, fromISO, toISO),
-            60_000,
-            async () => {
+        const totalIncome = await cacheGetOrSet('reports:income-totals:sum', {
+            key: { budgetId: budgetInfo.id, fromISO, toISO },
+            ttl: 60_000,
+            tags: reportTags,
+            factory: async () => {
                 const agg = await prisma.income.aggregate({
                     _sum: { amount: true },
                     where: {
@@ -110,8 +122,8 @@ router.get('/:slug/income-totals', verifyToken, async (req, res, next) => {
                     },
                 });
                 return Number(agg._sum.amount || 0);
-            }
-        );
+            },
+        });
 
         // 6) Shape response — include members with zero income too
         const byUser = new Map(grouped.map((g) => [g.receivedById, g.total]));
@@ -130,7 +142,7 @@ router.get('/:slug/income-totals', verifyToken, async (req, res, next) => {
         };
 
         // 7) ETag / 304 + caching headers
-        const etag = sha1(payload);
+        const etag = makeCacheKey(payload);
         if (req.headers['if-none-match'] === etag) {
             res.status(304).end();
             return;

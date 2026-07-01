@@ -18,6 +18,20 @@ function shapeUser(u) {
     };
 }
 
+function purchaseCategoriesOf(purchase) {
+    const fromJoin = (purchase?.categories || [])
+        .map((entry) => entry.category)
+        .filter(Boolean);
+    const candidates = fromJoin.length ? fromJoin : [purchase?.category].filter(Boolean);
+    const seen = new Set();
+
+    return candidates.filter((category) => {
+        if (!category?.id || seen.has(category.id)) return false;
+        seen.add(category.id);
+        return true;
+    });
+}
+
 router.get('/:slug/purchases/:purchaseId', verifyToken, async (req, res, next) => {
     try {
         const { slug, purchaseId } = req.params;
@@ -64,6 +78,17 @@ router.get('/:slug/purchases/:purchaseId', verifyToken, async (req, res, next) =
                         id: true,
                         name: true,
                         color: true,
+                    },
+                },
+                categories: {
+                    select: {
+                        category: {
+                            select: {
+                                id: true,
+                                name: true,
+                                color: true,
+                            },
+                        },
                     },
                 },
                 paidBy: {
@@ -115,6 +140,8 @@ router.get('/:slug/purchases/:purchaseId', verifyToken, async (req, res, next) =
             return res.status(404).json({ error: 'Purchase not found' });
         }
 
+        const categories = purchaseCategoriesOf(purchase);
+
         res.json({
             id: purchase.id,
             itemName: purchase.itemName,
@@ -131,6 +158,7 @@ router.get('/:slug/purchases/:purchaseId', verifyToken, async (req, res, next) =
                     color: purchase.category.color,
                 }
                 : null,
+            categories,
             paidBy: shapeUser(purchase.paidBy),
             createdBy: shapeUser(purchase.createdBy),
             shares: purchase.shares.map((s) => ({

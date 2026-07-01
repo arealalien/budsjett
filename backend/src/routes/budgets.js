@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { verifyToken } from '../middleware/auth.js';
+import { invalidateBudgetCaches, invalidateUserCaches } from '../lib/cacheInvalidation.js';
 
 const router = Router();
 
@@ -32,6 +33,27 @@ function addInterval(date, recurrence, interval) {
     if (recurrence === 'MONTHLY') d.setMonth(d.getMonth() + n);
     if (recurrence === 'YEARLY')  d.setFullYear(d.getFullYear() + n);
     return d;
+}
+
+function budgetUserIds(budget) {
+    return [...new Set([
+        budget?.ownerId,
+        ...(budget?.members || []).map((member) => member.userId),
+    ].filter(Boolean))];
+}
+
+function purchaseCategoriesOf(purchase) {
+    const fromJoin = (purchase?.categories || [])
+        .map((entry) => entry.category)
+        .filter(Boolean);
+    const candidates = fromJoin.length ? fromJoin : [purchase?.category].filter(Boolean);
+    const seen = new Set();
+
+    return candidates.filter((category) => {
+        if (!category?.id || seen.has(category.id)) return false;
+        seen.add(category.id);
+        return true;
+    });
 }
 
 const recurringSchema = z.object({
@@ -150,6 +172,8 @@ router.post('/', async (req, res, next) => {
             return created;
         });
 
+        invalidateUserCaches(userId);
+
         res.status(201).json(budget);
     } catch (err) {
         if (err?.name === 'ZodError') {
@@ -261,7 +285,8 @@ router.get('/:slug', async (req, res, next) => {
 
 const createPurchaseInBudgetSchema = z.object({
     itemName: z.string().min(1).max(191),
-    categoryId: z.string().min(1),
+    categoryId: z.string().min(1).optional(),
+    categoryIds: z.array(z.string().min(1)).min(1).max(20).optional(),
     amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
     paidAt: z.coerce.date().optional(),
     paidById: z.string().min(1).optional(),
@@ -275,6 +300,9 @@ const createPurchaseInBudgetSchema = z.object({
             percent: z.number().min(0).max(100),
         })
     ).optional(),
+}).refine((data) => Boolean(data.categoryId || data.categoryIds?.length), {
+    message: 'Choose at least one category',
+    path: ['categoryIds'],
 });
 
 const createIncomeInBudgetSchema = z.object({
@@ -298,12 +326,19 @@ router.post('/:slug/purchases', async (req, res, next) => {
         if (!budget) return res.status(404).json({ error: 'Budget not found' });
 
         const {
-            itemName, categoryId, amount, paidAt, paidById: paidByIdRaw,
+            itemName, categoryId, categoryIds, amount, paidAt, paidById: paidByIdRaw,
             shared: sharedRaw, splitPercentForPayer: splitRaw, notes, recurring, sharesOverride
         } = createPurchaseInBudgetSchema.parse(req.body);
 
-        if (!budget.categories.some(c => c.id === categoryId))
-            return res.status(400).json({ error: 'Invalid categoryId for this budget' });
+        const selectedCategoryIds = [...new Set((categoryIds?.length ? categoryIds : [categoryId]).filter(Boolean))];
+        const budgetCategoryIds = new Set(budget.categories.map((c) => c.id));
+        const invalidCategoryIds = selectedCategoryIds.filter((id) => !budgetCategoryIds.has(id));
+
+        if (invalidCategoryIds.length) {
+            return res.status(400).json({ error: 'One or more categories do not belong to this budget' });
+        }
+
+        const primaryCategoryId = selectedCategoryIds[0];
 
         const memberIds = new Set([budget.ownerId, ...budget.members.map(m => m.userId)]);
         const paidById = paidByIdRaw || userId;
@@ -361,9 +396,14 @@ router.post('/:slug/purchases', async (req, res, next) => {
                     shared,
                     notes: notes ?? null,
                     budget:   { connect: { id: budget.id } },
-                    category: { connect: { id: categoryId } },
+                    category: { connect: { id: primaryCategoryId } },
                     paidBy:   { connect: { id: paidById } },
                     createdBy:{ connect: { id: userId } },
+                    categories: {
+                        create: selectedCategoryIds.map((selectedCategoryId) => ({
+                            category: { connect: { id: selectedCategoryId } },
+                        })),
+                    },
                     shares: {
                         create: sharesCreate.map(s => ({
                             percent: s.percent,
@@ -384,7 +424,7 @@ router.post('/:slug/purchases', async (req, res, next) => {
                     data: {
                         budgetId: budget.id,
                         kind: 'EXPENSE',
-                        categoryId,
+                        categoryId: primaryCategoryId,
                         paidById,
                         itemName,
                         amount,
@@ -403,6 +443,12 @@ router.post('/:slug/purchases', async (req, res, next) => {
             }
 
             return purchase;
+        });
+
+        invalidateBudgetCaches({
+            budgetId: budget.id,
+            slug,
+            userIds: allMemberIds,
         });
 
         res.status(201).json(result);
@@ -482,6 +528,12 @@ router.post('/:slug/income', async (req, res, next) => {
             return income;
         });
 
+        invalidateBudgetCaches({
+            budgetId: budget.id,
+            slug,
+            userIds: Array.from(memberIds),
+        });
+
         res.status(201).json(result);
     } catch (err) {
         if (err?.name === 'ZodError') {
@@ -498,7 +550,11 @@ router.post('/:slug/recurring/run-due-income', async (req, res, next) => {
 
         const budget = await prisma.budget.findFirst({
             where: { slug, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
-            select: { id: true },
+            select: {
+                id: true,
+                ownerId: true,
+                members: { select: { userId: true } },
+            },
         });
         if (!budget) return res.status(404).json({ error: 'Budget not found' });
 
@@ -548,6 +604,14 @@ router.post('/:slug/recurring/run-due-income', async (req, res, next) => {
                 });
             }
         });
+
+        if (created.length > 0) {
+            invalidateBudgetCaches({
+                budgetId: budget.id,
+                slug,
+                userIds: budgetUserIds(budget),
+            });
+        }
 
         res.json({ createdCount: created.length, incomeIds: created });
     } catch (err) {
@@ -600,8 +664,27 @@ router.get('/:slug/purchases', async (req, res, next) => {
             visibilityWhere,
         ];
 
-        if (q) whereParts.push({ itemName: { contains: q, mode: 'insensitive' } });
-        if (categoryId) whereParts.push({ categoryId });
+        const search = q?.trim();
+        if (search) {
+            whereParts.push({
+                OR: [
+                    { itemName: { contains: search, mode: 'insensitive' } },
+                    { notes: { contains: search, mode: 'insensitive' } },
+                    { category: { name: { contains: search, mode: 'insensitive' } } },
+                    { categories: { some: { category: { name: { contains: search, mode: 'insensitive' } } } } },
+                    { paidBy: { username: { contains: search, mode: 'insensitive' } } },
+                    { paidBy: { displayName: { contains: search, mode: 'insensitive' } } },
+                ],
+            });
+        }
+        if (categoryId) {
+            whereParts.push({
+                OR: [
+                    { categoryId },
+                    { categories: { some: { categoryId } } },
+                ],
+            });
+        }
 
         if (typeof dateFrom !== 'undefined' || typeof dateTo !== 'undefined') {
             whereParts.push({
@@ -636,6 +719,11 @@ router.get('/:slug/purchases', async (req, res, next) => {
                 take: pageSize,
                 include: {
                     category: { select: { id: true, name: true, slug: true, color: true } },
+                    categories: {
+                        select: {
+                            category: { select: { id: true, name: true, slug: true, color: true } },
+                        },
+                    },
                     paidBy:   { select: { id: true, username: true, displayName: true } },
                     shares:   { include: { user: { select: { id: true, username: true, displayName: true } } } },
                 },
@@ -650,6 +738,7 @@ router.get('/:slug/purchases', async (req, res, next) => {
             paidAt: p.paidAt,
             shared: p.shared,
             notes: p.notes,
+            categories: purchaseCategoriesOf(p),
             paidBy: {
                 id: p.paidBy?.id,
                 name: p.paidBy?.displayName || p.paidBy?.username || '—',
@@ -738,6 +827,12 @@ router.patch('/:slug/members/:userId', async (req, res, next) => {
             data: { role },
         });
 
+        invalidateBudgetCaches({
+            budgetId: budget.id,
+            slug,
+            userIds: budgetUserIds(budget),
+        });
+
         // return fresh members list
         const members = await prisma.budgetMember.findMany({
             where: { budgetId: budget.id },
@@ -792,6 +887,12 @@ router.delete('/:slug/members/:userId', async (req, res, next) => {
 
         await prisma.budgetMember.delete({
             where: { budgetId_userId: { budgetId: budget.id, userId: targetId } },
+        });
+
+        invalidateBudgetCaches({
+            budgetId: budget.id,
+            slug,
+            userIds: budgetUserIds(budget),
         });
 
         const members = await prisma.budgetMember.findMany({
@@ -877,6 +978,11 @@ router.post('/:slug/recurring/run-due', async (req, res, next) => {
                         category: { connect: { id: r.categoryId } },
                         paidBy:   { connect: { id: r.paidById } },
                         createdBy:{ connect: { id: userId } },
+                        categories: {
+                            create: [
+                                { category: { connect: { id: r.categoryId } } },
+                            ],
+                        },
                         shares: {
                             create: shares.map(s => ({
                                 percent: s.percent,
@@ -897,6 +1003,14 @@ router.post('/:slug/recurring/run-due', async (req, res, next) => {
                 });
             }
         });
+
+        if (created.length > 0) {
+            invalidateBudgetCaches({
+                budgetId: budget.id,
+                slug,
+                userIds: budgetUserIds(budget),
+            });
+        }
 
         res.json({ createdCount: created.length, purchaseIds: created });
     } catch (err) {
@@ -944,6 +1058,12 @@ router.delete('/purchases/:id', async (req, res, next) => {
         await prisma.purchase.update({
             where: { id },
             data: { deletedAt: new Date() },
+        });
+
+        invalidateBudgetCaches({
+            budgetId: purchase.budget.id,
+            slug: purchase.budget.slug,
+            userIds: budgetUserIds(purchase.budget),
         });
 
         return res.json({ ok: true });
@@ -1066,8 +1186,9 @@ router.patch('/:slug', async (req, res, next) => {
                     where: {
                         id: { in: toDeleteIds },
                         budgetId: budget.id,
-                        // only delete categories with NO purchases
+                        // only delete categories with NO purchases or multi-category links
                         purchases: { none: {} },
+                        purchaseCategories: { none: {} },
                     },
                 });
             }
@@ -1133,6 +1254,12 @@ router.patch('/:slug', async (req, res, next) => {
                     updatedAt: true,
                 },
             });
+        });
+
+        invalidateBudgetCaches({
+            budgetId: updated.id,
+            slug: updated.slug,
+            userIds: budgetUserIds(budget),
         });
 
         return res.json({

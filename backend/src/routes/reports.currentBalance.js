@@ -1,10 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import crypto from 'crypto';
 import { Prisma } from '@prisma/client';
 import { verifyToken } from '../middleware/auth.js';
 import { prisma } from '../lib/prisma.js';
-import { cacheGetOrSet } from '../lib/cache.js';
+import { CACHE_TAGS, cacheGetOrSet, makeCacheKey } from '../lib/cache.js';
 
 const router = Router();
 
@@ -22,17 +21,6 @@ const shapeUser = (u) => ({
     avatarStorageKey: u?.avatarStorageKey ?? null,
     avatarUpdatedAt: u?.avatarUpdatedAt ?? null,
 });
-
-const keyBudgetInfo = (slug) => `budget:info:${slug}`;
-const keyMembers = (budgetId) => `budget:${budgetId}:members:v3`;
-const keyTotalsPaid = (budgetId, fromISO, toISO) =>
-    `report:currentBalance:totalsPaid:${budgetId}:${fromISO || 'null'}:${toISO || 'null'}:v3`;
-const keyDebts = (budgetId, fromISO, toISO) =>
-    `report:currentBalance:debts:${budgetId}:${fromISO || 'null'}:${toISO || 'null'}:v3`;
-
-function sha1(payload) {
-    return crypto.createHash('sha1').update(JSON.stringify(payload)).digest('hex');
-}
 
 function round2(n) {
     return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -99,28 +87,37 @@ router.get('/:slug/reports/current-balance', verifyToken, async (req, res, next)
         const fromISO = dateFrom ? new Date(dateFrom).toISOString() : null;
         const toISO = dateTo ? endOfDay(dateTo).toISOString() : null;
 
-        const budgetInfo = await cacheGetOrSet(keyBudgetInfo(slug), 60_000, async () => {
-            const budget = await prisma.budget.findUnique({
-                where: { slug },
-                select: {
-                    id: true,
-                    members: { select: { userId: true } },
-                },
-            });
+        const budgetInfo = await cacheGetOrSet('budget-info', {
+            key: { slug, route: 'current-balance' },
+            ttl: 60_000,
+            tags: [
+                CACHE_TAGS.budgets,
+                CACHE_TAGS.budgetSlug(slug),
+            ],
+            factory: async () => {
+                const budget = await prisma.budget.findUnique({
+                    where: { slug },
+                    select: {
+                        id: true,
+                        ownerId: true,
+                        members: { select: { userId: true } },
+                    },
+                });
 
-            if (!budget) return null;
+                if (!budget) return null;
 
-            return {
-                id: budget.id,
-                memberIds: budget.members.map((m) => m.userId),
-            };
+                return {
+                    id: budget.id,
+                    memberIds: [...new Set([budget.ownerId, ...budget.members.map((m) => m.userId)])],
+                };
+            },
         });
 
         if (!budgetInfo) {
             return res.status(404).json({ error: 'Budget not found' });
         }
 
-        const requesterId = req.user?.id;
+        const requesterId = req.userId || req.user?.id;
         const isMember = requesterId && budgetInfo.memberIds.includes(requesterId);
 
         if (!isMember) {
@@ -137,10 +134,18 @@ router.get('/:slug/reports/current-balance', verifyToken, async (req, res, next)
                 }
                 : {};
 
-        const totals = await cacheGetOrSet(
-            keyTotalsPaid(budgetInfo.id, fromISO, toISO),
-            60_000,
-            async () => {
+        const reportTags = [
+            CACHE_TAGS.reports,
+            CACHE_TAGS.budget(budgetInfo.id),
+            CACHE_TAGS.budgetReports(budgetInfo.id),
+            CACHE_TAGS.budgetPurchases(budgetInfo.id),
+        ];
+
+        const totals = await cacheGetOrSet('reports:current-balance:totals-paid', {
+            key: { budgetId: budgetInfo.id, fromISO, toISO },
+            ttl: 60_000,
+            tags: reportTags,
+            factory: async () => {
                 const rows = await prisma.purchase.groupBy({
                     by: ['paidById'],
                     _sum: { amount: true },
@@ -155,13 +160,14 @@ router.get('/:slug/reports/current-balance', verifyToken, async (req, res, next)
                     paidById: r.paidById,
                     amount: round2(Number(r._sum.amount || 0)),
                 }));
-            }
-        );
+            },
+        });
 
-        const debtsObj = await cacheGetOrSet(
-            keyDebts(budgetInfo.id, fromISO, toISO),
-            60_000,
-            async () => {
+        const debtsObj = await cacheGetOrSet('reports:current-balance:debts', {
+            key: { budgetId: budgetInfo.id, fromISO, toISO },
+            ttl: 60_000,
+            tags: reportTags,
+            factory: async () => {
                 const Decimal = Prisma.Decimal;
 
                 const shares = await prisma.purchaseShare.findMany({
@@ -217,13 +223,18 @@ router.get('/:slug/reports/current-balance', verifyToken, async (req, res, next)
                 }
 
                 return out;
-            }
-        );
+            },
+        });
 
-        const users = await cacheGetOrSet(
-            keyMembers(budgetInfo.id),
-            5 * 60_000,
-            async () => {
+        const users = await cacheGetOrSet('budget-members', {
+            key: { budgetId: budgetInfo.id, shape: 'current-balance-v3' },
+            ttl: 5 * 60_000,
+            tags: [
+                CACHE_TAGS.budget(budgetInfo.id),
+                CACHE_TAGS.budgetMembers(budgetInfo.id),
+                ...budgetInfo.memberIds.map((userId) => CACHE_TAGS.user(userId)),
+            ],
+            factory: async () => {
                 return prisma.user.findMany({
                     where: { id: { in: budgetInfo.memberIds } },
                     select: {
@@ -235,8 +246,8 @@ router.get('/:slug/reports/current-balance', verifyToken, async (req, res, next)
                         avatarUpdatedAt: true,
                     },
                 });
-            }
-        );
+            },
+        });
 
         const userMap = new Map(users.map((u) => [u.id, u]));
         const totalsMap = new Map(totals.map((t) => [t.paidById, round2(t.amount)]));
@@ -312,7 +323,7 @@ router.get('/:slug/reports/current-balance', verifyToken, async (req, res, next)
             })),
         };
 
-        const etag = sha1(payload);
+        const etag = makeCacheKey(payload);
         if (req.headers['if-none-match'] === etag) {
             return res.status(304).end();
         }

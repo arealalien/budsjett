@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import Loader from "../Loader";
-import { useParams, useOutletContext } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Avatar from "../Avatar";
+import { queryKeys } from '../../lib/queryKeys';
 
 const avatarVersionOf = (user) =>
     user?.avatarUpdatedAt || user?.avatarStorageKey || undefined;
@@ -22,6 +24,7 @@ const fmtSignedCurrency = (n) => {
     return fmtCurrency(0);
 };
 
+// eslint-disable-next-line no-unused-vars
 const formatDateRange = (from, to) => {
     if (!from && !to) return 'All time';
     if (from && to) return `${from} → ${to}`;
@@ -31,55 +34,29 @@ const formatDateRange = (from, to) => {
 
 export default function CurrentBalance() {
     const { slug } = useParams();
-    const { budget } = useOutletContext() ?? {};
 
-    const [members, setMembers] = useState([]);
-    const [settlements, setSettlements] = useState([]);
-    const [net, setNet] = useState(null);
+    const params = useMemo(() => ({}), []);
 
-    const [err, setErr] = useState('');
-    const [loading, setLoading] = useState(false);
+    const {
+        data = null,
+        error,
+        isLoading: loading,
+    } = useQuery({
+        queryKey: queryKeys.reports.currentBalance(slug, params),
+        enabled: !!slug,
+        queryFn: async () => {
+            const { data } = await api.get(
+                `/reports/${encodeURIComponent(slug)}/reports/current-balance`,
+                { params, withCredentials: true }
+            );
+            return data;
+        },
+    });
 
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
-
-    const params = useMemo(() => {
-        const p = {};
-        if (dateFrom) p.dateFrom = dateFrom;
-        if (dateTo) p.dateTo = dateTo;
-        return p;
-    }, [dateFrom, dateTo]);
-
-    useEffect(() => {
-        if (!slug) return;
-        let ignore = false;
-
-        (async () => {
-            try {
-                setLoading(true);
-                setErr('');
-
-                const { data } = await api.get(
-                    `/reports/${encodeURIComponent(slug)}/reports/current-balance`,
-                    { params, withCredentials: true }
-                );
-
-                if (ignore) return;
-
-                setMembers(data.members ?? []);
-                setSettlements(data.settlements ?? []);
-                setNet(data.netBetweenTwoUsers ?? null);
-            } catch (e) {
-                if (!ignore) {
-                    setErr(e.response?.data?.error || e.message || 'Something went wrong');
-                }
-            } finally {
-                if (!ignore) setLoading(false);
-            }
-        })();
-
-        return () => { ignore = true; };
-    }, [slug, params]);
+    const members = useMemo(() => data?.members ?? [], [data?.members]);
+    const settlements = useMemo(() => data?.settlements ?? [], [data?.settlements]);
+    const net = data?.netBetweenTwoUsers ?? null;
+    const err = error?.response?.data?.error || error?.message || '';
 
     const totalSettlementAmount = useMemo(
         () => settlements.reduce((sum, s) => sum + Number(s.amount || 0), 0),

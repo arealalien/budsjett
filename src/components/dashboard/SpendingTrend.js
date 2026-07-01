@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Highcharts from 'highcharts/highstock';
 import HighchartsReact from 'highcharts-react-official';
 import { api } from '../../lib/api';
-import { SquircleFrame } from '../utils/SquircleFrame';
+import { queryKeys } from '../../lib/queryKeys';
 
 Highcharts.setOptions({
     chart: {
@@ -66,46 +67,29 @@ export default function SpendingTrend({ size }) {
     const compact = size === 'compact';
     const defaultPeriod = compact ? 'month' : 'all';
 
-    const [data, setData] = useState(null);
     const [period, setPeriod] = useState(defaultPeriod);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
 
     useEffect(() => {
         setPeriod(defaultPeriod);
     }, [defaultPeriod]);
 
-    useEffect(() => {
-        let ignore = false;
+    const {
+        data = null,
+        error,
+        isLoading: loading,
+    } = useQuery({
+        queryKey: queryKeys.reports.spendingTrend(slug, period),
+        enabled: !!slug && !!period,
+        queryFn: async () => {
+            const { data } = await api.get(
+                `/budgets/${encodeURIComponent(slug)}/reports/spending-trend`,
+                { params: { period }, withCredentials: true }
+            );
+            return data;
+        },
+    });
 
-        (async () => {
-            try {
-                setLoading(true);
-                setError('');
-
-                const { data } = await api.get(
-                    `/budgets/${encodeURIComponent(slug)}/reports/spending-trend?period=${period}`,
-                    { withCredentials: true }
-                );
-
-                if (!ignore) {
-                    setData(data);
-                }
-            } catch (e) {
-                if (!ignore) {
-                    setError(e.response?.data?.error || e.message || 'Failed to load spending trend');
-                }
-            } finally {
-                if (!ignore) {
-                    setLoading(false);
-                }
-            }
-        })();
-
-        return () => {
-            ignore = true;
-        };
-    }, [slug, period]);
+    const errorMessage = error?.response?.data?.error || error?.message || 'Failed to load spending trend';
 
     const C = {
         views: '121, 159, 236',
@@ -241,18 +225,16 @@ export default function SpendingTrend({ size }) {
     }), [data, compact, chartHeight, C.views]);
 
     return (
-        <SquircleFrame
+        <div
             className={`highcharts ${compact ? 'is-compact' : ''}`}
             style={{ '--color': C.views }}
-            n={5}
-            radius="12%"
         >
             <h3 className="hc-title">Spending Trend</h3>
 
             {loading ? (
                 <div className="highcharts-state"></div>
             ) : error ? (
-                <div className="highcharts-state is-error">{error}</div>
+                <div className="highcharts-state is-error">{errorMessage}</div>
             ) : (
                 <HighchartsReact
                     highcharts={Highcharts}
@@ -260,6 +242,6 @@ export default function SpendingTrend({ size }) {
                     options={chartOptions}
                 />
             )}
-        </SquircleFrame>
+        </div>
     );
 }

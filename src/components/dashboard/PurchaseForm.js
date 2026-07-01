@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { invalidateBudgetData } from '../../lib/queryInvalidation';
 import { useAuth } from '../AuthContext';
 import Button from '../Button';
+import Dropdown from '../utils/Dropdown';
 
 const tzGuess = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
@@ -14,10 +17,20 @@ const formatCurrency = (value) =>
         maximumFractionDigits: 2,
     }).format(Number(value) || 0);
 
+const asCssColor = (color) => {
+    if (!color) return 'rgb(150, 150, 150)';
+
+    const value = String(color).trim();
+    if (/^\d+\s*,\s*\d+\s*,\s*\d+$/.test(value)) return `rgb(${value})`;
+
+    return value;
+};
+
 export default function PurchaseForm() {
     const { slug } = useParams();
     const { budget = { owner: null, members: [], categories: [] } } = useOutletContext?.() ?? {};
     const { user } = useAuth();
+    const queryClient = useQueryClient();
 
     const members = useMemo(() => {
         const ids = new Set(
@@ -43,7 +56,27 @@ export default function PurchaseForm() {
         return list;
     }, [budget, user]);
 
-    const categories = budget?.categories || [];
+    const categories = useMemo(() => budget?.categories || [], [budget?.categories]);
+    const categoryOptions = useMemo(() => (
+        categories.map((category) => {
+            const color = asCssColor(category.color);
+
+            return {
+                value: category.id,
+                label: category.name,
+                searchText: category.name,
+                color,
+                variant: 'custom',
+            };
+        })
+    ), [categories]);
+    const payerOptions = useMemo(() => (
+        members.map((member) => ({
+            value: member.id,
+            label: member.label,
+            searchText: member.label,
+        }))
+    ), [members]);
     const singleMember = members.length <= 1;
     const exactlyTwo = members.length === 2;
     const todayISO = new Date().toISOString().slice(0, 10);
@@ -59,6 +92,7 @@ export default function PurchaseForm() {
     const [form, setForm] = useState({
         itemName: '',
         categoryId: categories[0]?.id || '',
+        categoryIds: categories[0]?.id ? [categories[0].id] : [],
         amount: '',
         paidAt: todayISO,
         paidById: user?.id || '',
@@ -106,12 +140,23 @@ export default function PurchaseForm() {
     };
 
     useEffect(() => {
-        setForm((f) => ({
-            ...f,
-            categoryId: f.categoryId || categories[0]?.id || '',
-            paidById: f.paidById || user?.id || members[0]?.id || '',
-            shared: singleMember ? false : f.shared,
-        }));
+        setForm((f) => {
+            const availableCategoryIds = new Set(categories.map((category) => category.id));
+            const currentCategoryIds = Array.isArray(f.categoryIds)
+                ? f.categoryIds.filter((categoryId) => availableCategoryIds.has(categoryId))
+                : (f.categoryId && availableCategoryIds.has(f.categoryId) ? [f.categoryId] : []);
+            const categoryIds = currentCategoryIds.length
+                ? currentCategoryIds
+                : (categories[0]?.id ? [categories[0].id] : []);
+
+            return {
+                ...f,
+                categoryIds,
+                categoryId: categoryIds[0] || '',
+                paidById: f.paidById || user?.id || members[0]?.id || '',
+                shared: singleMember ? false : f.shared,
+            };
+        });
     }, [categories, members, singleMember, user?.id]);
 
     useEffect(() => {
@@ -327,8 +372,8 @@ export default function PurchaseForm() {
             return;
         }
 
-        if (!form.categoryId) {
-            setErr('Choose a category');
+        if (!form.categoryIds?.length) {
+            setErr('Choose at least one category');
             return;
         }
 
@@ -356,7 +401,8 @@ export default function PurchaseForm() {
 
             const payload = {
                 itemName: form.itemName.trim(),
-                categoryId: form.categoryId,
+                categoryId: form.categoryIds[0],
+                categoryIds: form.categoryIds,
                 amount: (amountC / 100).toFixed(2),
                 paidAt: form.paidAt ? new Date(form.paidAt).toISOString() : undefined,
                 paidById: form.paidById,
@@ -372,6 +418,7 @@ export default function PurchaseForm() {
                 payload,
                 { withCredentials: true }
             );
+            invalidateBudgetData(queryClient, slug);
 
             setOk(true);
             setErr('');
@@ -467,40 +514,56 @@ export default function PurchaseForm() {
                             />
                         </label>
 
-                        <label className="purchase-form-inner-grid-field">
+                        <div className="purchase-form-inner-grid-field">
                             <span className="purchase-form-inner-grid-field-label">Category</span>
-                            <select
-                                name="categoryId"
-                                value={form.categoryId}
-                                onChange={onChange}
-                                className="purchase-form-inner-grid-field-input"
-                            >
-                                {categories.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                            <Dropdown
+                                name="categoryIds"
+                                value={form.categoryIds}
+                                onValueChange={(categoryIds) => {
+                                    setForm((f) => ({
+                                        ...f,
+                                        categoryIds,
+                                        categoryId: categoryIds[0] || '',
+                                    }));
+                                }}
+                                options={categoryOptions}
+                                placeholder="Choose categories"
+                                variant="gray"
+                                className="purchase-form-category-dropdown"
+                                colorFromSelected
+                                multiple
+                                searchable
+                                searchPlaceholder="Search categories..."
+                                noResultsText="No categories found"
+                                disabled={!categoryOptions.length}
+                                required
+                            />
+                        </div>
                     </div>
 
                     <div className="purchase-form-inner-grid">
-                        <label className="purchase-form-inner-grid-field pf-col-span-2">
+                        <div className="purchase-form-inner-grid-field pf-col-span-2">
                             <span className="purchase-form-inner-grid-field-label">Who paid?</span>
-                            <select
+                            <Dropdown
                                 name="paidById"
                                 value={form.paidById}
-                                onChange={onChange}
+                                onValueChange={(paidById) => {
+                                    setForm((f) => ({
+                                        ...f,
+                                        paidById,
+                                    }));
+                                }}
+                                options={payerOptions}
+                                placeholder="Choose who paid"
+                                variant="gray"
+                                className="purchase-form-category-dropdown"
+                                searchable={payerOptions.length > 5}
+                                searchPlaceholder="Search members..."
+                                noResultsText="No members found"
+                                disabled={!payerOptions.length}
                                 required
-                                className="purchase-form-inner-grid-field-input"
-                            >
-                                {members.map((m) => (
-                                    <option key={m.id} value={m.id}>
-                                        {m.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                            />
+                        </div>
                     </div>
                 </section>
 

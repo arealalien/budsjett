@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { verifyToken } from '../middleware/auth.js';
+import { invalidateUserCaches } from '../lib/cacheInvalidation.js';
 
 const router = Router();
 
@@ -112,6 +113,8 @@ router.patch('/me', async (req, res, next) => {
                 updatedAt: true,
             },
         });
+
+        invalidateUserCaches(userId);
 
         res.json(shapeUser(updatedUser));
     } catch (err) {

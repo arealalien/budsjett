@@ -1,3 +1,7 @@
+@use "../config/spacing" as spacing;
+@forward "../config/radius";
+@forward "../config/spacing";
+
 /* Transitions */
 $transition-main: .175, .685, .32;
 $transition-smooth: .175, .285, .32;
@@ -6,6 +10,6 @@ $transition-menu: .75, .185, .144032;
 $transition-button: .76, 0, .24;
 
 /* View width */
-$view-width-padding: 3rem;
+$view-width-padding: spacing.space(2xl);
 $view-width: calc(100% - $view-width-padding);
 $max-view-width: 1496px;

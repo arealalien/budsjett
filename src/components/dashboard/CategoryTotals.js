@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 import { api } from "../../lib/api";
-import { SquircleFrame } from "../utils/SquircleFrame";
+import { queryKeys } from "../../lib/queryKeys";
+import { useUiStore } from "../../stores/useUiStore";
 
 const numberFmt = new Intl.NumberFormat(undefined, {
     notation: "compact",
@@ -21,47 +23,28 @@ export default function CategoryTotals({ size, budget }) {
 
     const compact = size === 'compact';
     const defaultPeriod = 'month';
+    const chartPeriodKey = compact ? 'categoryTotals:compact' : 'categoryTotals';
 
-    const [data, setData] = useState(null);
-    const [period, setPeriod] = useState(defaultPeriod);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const period = useUiStore((state) => state.chartPeriods[chartPeriodKey] || defaultPeriod);
+    const setChartPeriod = useUiStore((state) => state.setChartPeriod);
 
-    useEffect(() => {
-        setPeriod(defaultPeriod);
-    }, [defaultPeriod]);
+    const {
+        data = null,
+        error,
+        isLoading: loading,
+    } = useQuery({
+        queryKey: queryKeys.reports.categoryTotals(slug, period),
+        enabled: !!slug,
+        queryFn: async () => {
+            const { data } = await api.get(
+                `/reports/${encodeURIComponent(slug)}/category-totals`,
+                { params: { period }, withCredentials: true }
+            );
+            return data;
+        },
+    });
 
-    useEffect(() => {
-        let ignore = false;
-
-        (async () => {
-            try {
-                setLoading(true);
-                setError('');
-
-                const { data } = await api.get(
-                    `/reports/${encodeURIComponent(slug)}/category-totals?period=${period}`,
-                    { withCredentials: true }
-                );
-
-                if (!ignore) {
-                    setData(data);
-                }
-            } catch (e) {
-                if (!ignore) {
-                    console.error(e);
-                    setError(e.response?.data?.error || e.message || 'Failed to load category totals');
-                    setData(null);
-                }
-            } finally {
-                if (!ignore) {
-                    setLoading(false);
-                }
-            }
-        })();
-
-        return () => { ignore = true; };
-    }, [slug, period]);
+    const errorMessage = error?.response?.data?.error || error?.message || 'Failed to load category totals';
 
     const chartHeight = compact ? 320 : 400;
 
@@ -140,11 +123,9 @@ export default function CategoryTotals({ size, budget }) {
     };
 
     return (
-        <SquircleFrame
+        <div
             className={`highcharts ${compact ? 'is-compact' : ''}`}
             style={{ "--color": bannerColor }}
-            n={5}
-            radius="12%"
         >
             {!compact && <h3 className="hc-title">Category Totals</h3>}
 
@@ -153,7 +134,7 @@ export default function CategoryTotals({ size, budget }) {
                     {["week", "month", "lastMonth", "all"].map((p) => (
                         <button
                             key={p}
-                            onClick={() => setPeriod(p)}
+                            onClick={() => setChartPeriod(chartPeriodKey, p)}
                             style={{
                                 padding: "0.4em 0.8em",
                                 background: period === p ? "#fff" : "transparent",
@@ -172,13 +153,13 @@ export default function CategoryTotals({ size, budget }) {
             {loading ? (
                 <div className="highcharts-state"></div>
             ) : error ? (
-                <div className="highcharts-state is-error">{error}</div>
+                <div className="highcharts-state is-error">{errorMessage}</div>
             ) : (
                 <HighchartsReact
                     highcharts={Highcharts}
                     options={chartOptions}
                 />
             )}
-        </SquircleFrame>
+        </div>
     );
 }

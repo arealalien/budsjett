@@ -7,24 +7,24 @@
 @use "../tools/mixins/alignment" as *;
 
 .button {
-  padding: 1em 1.3em;
+  padding: $button-padding-roomy;
   position: relative;
   border: none;
   font: {
-    size: $paragraph;
-    weight: 500;
+    size: type-size(button);
+    weight: type-weight(button);
   }
-  letter-spacing: .02em;
+  letter-spacing: type-letter-spacing(button);
   text-decoration: none;
-  border-radius: .75em;
+  border-radius: $button-radius;
   cursor: pointer;
   transition: opacity .15s cubic-bezier($transition-smooth, 1), box-shadow .25s cubic-bezier($transition-smooth, 1), transform .35s cubic-bezier($transition-smooth, 1), color .15s cubic-bezier($transition-smooth, 1);
-  @include align(center, center, row, $gap: .6em);
+  @include align(center, center, row, $gap: sm);
 
   &-content {
     position: relative;
     z-index: 10;
-    @include align(center, center, row, $gap: .8em);
+    @include align(center, center, row, $gap: sm);
   }
 
   &-glow {
@@ -52,7 +52,7 @@
 
   .material-symbols-rounded {
     font: {
-      size: $paragraph-large;
+      size: icon-size(button);
     }
   }
 
@@ -167,7 +167,7 @@
       inset: 2px;
       position: absolute;
       background: radial-gradient(at center top, color(purple-500) 0%, color(purple-900) 100%);
-      border-radius: calc(.75em - 1px);
+      border-radius: calc(#{$button-radius} - 1px);
     }
     .button-magic-layer {
       position: absolute;
@@ -228,7 +228,7 @@
 }
 
 .button.button-letters {
-  --font-size: #{$paragraph};
+  --font-size: #{type-size(button)};
   --duration: .45s;
   --font-shadow: calc(var(--font-size) + .1rem);
   --m: 0px;

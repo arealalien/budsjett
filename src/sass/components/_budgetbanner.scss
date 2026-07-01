@@ -9,6 +9,10 @@
 .budget-banner {
   width: 100%;
   position: relative;
+  background-color: color(gray-900);
+  border: 1px solid color(gray-800);
+  border-radius: $card-radius-roomy;
+  overflow: hidden;
   @include align(center, center);
 
   &-inner {
@@ -92,18 +96,18 @@
 
   &-top, &-bottom {
     left: 0;
-    padding: 1.8em;
+    padding: $card-padding;
     position: absolute;
     @include z-index(bannerContent);
-    @include align(start, start, column, wrap, .75em);
+    @include align(start, start, column, wrap, sm);
   }
   &-top {
     top: 0;
 
     &-title {
       color: color(white);
-      font-size: $heading-medium;
-      font-weight: 700;
+      font-size: type-size(h3);
+      font-weight: type-weight(h2);
     }
   }
   &-bottom {
@@ -111,13 +115,13 @@
 
     &-subtitle {
       color: color(white, .7);
-      font-size: $paragraph-medium;
-      font-weight: 400;
+      font-size: type-size(body-md);
+      font-weight: type-weight(body);
     }
     &-title {
       color: color(white);
-      font-size: $heading-large;
-      font-weight: 700;
+      font-size: type-size(h1);
+      font-weight: type-weight(h2);
     }
   }
 }

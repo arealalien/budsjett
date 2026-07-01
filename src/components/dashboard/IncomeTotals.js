@@ -1,19 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { useParams, useOutletContext } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Loader from '../Loader';
+import { queryKeys } from '../../lib/queryKeys';
 
 const fmtCurrency = (n) =>
     (Number(n) || 0).toLocaleString(undefined, { style: 'currency', currency: 'EUR' });
 
 export default function IncomeTotals() {
     const { slug } = useParams();
-    const { budget } = useOutletContext?.() ?? {};
-
-    const [rows, setRows] = useState([]);            // [{ user: {id, name}, totalIncome }]
-    const [total, setTotal] = useState(0);
-    const [err, setErr] = useState('');
-    const [loading, setLoading] = useState(false);
 
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
@@ -25,30 +21,25 @@ export default function IncomeTotals() {
         return p;
     }, [dateFrom, dateTo]);
 
-    useEffect(() => {
-        if (!slug) return;
-        let ignore = false;
+    const {
+        data = null,
+        error,
+        isLoading: loading,
+    } = useQuery({
+        queryKey: queryKeys.reports.incomeTotals(slug, params),
+        enabled: !!slug,
+        queryFn: async () => {
+            const { data } = await api.get(
+                `/reports/${encodeURIComponent(slug)}/income-totals`,
+                { params, withCredentials: true }
+            );
+            return data;
+        },
+    });
 
-        (async () => {
-            try {
-                setLoading(true);
-                setErr('');
-                const { data } = await api.get(
-                    `/reports/${encodeURIComponent(slug)}/income-totals`,
-                    { params, withCredentials: true }
-                );
-                if (ignore) return;
-                setRows(data.rows || []);
-                setTotal(data.totalIncome || 0);
-            } catch (e) {
-                if (!ignore) setErr(e.response?.data?.error || e.message);
-            } finally {
-                if (!ignore) setLoading(false);
-            }
-        })();
-
-        return () => { ignore = true; };
-    }, [slug, params]);
+    const rows = data?.rows || [];
+    const total = data?.totalIncome || 0;
+    const err = error?.response?.data?.error || error?.message || '';
 
     return (
         <div className="dashboard-balance">

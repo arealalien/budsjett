@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import Loader from '../components/Loader';
 import Button from '../components/Button';
@@ -7,6 +8,7 @@ import { useAuth } from '../components/AuthContext';
 import Avatar from '../components/Avatar';
 import ImageCropper from '../components/utils/ImageCropper';
 import { upload } from '@vercel/blob/client';
+import { queryKeys } from '../lib/queryKeys';
 
 const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
 const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -14,6 +16,7 @@ const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 export default function AccountSettings() {
     const { showToast } = useToast();
     const { setUser, bumpImageVersion } = useAuth();
+    const queryClient = useQueryClient();
 
     const fileInputRef = useRef(null);
 
@@ -26,7 +29,6 @@ export default function AccountSettings() {
     });
 
     const [initialData, setInitialData] = useState(null);
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [removingAvatar, setRemovingAvatar] = useState(false);
@@ -34,6 +36,18 @@ export default function AccountSettings() {
 
     const [cropImageSrc, setCropImageSrc] = useState('');
     const [cropperOpen, setCropperOpen] = useState(false);
+
+    const {
+        data: accountData = null,
+        error: accountError,
+        isLoading: loading,
+    } = useQuery({
+        queryKey: queryKeys.users.me,
+        queryFn: async () => {
+            const { data } = await api.get('/users/me', { withCredentials: true });
+            return data;
+        },
+    });
 
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -96,6 +110,8 @@ export default function AccountSettings() {
     };
 
     const applyUserData = (data) => {
+        queryClient.setQueryData(queryKeys.users.me, data);
+
         setInitialData(data);
         setForm({
             username: data.username || '',
@@ -122,32 +138,16 @@ export default function AccountSettings() {
     };
 
     useEffect(() => {
-        let ignore = false;
+        if (!accountData) return;
+        setError('');
+        applyUserData(accountData);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [accountData]);
 
-        (async () => {
-            try {
-                setLoading(true);
-                setError('');
-
-                const { data } = await api.get('/users/me', { withCredentials: true });
-
-                if (ignore) return;
-                applyUserData(data);
-            } catch (e) {
-                if (!ignore) {
-                    setError(e.response?.data?.error || e.message || 'Failed to load account settings');
-                }
-            } finally {
-                if (!ignore) {
-                    setLoading(false);
-                }
-            }
-        })();
-
-        return () => {
-            ignore = true;
-        };
-    }, []);
+    useEffect(() => {
+        if (!accountError) return;
+        setError(accountError.response?.data?.error || accountError.message || 'Failed to load account settings');
+    }, [accountError]);
 
     const isDirty = useMemo(() => {
         if (!initialData) return false;

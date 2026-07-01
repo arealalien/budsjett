@@ -5,6 +5,7 @@ import { del } from '@vercel/blob';
 import { handleUpload } from '@vercel/blob/client';
 import { prisma } from '../lib/prisma.js';
 import { verifyToken } from '../middleware/auth.js';
+import { invalidateBudgetCaches } from '../lib/cacheInvalidation.js';
 
 const router = Router();
 
@@ -70,6 +71,13 @@ function canManageBudgetAppearance(budget, userId) {
     if (budget.ownerId === userId) return true;
     const member = budget.members.find((m) => m.userId === userId);
     return member?.role === 'ADMIN';
+}
+
+function budgetUserIds(budget) {
+    return [...new Set([
+        budget?.ownerId,
+        ...(budget?.members || []).map((member) => member.userId),
+    ].filter(Boolean))];
 }
 
 const patchBannerSchema = z.object({
@@ -194,6 +202,12 @@ router.patch('/:slug/banner', verifyToken, async (req, res, next) => {
             }
         }
 
+        invalidateBudgetCaches({
+            budgetId: budget.id,
+            slug,
+            userIds: budgetUserIds(budget),
+        });
+
         res.json({
             budget: shapeBudget(updatedBudget),
         });
@@ -257,6 +271,12 @@ router.delete('/:slug/banner', verifyToken, async (req, res, next) => {
                 console.error('Failed to delete budget banner blob:', deleteErr);
             }
         }
+
+        invalidateBudgetCaches({
+            budgetId: budget.id,
+            slug,
+            userIds: budgetUserIds(budget),
+        });
 
         res.json({
             budget: shapeBudget(updatedBudget),

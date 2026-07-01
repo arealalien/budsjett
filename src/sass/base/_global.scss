@@ -12,10 +12,8 @@ body {
   width: 100%;
   color: color(white);
   font: {
-    size: .85rem;
     family: $font-main;
   }
-  line-height: 1;
   background: color(black);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
@@ -67,10 +65,10 @@ main {
 
 .page {
   &-padding {
-    padding: 2em;
+    padding: $card-padding;
   }
   &-title {
-    margin-bottom: 1em;
+    margin-bottom: space(md);
     font: {
       size: $paragraph-large;
       weight: 700;
@@ -81,7 +79,7 @@ main {
 
 .round {
   aspect-ratio: 1 / 1;
-  border-radius: 50%;
+  border-radius: $radius-round;
 }
 
 @supports (-webkit-appearance: none) or (-moz-appearance: none) {
@@ -231,12 +229,12 @@ main {
       display: inline-block;
       vertical-align: top;
       cursor: pointer;
-      margin-left: 4px;
+      margin-left: space(2xs);
     }
   }
   input[type='checkbox'] {
     &:not(.switch) {
-      border-radius: 7px;
+      border-radius: $field-radius-tiny;
       &:after {
         width: 5px;
         height: 9px;
@@ -253,11 +251,11 @@ main {
     }
     &.switch {
       width: 38px;
-      border-radius: 11px;
+      border-radius: $field-radius;
       &:after {
         left: 2px;
         top: 2px;
-        border-radius: 50%;
+        border-radius: $radius-round;
         width: 15px;
         height: 15px;
         background: var(--ab, var(--border));
@@ -277,55 +275,17 @@ main {
     }
   }
   input[type='radio'] {
-    border-radius: 50%;
+    border-radius: $radius-round;
     &:after {
       width: 19px;
       height: 19px;
-      border-radius: 50%;
+      border-radius: $radius-round;
       background: var(--active-inner);
       opacity: 0;
       transform: scale(var(--s, .7));
     }
     &:checked {
       --s: .5;
-    }
-  }
-}
-
-.dropdown {
-  width: fit-content;
-  display: inline-flex;
-  position: relative;
-  align-items: center;
-  select {
-    padding: 1em 2.8em 1em 1.4em;
-    appearance: none;
-    width: 100%;
-    color: color(white);
-    background-color: color(gray-900);
-    border: 1px solid color(gray-800);
-    border-radius: .6em;
-    &:focus, &:active {
-      outline: 2px solid color(white);
-    }
-  }
-  select.icon {
-    padding: 1em 1.4em 1em 2.8em;
-  }
-  > span {
-    padding: 0;
-    position: absolute;
-    display: inline-flex;
-    font: {
-      size: $paragraph;
-    }
-    pointer-events: none;
-    color: color(gray-100);
-    transition: all .35s cubic-bezier($transition-main, 1);
-  }
-  .material-symbols-rounded {
-    font: {
-      size: $paragraph;
     }
   }
 }
@@ -385,11 +345,11 @@ label {
 }
 
 .sub-button {
-  padding: 1em 1.5em;
+  padding: $button-padding-roomy;
   position: relative;
   color: color(black);
   background: color(white);
-  border-radius: .75em;
+  border-radius: $button-radius;
   font: {
     size: $paragraph;
     weight: 500;
@@ -482,7 +442,7 @@ label {
 }
 ::-webkit-scrollbar-thumb {
   background-color: color(white, .7);
-  border-radius: 1em;
+  border-radius: $card-radius;
 }
 ::-webkit-scrollbar-thumb:hover {
   background-color: color(white, .9);

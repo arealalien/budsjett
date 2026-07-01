@@ -1,11 +1,54 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { api } from '../../lib/api';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import nb from 'date-fns/locale/nb';
-import Button from "../Button";
-import Loader from "../Loader";
-import { useAuth } from "../AuthContext";
+import { api } from '../../lib/api';
+import { useAuth } from '../AuthContext';
+import Dropdown from '../utils/Dropdown';
+import Loader from '../Loader';
+import { queryKeys } from '../../lib/queryKeys';
+import { invalidateBudgetData } from '../../lib/queryInvalidation';
+
+const PAGE_SIZE_FULL = 40;
+const PAGE_SIZE_COMPACT = 16;
+const HEADER_HEIGHT = 58;
+const ROW_HEIGHT_FULL = 104;
+const ROW_HEIGHT_COMPACT = 86;
+const OVERSCAN_ROWS = 8;
+
+const SORT_OPTIONS = [
+    { value: 'paidAt', label: 'Date' },
+    { value: 'amount', label: 'Amount' },
+    { value: 'itemName', label: 'Purchase' },
+    { value: 'category', label: 'Category' },
+];
+
+const SORT_DIR_OPTIONS = [
+    { value: 'desc', label: 'Descending' },
+    { value: 'asc', label: 'Ascending' },
+];
+
+const DEFAULT_FILTERS = {
+    q: '',
+    categoryId: '',
+    shared: '',
+    paidById: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'paidAt',
+    sortDir: 'desc',
+};
+
+const ALL_COLUMN_DEFS = [
+    { id: 'date', label: 'Date', sortable: 'paidAt', width: 150, min: 120, max: 240 },
+    { id: 'purchase', label: 'Purchase', sortable: 'itemName', width: 380, min: 230, max: 680 },
+    { id: 'paidBy', label: 'Paid by', width: 170, min: 130, max: 280 },
+    { id: 'amount', label: 'Amount', sortable: 'amount', width: 145, min: 120, max: 240, align: 'right' },
+    { id: 'balance', label: 'Your balance', width: 205, min: 150, max: 320, align: 'right' },
+    { id: 'status', label: 'Status', width: 160, min: 130, max: 260 },
+    { id: 'actions', label: 'Actions', width: 145, min: 120, max: 220, align: 'right' },
+];
 
 const fmtCurrency = (n) =>
     (Number.isFinite(n) ? n : Number(n))
@@ -29,22 +72,58 @@ const fmtTime = (isoOrDate) => {
     }
 };
 
-function applySettleLocal(row, nextValue) {
-    const paidById = row.paidBy?.id;
-    const shares = (row.shares || []).map(s => {
-        if (paidById && s.userId !== paidById && s.percent > 0) {
-            return {
-                ...s,
-                isSettled: nextValue,
-                settledAt: nextValue ? new Date().toISOString() : null
-            };
-        }
-        return s;
-    });
-    return { ...row, shares };
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+function cleanParam(value) {
+    return String(value ?? '').trim();
 }
 
-const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+function readFilters(searchParams) {
+    const sortBy = cleanParam(searchParams.get('sortBy'));
+    const sortDir = cleanParam(searchParams.get('sortDir'));
+    const shared = cleanParam(searchParams.get('shared'));
+
+    return {
+        q: cleanParam(searchParams.get('q')),
+        categoryId: cleanParam(searchParams.get('categoryId')),
+        shared: ['true', 'false'].includes(shared) ? shared : '',
+        paidById: cleanParam(searchParams.get('paidById')),
+        dateFrom: cleanParam(searchParams.get('dateFrom')),
+        dateTo: cleanParam(searchParams.get('dateTo')),
+        sortBy: SORT_OPTIONS.some((option) => option.value === sortBy) ? sortBy : DEFAULT_FILTERS.sortBy,
+        sortDir: SORT_DIR_OPTIONS.some((option) => option.value === sortDir) ? sortDir : DEFAULT_FILTERS.sortDir,
+    };
+}
+
+function paramsForApi(filters) {
+    const params = {
+        sortBy: filters.sortBy,
+        sortDir: filters.sortDir,
+    };
+
+    ['q', 'categoryId', 'shared', 'paidById', 'dateFrom', 'dateTo'].forEach((key) => {
+        if (filters[key]) params[key] = filters[key];
+    });
+
+    return params;
+}
+
+function applySettleLocal(row, nextValue) {
+    const paidById = row.paidBy?.id;
+    const shares = (row.shares || []).map((share) => {
+        if (paidById && share.userId !== paidById && share.percent > 0) {
+            return {
+                ...share,
+                isSettled: nextValue,
+                settledAt: nextValue ? new Date().toISOString() : null,
+            };
+        }
+
+        return share;
+    });
+
+    return { ...row, shares };
+}
 
 function myNetForPurchase(row, myUserId, nameOf) {
     const amount = Math.abs(Number(row.amount) || 0);
@@ -56,15 +135,15 @@ function myNetForPurchase(row, myUserId, nameOf) {
 
     if (payerId === myUserId) {
         const lines = shares
-            .filter(s => s.userId !== myUserId && (Number(s.percent) || 0) > 0 && !s.isSettled)
-            .map(s => ({
-                from: nameOf(s.userId),
+            .filter((share) => share.userId !== myUserId && (Number(share.percent) || 0) > 0 && !share.isSettled)
+            .map((share) => ({
+                from: nameOf(share.userId),
                 to: nameOf(myUserId),
-                amount: round2(amount * (Number(s.percent) || 0) / 100),
+                amount: round2(amount * (Number(share.percent) || 0) / 100),
             }))
-            .filter(x => x.amount > 0);
+            .filter((line) => line.amount > 0);
 
-        const total = round2(lines.reduce((sum, l) => sum + l.amount, 0));
+        const total = round2(lines.reduce((sum, line) => sum + line.amount, 0));
 
         return {
             dir: total > 0 ? 'OWED_TO_ME' : 'SETTLED',
@@ -73,7 +152,7 @@ function myNetForPurchase(row, myUserId, nameOf) {
         };
     }
 
-    const myShare = shares.find(s => s.userId === myUserId);
+    const myShare = shares.find((share) => share.userId === myUserId);
     if (!myShare || (Number(myShare.percent) || 0) <= 0) return null;
 
     const myAmount = myShare.isSettled ? 0 : round2(amount * (Number(myShare.percent) || 0) / 100);
@@ -89,539 +168,61 @@ function myNetForPurchase(row, myUserId, nameOf) {
     };
 }
 
-async function toggleSettle(purchaseId, nextValue, setRows) {
+async function toggleSettle(purchaseId, nextValue) {
     await api.patch(`/purchases/${purchaseId}/settle`, { settled: nextValue }, { withCredentials: true });
-    setRows(prev => prev.map(r => (r.id === purchaseId ? applySettleLocal(r, nextValue) : r)));
 }
 
-function getCategoryName(category) {
-    if (!category) return '—';
+function getCategoryName(category, categories = []) {
+    if (Array.isArray(categories) && categories.length) {
+        const names = categories
+            .map((item) => item?.name)
+            .filter(Boolean);
+
+        if (names.length) return names.join(', ');
+    }
+
+    if (!category) return '-';
     if (typeof category === 'string') return category;
-    return category.name || '—';
+    return category.name || '-';
 }
 
 function getPaidByName(paidBy) {
-    if (!paidBy) return '—';
-    return paidBy.name || paidBy.displayName || paidBy.username || '—';
+    if (!paidBy) return '-';
+    return paidBy.name || paidBy.displayName || paidBy.username || '-';
 }
 
 function getNotePreview(notes) {
     if (!notes) return '';
-    if (notes.length <= 70) return notes;
-    return `${notes.slice(0, 70)}…`;
+    if (notes.length <= 80) return notes;
+    return `${notes.slice(0, 80)}...`;
 }
 
-export default function PurchasesTable({ size = 'full' }) {
-    const isCompact = size === 'compact';
-    const navigate = useNavigate();
-    const { slug } = useParams();
-    const { budget } = useOutletContext();
-    const { user } = useAuth();
-
-    const users = useMemo(() => {
-        const ids = new Set([budget.owner?.id, ...budget.members.map(m => m.userId)]);
-        const arr = Array.from(ids).map(id => {
-            const m = budget.members.find(x => x.userId === id);
-            const u = m?.user || (budget.owner?.id === id ? budget.owner : null);
-            return { id, name: u?.displayName || u?.username || id };
-        });
-        return arr;
-    }, [budget]);
-
-    const categories = budget.categories || [];
-
-    const [rows, setRows] = useState([]);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(false);
-    const [err, setErr] = useState('');
-
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(isCompact ? 8 : 10);
-    const [q, setQ] = useState('');
-    const [categoryId, setCategoryId] = useState('');
-    const [shared, setShared] = useState('');
-    const [paidById, setPaidById] = useState('');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
-    const [sortBy, setSortBy] = useState('paidAt');
-    const [sortDir, setSortDir] = useState('desc');
-
-    const myUserId = user?.id;
-
-    const userNameById = useMemo(() => {
-        const m = new Map();
-        users.forEach(u => m.set(u.id, u.name));
-        return m;
-    }, [users]);
-
-    const nameOf = (id) => userNameById.get(id) || id || '—';
-
-    useEffect(() => setPageSize(isCompact ? 8 : 10), [isCompact]);
-
-    const togglePaidBy = (current, nextId) => (current === nextId ? '' : nextId);
-    const toggleShared = (current, nextVal) => (current === nextVal ? '' : nextVal);
-
-    const params = useMemo(() => {
-        const p = { page, pageSize, sortBy, sortDir };
-        if (q.trim()) p.q = q.trim();
-        if (categoryId) p.categoryId = categoryId;
-        if (shared) p.shared = shared;
-        if (paidById) p.paidById = paidById;
-        if (dateFrom) p.dateFrom = dateFrom;
-        if (dateTo) p.dateTo = dateTo;
-        return p;
-    }, [page, pageSize, sortBy, sortDir, q, categoryId, shared, paidById, dateFrom, dateTo]);
-
-    useEffect(() => {
-        let ignore = false;
-
-        (async () => {
-            try {
-                setLoading(true);
-                setErr('');
-                const { data } = await api.get(`/budgets/${encodeURIComponent(slug)}/purchases`, {
-                    params,
-                    withCredentials: true,
-                });
-
-                if (!ignore) {
-                    setRows(data.items || []);
-                    setTotal(data.total || 0);
-                }
-            } catch (e) {
-                if (!ignore) setErr(e.response?.data?.error || e.message);
-            } finally {
-                if (!ignore) setLoading(false);
-            }
-        })();
-
-        return () => { ignore = true; };
-    }, [slug, params]);
-
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-    const onHeaderSort = (field) => {
-        if (sortBy === field) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-        else {
-            setSortBy(field);
-            setSortDir('asc');
-        }
-    };
-
-    const resetFilters = () => {
-        setQ('');
-        setCategoryId('');
-        setShared('');
-        setPaidById('');
-        setDateFrom('');
-        setDateTo('');
-        setSortBy('paidAt');
-        setSortDir('desc');
-        setPage(1);
-    };
-
-    const eligibleRows = useMemo(() => {
-        return rows.filter(r => {
-            const paidById = r.paidBy?.id;
-            const debtor = (r.shares || []).find(s => s.userId !== paidById && s.percent > 0);
-            return r.shared && !!debtor;
-        });
-    }, [rows]);
-
-    async function bulkSettle(nextValue) {
-        if (!eligibleRows.length) return;
-        const ids = new Set(eligibleRows.map(r => r.id));
-
-        try {
-            const requests = [...ids].map(id =>
-                api.patch(`/purchases/${id}/settle`, { settled: nextValue }, { withCredentials: true })
-            );
-            const results = await Promise.allSettled(requests);
-            setRows(prev => prev.map(r => (ids.has(r.id) ? applySettleLocal(r, nextValue) : r)));
-
-            const failures = results.filter(r => r.status === 'rejected');
-            if (failures.length) {
-                alert(`${failures.length} item(s) failed to update. The rest were updated.`);
-            }
-        } catch {}
-    }
-
-    async function deletePurchase(id) {
-        const ok = window.confirm('Are you sure you want to delete this purchase?');
-        if (!ok) return;
-
-        try {
-            setRows(prev => prev.filter(r => r.id !== id));
-            setTotal(t => Math.max(0, t - 1));
-            await api.delete(`/budgets/purchases/${id}`, { withCredentials: true });
-        } catch (e) {
-            alert(e.response?.data?.error || e.message);
-        }
-    }
-
-    const goToPurchase = (purchaseId) => {
-        navigate(`/${slug}/purchases/${purchaseId}`);
-    };
-
-    return (
-        <div className={`purchases-wrap ${isCompact ? 'compact' : ''}`}>
-            {!isCompact && (
-                <div className="purchases-wrap-filters">
-                    <label className="purchases-wrap-filters-item">
-                        <span>Search</span>
-                        <input
-                            className="purchases-wrap-filters-item-search"
-                            value={q}
-                            onChange={e => { setQ(e.target.value); setPage(1); }}
-                            placeholder="Item name…"
-                        />
-                    </label>
-
-                    <label className="purchases-wrap-filters-item">
-                        <span>Category</span>
-                        <select
-                            className="purchases-wrap-filters-item-select"
-                            value={categoryId}
-                            onChange={e => { setCategoryId(e.target.value); setPage(1); }}
-                        >
-                            <option value="">All</option>
-                            {categories.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <div className="purchases-wrap-filters-item">
-                        <span>Shared?</span>
-                        <div className="purchases-wrap-filters-item-shared-toggle">
-                            <button
-                                type="button"
-                                className={`toggle-btn ${shared === 'true' ? 'active' : ''}`}
-                                aria-pressed={shared === 'true'}
-                                onClick={() => { setShared(prev => toggleShared(prev, 'true')); setPage(1); }}
-                            >
-                                {shared === 'true' ? <CheckIcon /> : null}
-                                <span>Shared</span>
-                            </button>
-
-                            <button
-                                type="button"
-                                className={`toggle-btn ${shared === 'false' ? 'active' : ''}`}
-                                aria-pressed={shared === 'false'}
-                                onClick={() => { setShared(prev => toggleShared(prev, 'false')); setPage(1); }}
-                            >
-                                {shared === 'false' ? <CheckIcon /> : null}
-                                <span>Personal</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    {users.length === 2 ? (
-                        <div className="purchases-wrap-filters-item">
-                            <span>Paid by</span>
-                            <div className="purchases-wrap-filters-item-paidby-toggle">
-                                {users.map(u => {
-                                    const active = paidById === u.id;
-                                    return (
-                                        <button
-                                            key={u.id}
-                                            type="button"
-                                            className={`toggle-btn ${active ? 'active' : ''}`}
-                                            aria-pressed={active}
-                                            onClick={() => { setPaidById(prev => togglePaidBy(prev, u.id)); setPage(1); }}
-                                        >
-                                            {active ? <CheckIcon /> : null}
-                                            <span>{u.name}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ) : (
-                        <label className="purchases-wrap-filters-item">
-                            <span>Paid by</span>
-                            <select
-                                className="purchases-wrap-filters-item-select"
-                                value={paidById}
-                                onChange={e => { setPaidById(e.target.value); setPage(1); }}
-                            >
-                                <option value="">Anyone</option>
-                                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                            </select>
-                        </label>
-                    )}
-
-                    <label className="purchases-wrap-filters-item">
-                        <span>From</span>
-                        <input
-                            className="purchases-wrap-filters-item-date"
-                            type="date"
-                            value={dateFrom}
-                            onChange={e => { setDateFrom(e.target.value); setPage(1); }}
-                        />
-                    </label>
-
-                    <label className="purchases-wrap-filters-item">
-                        <span>To</span>
-                        <input
-                            className="purchases-wrap-filters-item-date"
-                            type="date"
-                            value={dateTo}
-                            onChange={e => { setDateTo(e.target.value); setPage(1); }}
-                        />
-                    </label>
-
-                    <label className="purchases-wrap-filters-item">
-                        <span>Sort by</span>
-                        <select
-                            className="purchases-wrap-filters-item-select"
-                            value={sortBy}
-                            onChange={e => setSortBy(e.target.value)}
-                        >
-                            <option value="paidAt">Date</option>
-                            <option value="amount">Amount</option>
-                            <option value="itemName">Item</option>
-                            <option value="category">Category</option>
-                        </select>
-                    </label>
-
-                    <label className="purchases-wrap-filters-item">
-                        <span>Direction</span>
-                        <select
-                            className="purchases-wrap-filters-item-select"
-                            value={sortDir}
-                            onChange={e => setSortDir(e.target.value)}
-                        >
-                            <option value="desc">Desc</option>
-                            <option value="asc">Asc</option>
-                        </select>
-                    </label>
-
-                    <label className="purchases-wrap-filters-item">
-                        <span>Page size</span>
-                        <select
-                            className="purchases-wrap-filters-item-select"
-                            value={pageSize}
-                            onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-                        >
-                            {[10, 20, 50, 100].map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </label>
-
-                    <div className="purchases-wrap-filters-button">
-                        <Button className="ba-purple" type="button" onClick={resetFilters}>
-                            Reset
-                        </Button>
-                    </div>
-
-                    <div className="purchases-wrap-filters-button">
-                        <Button
-                            className="ba-gray"
-                            type="button"
-                            disabled={eligibleRows.length === 0}
-                            onClick={() => bulkSettle(true)}
-                        >
-                            Settle all visible
-                        </Button>
-                    </div>
-
-                    <div className="purchases-wrap-filters-button">
-                        <Button
-                            className="ba-gray"
-                            type="button"
-                            disabled={eligibleRows.length === 0}
-                            onClick={() => bulkSettle(false)}
-                        >
-                            Unsettle all visible
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            <div className="purchases-wrap-table">
-                <div className="purchases-wrap-table-rim" />
-                <div className="purchases-wrap-table-glow" />
-
-                <table className="purchases-wrap-table-inner">
-                    <thead>
-                    <tr>
-                        <Th onClick={() => onHeaderSort('paidAt')} active={sortBy === 'paidAt'} dir={sortDir}>Date</Th>
-                        <Th onClick={() => onHeaderSort('itemName')} active={sortBy === 'itemName'} dir={sortDir}>Purchase</Th>
-                        <Th>Paid by</Th>
-                        <Th onClick={() => onHeaderSort('amount')} active={sortBy === 'amount'} dir={sortDir} align="right">Amount</Th>
-                        <Th align="right">Your balance</Th>
-                        {!isCompact && <Th>Status</Th>}
-                        <Th align="right">Actions</Th>
-                    </tr>
-                    </thead>
-
-                    <tbody>
-                    {loading ? (
-                        <tr><td colSpan={isCompact ? 6 : 7} className="purchases-wrap-table-state"><Loader /></td></tr>
-                    ) : err ? (
-                        <tr><td colSpan={isCompact ? 6 : 7} className="purchases-wrap-table-state is-error">{err}</td></tr>
-                    ) : rows.length === 0 ? (
-                        <tr><td colSpan={isCompact ? 6 : 7} className="purchases-wrap-table-state">No purchases found</td></tr>
-                    ) : rows.map(r => {
-                        const paidByIdRow = r.paidBy?.id;
-                        const debtor = (r.shares || []).find(s => s.userId !== paidByIdRow && s.percent > 0);
-                        const isSettled = debtor?.isSettled ?? false;
-                        const hasDebtor = !!debtor;
-                        const net = myNetForPurchase(r, myUserId, nameOf);
-
-                        return (
-                            <tr
-                                key={r.id}
-                                className="purchases-wrap-table-row"
-                                onClick={() => goToPurchase(r.id)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        goToPurchase(r.id);
-                                    }
-                                }}
-                                tabIndex={0}
-                            >
-                                <td className="date">
-                                    <div className="purchase-date-cell">
-                                        <span>{fmtDate(r.paidAt)}</span>
-                                        {!isCompact && <small>{fmtTime(r.paidAt)}</small>}
-                                    </div>
-                                </td>
-
-                                <td className="purchase-main">
-                                    <div className="purchase-main-title">{r.itemName}</div>
-
-                                    <div className="purchase-main-meta">
-                                        <span className="purchase-pill purchase-pill-category">
-                                            {getCategoryName(r.category)}
-                                        </span>
-
-                                        <span className={`purchase-pill ${r.shared ? 'is-shared' : 'is-personal'}`}>
-                                            {r.shared ? 'Shared' : 'Personal'}
-                                        </span>
-
-                                        {r.notes && (
-                                            <span className="purchase-pill has-note">Note</span>
-                                        )}
-                                    </div>
-
-                                    {r.notes && !isCompact && (
-                                        <div className="purchase-main-note">
-                                            {getNotePreview(r.notes)}
-                                        </div>
-                                    )}
-                                </td>
-
-                                <td className="paidBy">
-                                    <span className="purchase-user-pill">
-                                        {getPaidByName(r.paidBy)}
-                                    </span>
-                                </td>
-
-                                <td className="amount" style={{ textAlign: 'right' }}>
-                                    {fmtCurrency(Number(r.amount))}
-                                </td>
-
-                                <td className="balance" style={{ textAlign: 'right' }}>
-                                    {!net ? (
-                                        <span className="purchase-balance-pill is-neutral">—</span>
-                                    ) : net.dir === 'I_OWE' ? (
-                                        <span
-                                            className="purchase-balance-pill is-negative"
-                                            title={net.lines?.map(l => `${l.from} owes ${l.to}: ${fmtCurrency(l.amount)}`).join('\n')}
-                                        >
-                                            You owe {fmtCurrency(net.amount)}
-                                        </span>
-                                    ) : net.dir === 'OWED_TO_ME' ? (
-                                        <span
-                                            className="purchase-balance-pill is-positive"
-                                            title={net.lines?.map(l => `${l.from} owes ${l.to}: ${fmtCurrency(l.amount)}`).join('\n')}
-                                        >
-                                            Owes you {fmtCurrency(net.amount)}
-                                        </span>
-                                    ) : (
-                                        <span className="purchase-balance-pill is-neutral">Settled</span>
-                                    )}
-                                </td>
-
-                                {!isCompact && (
-                                    <td className="status">
-                                        <div className="purchase-status-group">
-                                            <span className={`purchase-pill ${r.shared ? 'is-shared' : 'is-personal'}`}>
-                                                {r.shared ? 'Shared' : 'Personal'}
-                                            </span>
-
-                                            {r.shared && hasDebtor && (
-                                                <span className={`purchase-pill ${isSettled ? 'is-settled' : 'is-open'}`}>
-                                                    {isSettled ? 'Settled' : 'Open'}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </td>
-                                )}
-
-                                <td className="actions" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'right' }}>
-                                    <div className="purchase-actions">
-                                        {r.shared && hasDebtor ? (
-                                            <label className="purchase-checkbox">
-                                                <input
-                                                    className="check-purple"
-                                                    type="checkbox"
-                                                    checked={!!isSettled}
-                                                    onChange={async (e) => {
-                                                        try {
-                                                            await toggleSettle(r.id, e.target.checked, setRows);
-                                                        } catch (error) {
-                                                            alert(error.response?.data?.error || error.message);
-                                                        }
-                                                    }}
-                                                />
-                                            </label>
-                                        ) : (
-                                            <span className="purchase-actions-spacer" />
-                                        )}
-
-                                        <button
-                                            type="button"
-                                            className="purchases-delete-btn"
-                                            onClick={() => deletePurchase(r.id)}
-                                            title="Delete this purchase"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        );
-                    })}
-                    </tbody>
-                </table>
-            </div>
-
-            {!isCompact && (
-                <div className="purchases-wrap-pager">
-                    <button className="purchases-wrap-pager-button" disabled={page <= 1} onClick={() => setPage(1)}>{'≪'}</button>
-                    <button className="purchases-wrap-pager-button" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>{'‹'}</button>
-                    <span className="purchases-wrap-pager-text">Page {page} / {totalPages} • {total} items</span>
-                    <button className="purchases-wrap-pager-button" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>{'›'}</button>
-                    <button className="purchases-wrap-pager-button" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>{'≫'}</button>
-                </div>
-            )}
-        </div>
-    );
+function flattenPages(data) {
+    return data?.pages?.flatMap((page) => page.items || []) || [];
 }
 
-function Th({ children, onClick, active, dir, align }) {
-    return (
-        <th
-            onClick={onClick}
-            style={{ cursor: onClick ? 'pointer' : 'default', padding: 8, textAlign: align || 'left', whiteSpace: 'nowrap' }}
-            title={onClick ? 'Sort' : undefined}
-        >
-            {children} {active ? (dir === 'asc' ? '▲' : '▼') : ''}
-        </th>
-    );
+function totalFromPages(data) {
+    return Number(data?.pages?.[0]?.total || 0);
+}
+
+function readStoredWidths(storageKey, columns) {
+    const defaults = Object.fromEntries(columns.map((column) => [column.id, column.width]));
+
+    try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) return defaults;
+
+        const parsed = JSON.parse(raw);
+        return columns.reduce((next, column) => {
+            const value = Number(parsed[column.id]);
+            next[column.id] = Number.isFinite(value)
+                ? Math.max(column.min, Math.min(column.max, value))
+                : column.width;
+            return next;
+        }, {});
+    } catch {
+        return defaults;
+    }
 }
 
 function CheckIcon() {
@@ -637,5 +238,814 @@ function CheckIcon() {
                 strokeWidth="1.5"
             />
         </svg>
+    );
+}
+
+export default function PurchasesTable({ size = 'full' }) {
+    const isCompact = size === 'compact';
+    const navigate = useNavigate();
+    const { slug } = useParams();
+    const { budget } = useOutletContext();
+    const { user } = useAuth();
+    const queryClient = useQueryClient();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const scrollRef = useRef(null);
+
+    const filters = useMemo(() => readFilters(searchParams), [searchParams]);
+    const apiParams = useMemo(() => paramsForApi(filters), [filters]);
+    const pageSize = isCompact ? PAGE_SIZE_COMPACT : PAGE_SIZE_FULL;
+    const rowHeight = isCompact ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_FULL;
+
+    const users = useMemo(() => {
+        const ids = new Set([budget.owner?.id, ...budget.members.map((member) => member.userId)]);
+        const arr = Array.from(ids).map((id) => {
+            const member = budget.members.find((item) => item.userId === id);
+            const memberUser = member?.user || (budget.owner?.id === id ? budget.owner : null);
+            return { id, name: memberUser?.displayName || memberUser?.username || id };
+        });
+
+        return arr.sort((a, b) => a.name.localeCompare(b.name));
+    }, [budget]);
+
+    const categories = useMemo(() => budget.categories || [], [budget.categories]);
+    const visibleColumns = useMemo(
+        () => ALL_COLUMN_DEFS.filter((column) => !isCompact || column.id !== 'status'),
+        [isCompact]
+    );
+    const columnStorageKey = `purchases-columns:${slug || 'global'}:${isCompact ? 'compact' : 'full'}`;
+    const columnKey = visibleColumns.map((column) => column.id).join('|');
+
+    const [columnWidths, setColumnWidths] = useState(() => readStoredWidths(columnStorageKey, visibleColumns));
+
+    useEffect(() => {
+        setColumnWidths(readStoredWidths(columnStorageKey, visibleColumns));
+    }, [columnKey, columnStorageKey, visibleColumns]);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(columnStorageKey, JSON.stringify(columnWidths));
+        } catch {
+            // Ignore private-mode storage failures.
+        }
+    }, [columnStorageKey, columnWidths]);
+
+    const gridTemplateColumns = useMemo(
+        () => visibleColumns.map((column) => `${columnWidths[column.id] || column.width}px`).join(' '),
+        [columnWidths, visibleColumns]
+    );
+
+    const tableMinWidth = useMemo(
+        () => visibleColumns.reduce((sum, column) => sum + (columnWidths[column.id] || column.width), 0),
+        [columnWidths, visibleColumns]
+    );
+
+    const resetColumnWidths = useCallback(() => {
+        setColumnWidths(Object.fromEntries(visibleColumns.map((column) => [column.id, column.width])));
+    }, [visibleColumns]);
+
+    const startColumnResize = useCallback((event, column) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const startX = event.clientX;
+        const startWidth = columnWidths[column.id] || column.width;
+        const previousCursor = document.body.style.cursor;
+        const previousUserSelect = document.body.style.userSelect;
+
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        function onPointerMove(moveEvent) {
+            const nextWidth = Math.max(
+                column.min,
+                Math.min(column.max, startWidth + moveEvent.clientX - startX)
+            );
+
+            setColumnWidths((current) => ({
+                ...current,
+                [column.id]: nextWidth,
+            }));
+        }
+
+        function onPointerUp() {
+            document.body.style.cursor = previousCursor;
+            document.body.style.userSelect = previousUserSelect;
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+        }
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+    }, [columnWidths]);
+
+    const categoryOptions = useMemo(() => [
+        { value: '', label: 'All categories', searchText: 'all categories' },
+        ...categories.map((category) => ({
+            value: category.id,
+            label: category.name,
+            searchText: category.name,
+            color: category.color ? (String(category.color).includes(',') ? `rgb(${category.color})` : category.color) : undefined,
+            variant: category.color ? 'custom' : 'default',
+        })),
+    ], [categories]);
+
+    const paidByOptions = useMemo(() => [
+        { value: '', label: 'Anyone', searchText: 'anyone' },
+        ...users.map((currentUser) => ({
+            value: currentUser.id,
+            label: currentUser.name,
+            searchText: currentUser.name,
+        })),
+    ], [users]);
+
+    const [searchDraft, setSearchDraft] = useState(filters.q);
+
+    const updateUrlParams = useCallback((patch) => {
+        const next = new URLSearchParams(searchParams);
+
+        Object.entries(patch).forEach(([key, value]) => {
+            const normalized = cleanParam(value);
+            const defaultValue = DEFAULT_FILTERS[key] ?? '';
+
+            if (!normalized || normalized === defaultValue) {
+                next.delete(key);
+            } else {
+                next.set(key, normalized);
+            }
+        });
+
+        setSearchParams(next, { replace: true });
+    }, [searchParams, setSearchParams]);
+
+    useEffect(() => {
+        setSearchDraft(filters.q);
+    }, [filters.q]);
+
+    useEffect(() => {
+        if (searchDraft === filters.q) return undefined;
+
+        const timeout = window.setTimeout(() => {
+            updateUrlParams({ q: searchDraft });
+        }, 280);
+
+        return () => window.clearTimeout(timeout);
+    }, [filters.q, searchDraft, updateUrlParams]);
+
+    const filterSignature = useMemo(() => JSON.stringify(apiParams), [apiParams]);
+
+    useEffect(() => {
+        scrollRef.current?.scrollTo({ top: 0 });
+    }, [filterSignature]);
+
+    const purchasesQueryKey = queryKeys.budgets.purchases(slug, {
+        ...apiParams,
+        infinite: true,
+        pageSize,
+    });
+
+    const {
+        data,
+        error,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        isLoading,
+    } = useInfiniteQuery({
+        queryKey: purchasesQueryKey,
+        enabled: !!slug,
+        initialPageParam: 1,
+        queryFn: async ({ pageParam, signal }) => {
+            const { data: response } = await api.get(`/budgets/${encodeURIComponent(slug)}/purchases`, {
+                params: {
+                    ...apiParams,
+                    page: pageParam,
+                    pageSize,
+                },
+                signal,
+                withCredentials: true,
+            });
+            return response;
+        },
+        getNextPageParam: (lastPage, allPages) => {
+            const loaded = allPages.reduce((sum, page) => sum + (page.items?.length || 0), 0);
+            const total = Number(lastPage?.total || 0);
+            return loaded < total ? allPages.length + 1 : undefined;
+        },
+    });
+
+    const rows = useMemo(() => flattenPages(data), [data]);
+    const total = totalFromPages(data);
+    const loadedCount = rows.length;
+    const err = error?.response?.data?.error || error?.message || '';
+
+    const [scrollState, setScrollState] = useState({ top: 0, height: 640 });
+
+    useEffect(() => {
+        const node = scrollRef.current;
+        if (!node) return undefined;
+
+        function measure() {
+            setScrollState({
+                top: node.scrollTop,
+                height: node.clientHeight || 640,
+            });
+        }
+
+        measure();
+        window.addEventListener('resize', measure);
+
+        return () => window.removeEventListener('resize', measure);
+    }, []);
+
+    const handleScroll = useCallback((event) => {
+        setScrollState({
+            top: event.currentTarget.scrollTop,
+            height: event.currentTarget.clientHeight || 640,
+        });
+    }, []);
+
+    const virtualCount = rows.length + (isFetchingNextPage ? 1 : 0);
+    const bodyViewportHeight = Math.max(rowHeight, scrollState.height - HEADER_HEIGHT);
+    const bodyScrollTop = Math.max(0, scrollState.top - HEADER_HEIGHT);
+    const startIndex = virtualCount
+        ? Math.max(0, Math.floor(bodyScrollTop / rowHeight) - OVERSCAN_ROWS)
+        : 0;
+    const endIndex = virtualCount
+        ? Math.min(
+            virtualCount - 1,
+            Math.ceil((bodyScrollTop + bodyViewportHeight) / rowHeight) + OVERSCAN_ROWS
+        )
+        : -1;
+
+    const visibleIndexes = useMemo(() => {
+        if (endIndex < startIndex) return [];
+
+        return Array.from(
+            { length: endIndex - startIndex + 1 },
+            (_, offset) => startIndex + offset
+        );
+    }, [endIndex, startIndex]);
+
+    useEffect(() => {
+        if (!hasNextPage || isFetchingNextPage || isLoading) return;
+        if (endIndex >= rows.length - 8) fetchNextPage();
+    }, [endIndex, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, rows.length]);
+
+    const myUserId = user?.id;
+
+    const userNameById = useMemo(() => {
+        const names = new Map();
+        users.forEach((currentUser) => names.set(currentUser.id, currentUser.name));
+        return names;
+    }, [users]);
+
+    const nameOf = useCallback((id) => userNameById.get(id) || id || '-', [userNameById]);
+
+    const onHeaderSort = useCallback((column) => {
+        if (!column.sortable) return;
+
+        const nextDir = filters.sortBy === column.sortable && filters.sortDir === 'asc' ? 'desc' : 'asc';
+        updateUrlParams({ sortBy: column.sortable, sortDir: nextDir });
+    }, [filters.sortBy, filters.sortDir, updateUrlParams]);
+
+    const resetFilters = useCallback(() => {
+        setSearchDraft('');
+        setSearchParams(new URLSearchParams(), { replace: true });
+    }, [setSearchParams]);
+
+    const setCurrentPurchaseItems = useCallback((updater) => {
+        queryClient.setQueryData(purchasesQueryKey, (current) => {
+            if (!current?.pages) return current;
+
+            return {
+                ...current,
+                pages: current.pages.map((page) => ({
+                    ...page,
+                    items: updater(page.items || [], page),
+                })),
+            };
+        });
+    }, [purchasesQueryKey, queryClient]);
+
+    const settleMutation = useMutation({
+        mutationFn: ({ purchaseId, nextValue }) => toggleSettle(purchaseId, nextValue),
+        onMutate: async ({ purchaseId, nextValue }) => {
+            await queryClient.cancelQueries({ queryKey: purchasesQueryKey });
+            const previous = queryClient.getQueryData(purchasesQueryKey);
+
+            setCurrentPurchaseItems((items) => items.map((row) => (
+                row.id === purchaseId ? applySettleLocal(row, nextValue) : row
+            )));
+
+            return { previous };
+        },
+        onError: (e, _variables, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(purchasesQueryKey, context.previous);
+            }
+            alert(e.response?.data?.error || e.message);
+        },
+        onSettled: () => {
+            invalidateBudgetData(queryClient, slug);
+        },
+    });
+
+    const deletePurchaseMutation = useMutation({
+        mutationFn: async (id) => {
+            await api.delete(`/budgets/purchases/${id}`, { withCredentials: true });
+        },
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: purchasesQueryKey });
+            const previous = queryClient.getQueryData(purchasesQueryKey);
+
+            queryClient.setQueryData(purchasesQueryKey, (current) => {
+                if (!current?.pages) return current;
+
+                return {
+                    ...current,
+                    pages: current.pages.map((page) => ({
+                        ...page,
+                        total: Math.max(0, Number(page.total || 0) - 1),
+                        items: (page.items || []).filter((row) => row.id !== id),
+                    })),
+                };
+            });
+
+            return { previous };
+        },
+        onError: (e, _id, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(purchasesQueryKey, context.previous);
+            }
+            alert(e.response?.data?.error || e.message);
+        },
+        onSettled: () => {
+            invalidateBudgetData(queryClient, slug);
+        },
+    });
+
+    const eligibleRows = useMemo(() => {
+        return rows.filter((row) => {
+            const paidById = row.paidBy?.id;
+            const debtor = (row.shares || []).find((share) => share.userId !== paidById && share.percent > 0);
+            return row.shared && !!debtor;
+        });
+    }, [rows]);
+
+    async function bulkSettle(nextValue) {
+        if (!eligibleRows.length) return;
+
+        const ids = new Set(eligibleRows.map((row) => row.id));
+        const previous = queryClient.getQueryData(purchasesQueryKey);
+
+        try {
+            const requests = [...ids].map((id) =>
+                api.patch(`/purchases/${id}/settle`, { settled: nextValue }, { withCredentials: true })
+            );
+
+            setCurrentPurchaseItems((items) => items.map((row) => (
+                ids.has(row.id) ? applySettleLocal(row, nextValue) : row
+            )));
+
+            const results = await Promise.allSettled(requests);
+            const failures = results.filter((result) => result.status === 'rejected');
+
+            if (failures.length) {
+                alert(`${failures.length} item(s) failed to update. The rest were updated.`);
+            }
+        } catch (e) {
+            if (previous) {
+                queryClient.setQueryData(purchasesQueryKey, previous);
+            }
+            alert(e.response?.data?.error || e.message);
+        } finally {
+            invalidateBudgetData(queryClient, slug);
+        }
+    }
+
+    function deletePurchase(id) {
+        const ok = window.confirm('Are you sure you want to delete this purchase?');
+        if (!ok) return;
+
+        deletePurchaseMutation.mutate(id);
+    }
+
+    const goToPurchase = (purchaseId) => {
+        navigate(`/${slug}/purchases/${purchaseId}`, {
+            state: { purchasesSearch: searchParams.toString() },
+        });
+    };
+
+    const isFiltered = Object.keys(DEFAULT_FILTERS).some((key) => filters[key] !== DEFAULT_FILTERS[key]);
+    const totalHeight = Math.max(virtualCount * rowHeight, rows.length ? rowHeight : 0);
+
+    return (
+        <div className={`purchases-wrap ${isCompact ? 'compact' : ''}`}>
+            {!isCompact && (
+                <div className="purchases-toolbar">
+                    <div className="purchases-toolbar-head">
+                        <div>
+                            <h2>Purchases</h2>
+                            <p>
+                                {isLoading && !rows.length
+                                    ? 'Loading purchases...'
+                                    : `Showing ${loadedCount} of ${total} purchase${total === 1 ? '' : 's'}`}
+                            </p>
+                        </div>
+
+                        <div className="purchases-toolbar-actions">
+                            <button className="purchases-action-button" type="button" onClick={resetColumnWidths}>
+                                Reset columns
+                            </button>
+                            <button className="purchases-action-button purchases-action-button-primary" type="button" onClick={resetFilters} disabled={!isFiltered}>
+                                Reset filters
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="purchases-wrap-filters">
+                        <label className="purchases-wrap-filters-item purchases-wrap-filters-item-searchbox">
+                            <span>Search</span>
+                            <input
+                                className="purchases-wrap-filters-item-search"
+                                value={searchDraft}
+                                onChange={(event) => setSearchDraft(event.target.value)}
+                                placeholder="Search item, note, category, or payer..."
+                            />
+                        </label>
+
+                        <div className="purchases-wrap-filters-item">
+                            <span>Category</span>
+                            <Dropdown
+                                value={filters.categoryId}
+                                onValueChange={(categoryId) => updateUrlParams({ categoryId })}
+                                options={categoryOptions}
+                                placeholder="All categories"
+                                variant="gray"
+                                className="purchases-filter-dropdown"
+                                searchable
+                                searchPlaceholder="Search categories..."
+                            />
+                        </div>
+
+                        <div className="purchases-wrap-filters-item">
+                            <span>Shared?</span>
+                            <div className="purchases-wrap-filters-item-shared-toggle">
+                                {[
+                                    { value: '', label: 'All' },
+                                    { value: 'true', label: 'Shared' },
+                                    { value: 'false', label: 'Personal' },
+                                ].map((option) => {
+                                    const active = filters.shared === option.value;
+
+                                    return (
+                                        <button
+                                            key={option.label}
+                                            type="button"
+                                            className={`toggle-btn ${active ? 'active' : ''}`}
+                                            aria-pressed={active}
+                                            onClick={() => updateUrlParams({ shared: option.value })}
+                                        >
+                                            {active ? <CheckIcon /> : null}
+                                            <span>{option.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="purchases-wrap-filters-item">
+                            <span>Paid by</span>
+                            <Dropdown
+                                value={filters.paidById}
+                                onValueChange={(paidById) => updateUrlParams({ paidById })}
+                                options={paidByOptions}
+                                placeholder="Anyone"
+                                variant="gray"
+                                className="purchases-filter-dropdown"
+                                searchable={paidByOptions.length > 6}
+                                searchPlaceholder="Search members..."
+                            />
+                        </div>
+
+                        <label className="purchases-wrap-filters-item">
+                            <span>From</span>
+                            <input
+                                className="purchases-wrap-filters-item-date"
+                                type="date"
+                                value={filters.dateFrom}
+                                onChange={(event) => updateUrlParams({ dateFrom: event.target.value })}
+                            />
+                        </label>
+
+                        <label className="purchases-wrap-filters-item">
+                            <span>To</span>
+                            <input
+                                className="purchases-wrap-filters-item-date"
+                                type="date"
+                                value={filters.dateTo}
+                                onChange={(event) => updateUrlParams({ dateTo: event.target.value })}
+                            />
+                        </label>
+
+                        <div className="purchases-wrap-filters-item">
+                            <span>Sort by</span>
+                            <Dropdown
+                                value={filters.sortBy}
+                                onValueChange={(sortBy) => updateUrlParams({ sortBy })}
+                                options={SORT_OPTIONS}
+                                placeholder="Sort by"
+                                variant="gray"
+                                className="purchases-filter-dropdown"
+                            />
+                        </div>
+
+                        <div className="purchases-wrap-filters-item">
+                            <span>Direction</span>
+                            <Dropdown
+                                value={filters.sortDir}
+                                onValueChange={(sortDir) => updateUrlParams({ sortDir })}
+                                options={SORT_DIR_OPTIONS}
+                                placeholder="Direction"
+                                variant="gray"
+                                className="purchases-filter-dropdown"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="purchases-wrap-table">
+                <div className="purchases-wrap-table-rim" />
+                <div className="purchases-wrap-table-glow" />
+
+                <div
+                    ref={scrollRef}
+                    className="purchases-virtual-scroll"
+                    onScroll={handleScroll}
+                >
+                    <div
+                        className="purchases-virtual-table"
+                        role="table"
+                        aria-rowcount={total}
+                        style={{ minWidth: tableMinWidth }}
+                    >
+                        <div
+                            className="purchases-virtual-header"
+                            role="row"
+                            style={{ gridTemplateColumns }}
+                        >
+                            {visibleColumns.map((column) => {
+                                const active = filters.sortBy === column.sortable;
+
+                                return (
+                                    <div
+                                        key={column.id}
+                                        role="columnheader"
+                                        className={[
+                                            'purchases-virtual-header-cell',
+                                            column.align === 'right' ? 'align-right' : '',
+                                            column.sortable ? 'is-sortable' : '',
+                                            active ? 'is-active' : '',
+                                        ].filter(Boolean).join(' ')}
+                                        onClick={() => onHeaderSort(column)}
+                                    >
+                                        <span>
+                                            {column.label}
+                                            {active && (
+                                                <b aria-hidden="true">{filters.sortDir === 'asc' ? ' up' : ' down'}</b>
+                                            )}
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            className="purchases-column-resizer"
+                                            aria-label={`Resize ${column.label} column`}
+                                            onClick={(event) => event.stopPropagation()}
+                                            onPointerDown={(event) => startColumnResize(event, column)}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {isLoading && !rows.length ? (
+                            <div className="purchases-wrap-table-state">
+                                <Loader />
+                            </div>
+                        ) : err ? (
+                            <div className="purchases-wrap-table-state is-error">{err}</div>
+                        ) : rows.length === 0 ? (
+                            <div className="purchases-wrap-table-state">
+                                {isFiltered ? 'No purchases match these filters.' : 'No purchases found.'}
+                            </div>
+                        ) : (
+                            <div
+                                className="purchases-virtual-body"
+                                role="rowgroup"
+                                style={{
+                                    height: totalHeight,
+                                    minHeight: rowHeight,
+                                }}
+                            >
+                                {visibleIndexes.map((index) => {
+                                    const row = rows[index];
+
+                                    if (!row) {
+                                        return (
+                                            <div
+                                                key={`loading-${index}`}
+                                                className="purchases-virtual-row purchases-virtual-row-loading"
+                                                style={{
+                                                    gridTemplateColumns,
+                                                    height: rowHeight,
+                                                    transform: `translateY(${index * rowHeight}px)`,
+                                                }}
+                                            >
+                                                <div className="purchases-cell purchases-cell-span">
+                                                    Loading more purchases...
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
+                                    const paidByIdRow = row.paidBy?.id;
+                                    const debtor = (row.shares || []).find((share) => share.userId !== paidByIdRow && share.percent > 0);
+                                    const isSettled = debtor?.isSettled ?? false;
+                                    const hasDebtor = !!debtor;
+                                    const net = myNetForPurchase(row, myUserId, nameOf);
+
+                                    return (
+                                        <div
+                                            key={row.id}
+                                            className="purchases-virtual-row"
+                                            role="row"
+                                            tabIndex={0}
+                                            onClick={() => goToPurchase(row.id)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                    event.preventDefault();
+                                                    goToPurchase(row.id);
+                                                }
+                                            }}
+                                            style={{
+                                                gridTemplateColumns,
+                                                height: rowHeight,
+                                                transform: `translateY(${index * rowHeight}px)`,
+                                            }}
+                                        >
+                                            {visibleColumns.map((column) => {
+                                                if (column.id === 'date') {
+                                                    return (
+                                                        <div key={column.id} className="purchases-cell date" role="cell">
+                                                            <div className="purchase-date-cell">
+                                                                <span>{fmtDate(row.paidAt)}</span>
+                                                                {!isCompact && <small>{fmtTime(row.paidAt)}</small>}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (column.id === 'purchase') {
+                                                    return (
+                                                        <div key={column.id} className="purchases-cell purchase-main" role="cell">
+                                                            <div className="purchase-main-title">{row.itemName}</div>
+                                                            <div className="purchase-main-meta">
+                                                                <span className="purchase-pill purchase-pill-category">
+                                                                    {getCategoryName(row.category, row.categories)}
+                                                                </span>
+                                                                <span className={`purchase-pill ${row.shared ? 'is-shared' : 'is-personal'}`}>
+                                                                    {row.shared ? 'Shared' : 'Personal'}
+                                                                </span>
+                                                                {row.notes && (
+                                                                    <span className="purchase-pill has-note">Note</span>
+                                                                )}
+                                                            </div>
+                                                            {row.notes && !isCompact && (
+                                                                <div className="purchase-main-note">
+                                                                    {getNotePreview(row.notes)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (column.id === 'paidBy') {
+                                                    return (
+                                                        <div key={column.id} className="purchases-cell paidBy" role="cell">
+                                                            <span className="purchase-user-pill">
+                                                                {getPaidByName(row.paidBy)}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (column.id === 'amount') {
+                                                    return (
+                                                        <div key={column.id} className="purchases-cell amount align-right" role="cell">
+                                                            {fmtCurrency(Number(row.amount))}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (column.id === 'balance') {
+                                                    return (
+                                                        <div key={column.id} className="purchases-cell balance align-right" role="cell">
+                                                            {!net ? (
+                                                                <span className="purchase-balance-pill is-neutral">-</span>
+                                                            ) : net.dir === 'I_OWE' ? (
+                                                                <span
+                                                                    className="purchase-balance-pill is-negative"
+                                                                    title={net.lines?.map((line) => `${line.from} owes ${line.to}: ${fmtCurrency(line.amount)}`).join('\n')}
+                                                                >
+                                                                    You owe {fmtCurrency(net.amount)}
+                                                                </span>
+                                                            ) : net.dir === 'OWED_TO_ME' ? (
+                                                                <span
+                                                                    className="purchase-balance-pill is-positive"
+                                                                    title={net.lines?.map((line) => `${line.from} owes ${line.to}: ${fmtCurrency(line.amount)}`).join('\n')}
+                                                                >
+                                                                    Owes you {fmtCurrency(net.amount)}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="purchase-balance-pill is-neutral">Settled</span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (column.id === 'status') {
+                                                    return (
+                                                        <div key={column.id} className="purchases-cell status" role="cell">
+                                                            <div className="purchase-status-group">
+                                                                <span className={`purchase-pill ${row.shared ? 'is-shared' : 'is-personal'}`}>
+                                                                    {row.shared ? 'Shared' : 'Personal'}
+                                                                </span>
+                                                                {row.shared && hasDebtor && (
+                                                                    <span className={`purchase-pill ${isSettled ? 'is-settled' : 'is-open'}`}>
+                                                                        {isSettled ? 'Settled' : 'Open'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <div
+                                                        key={column.id}
+                                                        className="purchases-cell actions align-right"
+                                                        role="cell"
+                                                        onClick={(event) => event.stopPropagation()}
+                                                    >
+                                                        <div className="purchase-actions">
+                                                            {row.shared && hasDebtor ? (
+                                                                <label className="purchase-checkbox">
+                                                                    <input
+                                                                        className="check-purple"
+                                                                        type="checkbox"
+                                                                        checked={!!isSettled}
+                                                                        disabled={settleMutation.isPending}
+                                                                        onChange={(event) => {
+                                                                            settleMutation.mutate({
+                                                                                purchaseId: row.id,
+                                                                                nextValue: event.target.checked,
+                                                                            });
+                                                                        }}
+                                                                    />
+                                                                </label>
+                                                            ) : (
+                                                                <span className="purchase-actions-spacer" />
+                                                            )}
+
+                                                            <button
+                                                                type="button"
+                                                                className="purchases-delete-btn"
+                                                                onClick={() => deletePurchase(row.id)}
+                                                                title="Delete this purchase"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {!isLoading && !!rows.length && (
+                            <div className="purchases-virtual-footer">
+                                {hasNextPage || isFetchingNextPage
+                                    ? 'Scroll to load more'
+                                    : `All ${total} purchases loaded`}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }

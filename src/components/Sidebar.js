@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useMatches } from "react-router-dom";
 import useSidebarTransition from "./sidebar/useSidebarTransition";
+import { useUiStore } from "../stores/useUiStore";
 
 function useCurrentBudgetSlug() {
     const matches = useMatches();
@@ -11,10 +12,8 @@ function useCurrentBudgetSlug() {
 export default function Sidebar({ handleLogout, user }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const slug = useCurrentBudgetSlug();
-
-    const initialCollapsed = (() => {
-        try { return localStorage.getItem('sidebar:collapsed') === '1'; } catch { return false; }
-    })();
+    const preferredCollapsed = useUiStore((state) => state.sidebarCollapsed);
+    const setSidebarCollapsed = useUiStore((state) => state.setSidebarCollapsed);
 
     const {
         phase,
@@ -24,7 +23,8 @@ export default function Sidebar({ handleLogout, user }) {
         iconStyle,
         iconHidden,
     } = useSidebarTransition({
-        initialCollapsed,
+        initialCollapsed: preferredCollapsed,
+        onCollapsedChange: setSidebarCollapsed,
         outMs: 300,
         widthMs: 300,
         inMs: 300,
@@ -53,8 +53,8 @@ export default function Sidebar({ handleLogout, user }) {
         })
 
         return () => {
-            handlers.forEach(({ btn, handler }) =>
-                btn.removeEventListener('click', handler)
+            handlers.forEach(({ btn, onClick }) =>
+                btn.removeEventListener('click', onClick)
             );
         };
     }, [user]);

@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useOutletContext, useParams } from 'react-router-dom';
+import React, { useMemo } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { queryKeys } from '../lib/queryKeys';
 import { format } from 'date-fns';
 import nb from 'date-fns/locale/nb';
 import Loader from '../components/Loader';
 import Highcharts from "highcharts/highstock";
 import HighchartsReact from "highcharts-react-official";
 import Avatar from '../components/Avatar';
-import {SquircleFrame} from "../components/utils/SquircleFrame";
 
 Highcharts.setOptions({
     chart: {
@@ -124,60 +125,60 @@ const CHART_COLORS = {
 
 export default function PurchaseDetails() {
     const { slug, purchaseId } = useParams();
-    const { budget } = useOutletContext() ?? {};
+    const location = useLocation();
 
-    const [purchase, setPurchase] = useState(null);
-    const [trendData, setTrendData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [err, setErr] = useState('');
+    const {
+        data: purchase = null,
+        error: purchaseError,
+        isLoading: loading,
+    } = useQuery({
+        queryKey: queryKeys.purchases.detail(slug, purchaseId),
+        enabled: !!slug && !!purchaseId,
+        queryFn: async () => {
+            const { data } = await api.get(
+                `/purchases/${encodeURIComponent(slug)}/purchases/${encodeURIComponent(purchaseId)}`,
+                { withCredentials: true }
+            );
+            return data;
+        },
+    });
 
-    useEffect(() => {
-        let ignore = false;
+    const { data: trendData = null } = useQuery({
+        queryKey: queryKeys.purchases.timeline(slug),
+        enabled: !!slug,
+        queryFn: async () => {
+            const { data } = await api.get(
+                `/purchases/${encodeURIComponent(slug)}/reports/spending-trend`,
+                { params: { period: 'all' }, withCredentials: true }
+            );
+            return data;
+        },
+    });
 
-        (async () => {
-            try {
-                setLoading(true);
-                setErr('');
+    const err = purchaseError?.response?.data?.error || purchaseError?.message || '';
+    const purchasesSearch = typeof location.state?.purchasesSearch === 'string'
+        ? location.state.purchasesSearch
+        : '';
+    const purchasesBackTo = `/${slug}/purchases${purchasesSearch ? `?${purchasesSearch}` : ''}`;
 
-                const [purchaseRes, trendRes] = await Promise.allSettled([
-                    api.get(
-                        `/purchases/${encodeURIComponent(slug)}/purchases/${encodeURIComponent(purchaseId)}`,
-                        { withCredentials: true }
-                    ),
-                    api.get(
-                        `/purchases/${encodeURIComponent(slug)}/reports/spending-trend?period=all`,
-                        { withCredentials: true }
-                    )
-                ]);
+    const purchaseCategories = useMemo(() => {
+        const source = Array.isArray(purchase?.categories) && purchase.categories.length
+            ? purchase.categories
+            : [purchase?.category].filter(Boolean);
+        const seen = new Set();
 
-                if (ignore) return;
+        return source.filter((category) => {
+            if (!category?.id || seen.has(category.id)) return false;
+            seen.add(category.id);
+            return true;
+        });
+    }, [purchase]);
 
-                if (purchaseRes.status === 'fulfilled') {
-                    setPurchase(purchaseRes.value.data);
-                } else {
-                    throw purchaseRes.reason;
-                }
-
-                if (trendRes.status === 'fulfilled') {
-                    setTrendData(trendRes.value.data);
-                } else {
-                    setTrendData(null);
-                }
-            } catch (e) {
-                if (!ignore) {
-                    setErr(e.response?.data?.error || e.message || 'Failed to load purchase');
-                }
-            } finally {
-                if (!ignore) {
-                    setLoading(false);
-                }
-            }
-        })();
-
-        return () => {
-            ignore = true;
-        };
-    }, [slug, purchaseId]);
+    const primaryCategory = purchaseCategories[0] || purchase?.category || null;
+    const primaryCategoryColor = primaryCategory?.color || '121, 159, 236';
+    const categoryLabel = purchaseCategories.length
+        ? purchaseCategories.map((category) => category.name).filter(Boolean).join(', ')
+        : 'No category';
 
     const shareRows = useMemo(() => {
         if (!purchase?.shares?.length) return [];
@@ -201,7 +202,7 @@ export default function PurchaseDetails() {
         const purchaseTs = new Date(purchase.paidAt).getTime();
         const purchaseAmount = Math.abs(Number(purchase.amount) || 0);
 
-        const categoryBaseColor = purchase?.category?.color || '121, 159, 236';
+        const categoryBaseColor = primaryCategoryColor;
         const categoryRgb = toRGB(categoryBaseColor);
         const categoryGlow = toRGBA(categoryBaseColor, 0.75);
         const categoryFillTop = toRGBA(categoryBaseColor, 0.3);
@@ -392,7 +393,7 @@ export default function PurchaseDetails() {
                 }
             ]
         };
-    }, [purchase, trendData]);
+    }, [primaryCategoryColor, purchase, trendData]);
 
     if (loading) {
         return <Loader />;
@@ -407,27 +408,31 @@ export default function PurchaseDetails() {
     }
 
     return (
-        <div className="purchase-details" style={{ '--color': purchase?.category?.color }}>
+        <div className="purchase-details" style={{ '--color': primaryCategoryColor }}>
             <div className="purchase-details-top">
-                <Link to={`/${slug}/purchases`} className="purchase-details-back">
+                <Link to={purchasesBackTo} className="purchase-details-back">
                     ← Back to purchases
                 </Link>
 
-                <SquircleFrame
-                    className="purchase-details-hero"
-                    n={5}
-                    radius="28%"
-                >
+                <div className="purchase-details-hero">
                     <div className="purchase-details-hero-rim" />
                     <div className="purchase-details-hero-glow" />
 
                     <div className="purchase-details-hero-inner">
                         <div className="purchase-details-heading">
                             <div  className="purchase-details-heading-left">
-                                <div className="purchase-details-pills">
-                                    <span className="purchase-details-pill">
-                                        {purchase.category?.name || 'No category'}
-                                    </span>
+                                <div className="purchase-details-pills" title={categoryLabel}>
+                                    {purchaseCategories.length ? (
+                                        purchaseCategories.map((category) => (
+                                            <span key={category.id} className="purchase-details-pill">
+                                                {category.name}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <span className="purchase-details-pill">
+                                            No category
+                                        </span>
+                                    )}
 
                                     <span className={`purchase-details-pill ${purchase.shared ? 'is-shared' : 'is-personal'}`}>
                                         {purchase.shared ? 'Shared' : 'Personal'}
@@ -448,16 +453,14 @@ export default function PurchaseDetails() {
                             </div>
                         </div>
                     </div>
-                </SquircleFrame>
+                </div>
             </div>
 
             <div className="purchase-details-grid">
                 {chartOptions && (
-                    <SquircleFrame
+                    <div
                         className={`purchase-details-card purchase-details-card-chart highcharts`}
-                        style={{ '--color': purchase?.category?.color }}
-                        n={5}
-                        radius="12%"
+                        style={{ '--color': primaryCategoryColor }}
                     >
                         <h3 className="hc-title">Purchase in timeline</h3>
 
@@ -466,14 +469,10 @@ export default function PurchaseDetails() {
                             constructorType="stockChart"
                             options={chartOptions}
                         />
-                    </SquircleFrame>
+                    </div>
                 )}
 
-                <SquircleFrame
-                    className="purchase-details-card"
-                    n={5}
-                    radius="12%"
-                >
+                <div className="purchase-details-card">
                     <div className="purchase-details-card-head">
                         <div>
                             <h3>Overview</h3>
@@ -541,13 +540,9 @@ export default function PurchaseDetails() {
                             <strong>{fmtDateTime(purchase.updatedAt)}</strong>
                         </div>
                     </div>
-                </SquircleFrame>
+                </div>
 
-                <SquircleFrame
-                    className="purchase-details-card"
-                    n={5}
-                    radius="12%"
-                >
+                <div className="purchase-details-card">
                     <div className="purchase-details-card-head">
                         <div>
                             <h3>Notes</h3>
@@ -564,13 +559,9 @@ export default function PurchaseDetails() {
                             No note added for this purchase.
                         </div>
                     )}
-                </SquircleFrame>
+                </div>
 
-                <SquircleFrame
-                    className="purchase-details-card purchase-details-card-wide"
-                    n={5}
-                    radius="26%"
-                >
+                <div className="purchase-details-card purchase-details-card-wide">
                     <div className="purchase-details-card-head">
                         <div>
                             <h3>Split details</h3>
@@ -616,7 +607,7 @@ export default function PurchaseDetails() {
                             ))}
                         </div>
                     )}
-                </SquircleFrame>
+                </div>
             </div>
         </div>
     );

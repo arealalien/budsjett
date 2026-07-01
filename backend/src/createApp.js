@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
 import authRoutes from './routes/auth.js';
 import purchasesRoutes from './routes/purchases.js';
@@ -18,20 +19,28 @@ import incomeTotalsRoutes from './routes/reports.incomeTotals.js';
 import userSettingsRoute from './routes/users.settings.js';
 import userAvatarRoute from './routes/users.avatar.js';
 import budgetSettingsRoute from './routes/budget.settings.js';
+import { cacheStats } from './lib/cache.js';
+import { getCorsOptions, getPublicAssetOrigin } from './lib/corsOrigins.js';
 
 export function createApp() {
     const app = express();
 
     app.set('trust proxy', 1);
 
-    app.use(cors({
-        origin: process.env.CORS_ORIGIN || undefined,
-        credentials: true,
+    app.use(helmet({
+        crossOriginEmbedderPolicy: false,
+        crossOriginResourcePolicy: false,
     }));
+    app.use(cors(getCorsOptions()));
 
     app.use(cookieParser());
-    app.use(express.json());
-    app.use(express.static('public'));
+    app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' }));
+    app.use(express.static('public', {
+        setHeaders(res) {
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            res.setHeader('Access-Control-Allow-Origin', getPublicAssetOrigin());
+        },
+    }));
 
     app.use('/api/auth', authRoutes);
     app.use('/api/purchases', purchasesRoutes);
@@ -59,6 +68,7 @@ export function createApp() {
             ok: true,
             nodeEnv: process.env.NODE_ENV,
             hasDbUrl: !!process.env.DATABASE_URL,
+            cache: cacheStats(),
         });
     });
 

@@ -8,13 +8,13 @@
 
 .purchase-details {
   width: 100%;
-  gap: 1.2em;
+  gap: $stack-gap-loose;
   @include align(start, stretch, column);
 
   &-state {
-    padding: 1.5em;
+    padding: $card-padding;
     border: 1px solid color(gray-800);
-    border-radius: 1.2em;
+    border-radius: $card-radius-roomy;
     background: color(gray-900);
 
     &.is-error {
@@ -25,7 +25,7 @@
   }
 
   &-top {
-    @include align(start, stretch, column, wrap, 1.4em);
+    @include align(start, stretch, column, wrap, lg);
   }
 
   &-back {
@@ -39,9 +39,13 @@
   }
 
   &-hero {
+    padding: $card-padding-roomy;
     position: relative;
     width: 100%;
     background-color: color(gray-900);
+    border: 1px solid color(gray-800);
+    border-radius: $card-radius-roomy;
+    overflow: hidden;
 
     &-rim {
       $size: 28;
@@ -52,7 +56,7 @@
       aspect-ratio: 1 / 1;
       position: absolute;
       background-color: color(white);
-      border-radius: 50%;
+      border-radius: $radius-round;
       filter: blur(calc($size / 1.6) + rem);
       opacity: .08;
       pointer-events: none;
@@ -66,7 +70,7 @@
       aspect-ratio: 1 / 1;
       position: absolute;
       background-color: rgb(var(--color));
-      border-radius: 50%;
+      border-radius: $radius-round;
       filter: blur(calc($size / 2) + rem);
       opacity: .18;
       pointer-events: none;
@@ -74,31 +78,31 @@
   }
 
   &-heading {
-    @include align(between, start, $gap: 1.2em);
+    @include align(between, start, $gap: lg);
 
     &-left {
-      @include align(start, start, column, $gap: .6em);
+      @include align(start, start, column, $gap: sm);
 
       h1 {
         margin: 0;
-        font-size: $heading-large;
-        font-weight: 700;
+        font-size: type-size(h1);
+        font-weight: type-weight(h2);
       }
     }
   }
 
   &-pills {
     flex-wrap: wrap;
-    @include align(start, center, $gap: .55em);
+    @include align(start, center, $gap: xs);
   }
 
   &-pill {
-    padding: .45em .8em;
+    padding: $chip-padding;
     border: 1px solid rgba(var(--color), .8);
-    border-radius: 5em;
+    border-radius: $chip-radius;
     background: rgba(var(--color), .15);
     color: color(white, .8);
-    font-size: $paragraph-small;
+    font-size: type-size(body-sm);
 
     &.is-shared {
       color: color(cyan-100, .8);
@@ -120,32 +124,38 @@
   }
 
   &-amount {
-    padding: 1em 1.2em;
+    padding: $card-padding-compact;
     border: 1px solid color(white, .1);
-    border-radius: 1.2em;
+    border-radius: $card-radius-roomy;
     background: color(white, .04);
-    @include align(start, start, column, $gap: .4em);
+    @include align(start, start, column, $gap: xs);
 
     span {
       color: color(gray-500);
-      font-size: $paragraph-small;
-      font-weight: 300;
+      font-size: type-size(body-sm);
+      font-weight: $type-weight-light;
     }
 
     strong {
-      font-size: $heading-medium;
-      font-weight: 600;
+      font-size: type-size(h3);
+      font-weight: type-weight(h3);
     }
   }
 
   &-grid {
     display: grid;
     grid-template-columns: 1.3fr 1fr;
-    gap: 1em;
+    gap: $grid-gap;
   }
 
   &-card {
-    gap: 1em;
+    padding: $card-padding;
+    position: relative;
+    background-color: color(black, .9);
+    border: 1px solid color(gray-800);
+    border-radius: $card-radius;
+    overflow: hidden;
+    gap: $stack-gap;
     @include align(start, stretch, column);
 
     &-chart,
@@ -154,17 +164,17 @@
     }
 
     &-head {
-      @include align(between, start, $gap: 1em);
+      @include align(between, start, $gap: md);
 
       h3 {
         margin: 0;
-        font-size: $paragraph-xlarge;
+        font-size: type-size(body-xl);
       }
 
       p {
-        margin-top: .25em;
+        margin-top: space(2xs);
         color: color(gray-500);
-        line-height: 1.4;
+        line-height: type-line-height(body);
       }
     }
   }
@@ -174,18 +184,18 @@
 
     .highcharts-container,
     .highcharts-root {
-      border-radius: 1em;
+      border-radius: $card-radius;
     }
   }
 
   &-list {
-    gap: .35em;
+    gap: space(2xs);
     @include align(start, stretch, column);
 
     &-row {
-      padding: .9em 0;
+      padding: $menu-item-padding 0;
       border-bottom: 1px solid color(gray-800);
-      @include align(between, center, $gap: 1em);
+      @include align(between, center, $gap: md);
 
       &:last-child {
         border-bottom: none;
@@ -203,34 +213,34 @@
   }
 
   &-note {
-    padding: 1em 1.1em;
+    padding: $card-padding-compact;
     border: 1px solid color(gray-800);
-    border-radius: 1em;
+    border-radius: $card-radius;
     background: color(gray-800, .2);
     color: color(gray-200);
-    line-height: 1.55;
+    line-height: type-line-height(body);
     white-space: pre-wrap;
   }
 
   &-empty {
-    padding: 1em 1.1em;
+    padding: $card-padding-compact;
     border: 1px dashed color(gray-700);
-    border-radius: 1em;
+    border-radius: $card-radius;
     color: color(gray-500);
     background: color(gray-800, .12);
   }
 
   &-share-list {
-    gap: .75em;
+    gap: $list-gap;
     @include align(start, stretch, column);
   }
 
   &-share-row {
-    padding: 1em 1.1em;
+    padding: $card-padding-compact;
     border: 1px solid color(gray-800);
-    border-radius: 1em;
+    border-radius: $card-radius;
     background: color(gray-800, .18);
-    @include align(between, center, $gap: 1em);
+    @include align(between, center, $gap: md);
   }
 
   &-share-user {
@@ -242,12 +252,12 @@
 
   &-share-meta {
     color: color(gray-500);
-    font-size: $paragraph-small;
+    font-size: type-size(body-sm);
   }
 
   &-share-values {
     text-align: right;
-    gap: .45em;
+    gap: space(xs);
     @include align(end, end, column);
 
     strong {
@@ -256,9 +266,9 @@
   }
 
   &-share-status {
-    padding: .35em .75em;
-    border-radius: 999px;
-    font-size: $paragraph-small;
+    padding: $chip-padding;
+    border-radius: $chip-radius;
+    font-size: type-size(body-sm);
     border: 1px solid color(gray-700);
 
     &.is-settled {
@@ -275,7 +285,7 @@
   }
 
   &-person {
-    @include align(end, center, $gap: .7em);
+    @include align(end, center, $gap: sm);
 
     strong {
       text-align: right;
@@ -283,7 +293,7 @@
   }
 
   &-share-user {
-    gap: .35em;
+    gap: space(2xs);
     @include align(start, start, column);
 
     strong {
@@ -292,7 +302,7 @@
     }
 
     &-top {
-      @include align(start, center, $gap: .75em);
+      @include align(start, center, $gap: sm);
     }
   }
 

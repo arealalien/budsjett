@@ -1,13 +1,17 @@
 import React, { createContext, useContext } from "react";
+import { useUiStore } from "../../stores/useUiStore";
 
 // "fluid" = animations on (default)
 // "static" = no animations
 // "system" = follow prefers-reduced-motion
-const AnimationModeContext = createContext("fluid");
+const AnimationModeContext = createContext("static");
 
-export function AnimationProvider({ animated = "fluid", children }) {
+export function AnimationProvider({ animated, children }) {
+    const storedMode = useUiStore((state) => state.animationMode);
+    const mode = animated || storedMode;
+
     return (
-        <AnimationModeContext.Provider value={animated}>
+        <AnimationModeContext.Provider value={mode}>
             {children}
         </AnimationModeContext.Provider>
     );

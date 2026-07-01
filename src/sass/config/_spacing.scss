@@ -1,0 +1,164 @@
+@use "sass:map";
+
+/* Base spacing scale */
+$space-0: 0 !default;
+$space-3xs: .125rem !default; // 2px
+$space-2xs: .25rem !default; // 4px
+$space-xs: .5rem !default; // 8px
+$space-sm: .75rem !default; // 12px
+$space-md: 1rem !default; // 16px
+$space-lg: 1.5rem !default; // 24px
+$space-xl: 2rem !default; // 32px
+$space-2xl: 3rem !default; // 48px
+$space-3xl: 4rem !default; // 64px
+$space-4xl: 6rem !default; // 96px
+
+$spacing-scale: (
+  0: $space-0,
+  3xs: $space-3xs,
+  2xs: $space-2xs,
+  xs: $space-xs,
+  sm: $space-sm,
+  md: $space-md,
+  lg: $space-lg,
+  xl: $space-xl,
+  2xl: $space-2xl,
+  3xl: $space-3xl,
+  4xl: $space-4xl
+) !default;
+
+@function space($key) {
+  @if map.has-key($spacing-scale, $key) {
+    @return map.get($spacing-scale, $key);
+  }
+
+  @error "Unknown spacing token `#{$key}`. Available tokens: #{map.keys($spacing-scale)}.";
+}
+
+@function fluid-space($min, $fluid, $max) {
+  @return clamp($min, $fluid, $max);
+}
+
+/* Page gutters */
+$page-gutter-tight: fluid-space($space-md, 2.5vw, $space-lg) !default;
+$page-gutter: fluid-space($space-lg, 4vw, $space-2xl) !default;
+$page-gutter-wide: fluid-space($space-xl, 5vw, $space-4xl) !default;
+
+$page-padding-tight: $space-lg $page-gutter-tight !default;
+$page-padding: $space-xl $page-gutter !default;
+$page-padding-wide: $space-2xl $page-gutter-wide !default;
+
+/* Sections and page rhythm */
+$section-gap-tight: $space-xl !default;
+$section-gap: fluid-space($space-xl, 5vw, $space-3xl) !default;
+$section-gap-loose: fluid-space($space-2xl, 7vw, $space-4xl) !default;
+
+$section-padding-tight: $space-xl 0 !default;
+$section-padding: $section-gap 0 !default;
+$section-padding-loose: $section-gap-loose 0 !default;
+
+/* Cards and panels */
+$card-padding-compact: fluid-space($space-sm, 1.5vw, $space-md) !default;
+$card-padding: fluid-space($space-md, 2vw, $space-xl) !default;
+$card-padding-roomy: fluid-space($space-lg, 3vw, $space-2xl) !default;
+
+$panel-padding-compact: $card-padding-compact !default;
+$panel-padding: $card-padding !default;
+$panel-padding-roomy: $card-padding-roomy !default;
+
+/* Gaps */
+$stack-gap-tight: $space-xs !default;
+$stack-gap: $space-md !default;
+$stack-gap-loose: $space-lg !default;
+
+$cluster-gap-tight: $space-xs !default;
+$cluster-gap: $space-sm !default;
+$cluster-gap-loose: $space-md !default;
+
+$grid-gap-tight: $space-md !default;
+$grid-gap: $space-lg !default;
+$grid-gap-loose: $space-xl !default;
+
+/* Body text rhythm */
+$body-text-gap-tight: $space-xs !default;
+$body-text-gap: $space-md !default;
+$body-text-gap-loose: $space-lg !default;
+
+$body-text-margin-tight: 0 0 $body-text-gap-tight !default;
+$body-text-margin: 0 0 $body-text-gap !default;
+$body-text-margin-loose: 0 0 $body-text-gap-loose !default;
+
+$body-text-line-height: 1.65 !default;
+$body-text-max-width: 68ch !default;
+
+/* Headline rhythm */
+$headline-gap-tight: $space-xs !default;
+$headline-gap: $space-md !default;
+$headline-gap-loose: $space-lg !default;
+
+$headline-margin-tight: 0 0 $headline-gap-tight !default;
+$headline-margin: 0 0 $headline-gap !default;
+$headline-margin-loose: 0 0 $headline-gap-loose !default;
+
+$headline-line-height-tight: 1.05 !default;
+$headline-line-height: 1.15 !default;
+$headline-stack-gap: $space-xs !default;
+
+/* Buttons */
+$button-padding-compact: .55em .8em !default;
+$button-padding: .9em 1.2em !default;
+$button-padding-roomy: .95em 1.35em !default;
+$button-padding-icon: .62em !default;
+
+$button-gap: $space-xs !default;
+$button-content-gap: $space-sm !default;
+$button-group-gap: $space-sm !default;
+$button-stack-gap: $space-sm !default;
+
+$button-margin: 0 !default;
+$button-margin-top: $space-md !default;
+$button-row-margin: $button-margin-top 0 0 !default;
+
+/* Forms and controls */
+$field-padding-compact: .55em .75em !default;
+$field-padding: .72em .9em !default;
+$field-padding-roomy: 1em 1.2em !default;
+
+$field-gap: $space-xs !default;
+$form-gap-tight: $space-md !default;
+$form-gap: $space-lg !default;
+$form-gap-loose: $space-xl !default;
+
+/* Navigation, menus, and compact UI */
+$nav-item-padding: $field-padding-roomy !default;
+$nav-item-padding-compact: $field-padding !default;
+$nav-item-padding-roomy: $space-md $space-lg !default;
+
+$menu-padding: $space-xs !default;
+$menu-item-padding-compact: $field-padding-compact !default;
+$menu-item-padding: $field-padding !default;
+$menu-item-padding-roomy: $field-padding-roomy !default;
+
+$chip-padding: $space-2xs $space-xs !default;
+$badge-padding: $space-xs $space-sm !default;
+$media-label-padding: $space-sm $space-md !default;
+
+$surface-padding-tight: $space-xs !default;
+$surface-padding: $space-md !default;
+$surface-padding-roomy: $space-lg !default;
+
+/* Media, lists, and small UI surfaces */
+$media-gap: $space-md !default;
+$media-gap-loose: $space-lg !default;
+
+$list-gap-tight: $space-xs !default;
+$list-gap: $space-sm !default;
+$list-gap-loose: $space-md !default;
+
+$toolbar-gap: $space-sm !default;
+$toolbar-padding: $space-sm !default;
+
+/* Width helpers */
+$content-width-narrow: 42rem !default;
+$content-width: 72rem !default;
+$content-width-wide: 96rem !default;

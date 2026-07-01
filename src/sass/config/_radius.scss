@@ -1,0 +1,66 @@
+@use "sass:map";
+
+/* Base radius scale */
+$radius-0: 0 !default;
+$radius-2xs: .25rem !default; // 4px
+$radius-xs: .375rem !default; // 6px
+$radius-sm: .5rem !default; // 8px
+$radius-md: .625rem !default; // 10px
+$radius-lg: .75rem !default; // 12px
+$radius-xl: 1rem !default; // 16px
+$radius-2xl: 1.25rem !default; // 20px
+$radius-3xl: 1.6rem !default; // 25.6px
+$radius-pill: 999px !default;
+$radius-round: 50% !default;
+
+$radius-scale: (
+  0: $radius-0,
+  2xs: $radius-2xs,
+  xs: $radius-xs,
+  sm: $radius-sm,
+  md: $radius-md,
+  lg: $radius-lg,
+  xl: $radius-xl,
+  2xl: $radius-2xl,
+  3xl: $radius-3xl,
+  pill: $radius-pill,
+  round: $radius-round
+) !default;
+
+@function radius($key) {
+  @if map.has-key($radius-scale, $key) {
+    @return map.get($radius-scale, $key);
+  }
+
+  @error "Unknown radius token `#{$key}`. Available tokens: #{map.keys($radius-scale)}.";
+}
+
+/* Semantic radius tokens */
+$card-radius-compact: $radius-lg !default;
+$card-radius: $radius-xl !default;
+$card-radius-roomy: $radius-2xl !default;
+
+$panel-radius-compact: $card-radius-compact !default;
+$panel-radius: $card-radius !default;
+$panel-radius-roomy: $card-radius-roomy !default;
+
+$button-radius: $radius-lg !default;
+$button-radius-pill: $radius-pill !default;
+$icon-button-radius: $radius-round !default;
+
+$field-radius-tiny: $radius-xs !default;
+$field-radius-compact: $radius-md !default;
+$field-radius: $radius-lg !default;
+$field-radius-roomy: $radius-xl !default;
+
+$menu-radius: $radius-xl !default;
+$menu-item-radius: $radius-md !default;
+$tooltip-radius: $radius-lg !default;
+
+$chip-radius: $radius-pill !default;
+$badge-radius: $radius-pill !default;
+$avatar-radius: $radius-round !default;
+
+$media-radius-compact: $radius-xs !default;
+$media-radius: $radius-lg !default;
+$media-radius-roomy: $radius-xl !default;

@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import Button from '../components/Button';
 import { useToast } from '../components/utils/ToastContext';
 import Avatar from '../components/Avatar';
+import { invalidateBudgetData } from '../lib/queryInvalidation';
 
 function canInvite(role) {
     return role === 'OWNER' || role === 'ADMIN';
@@ -146,6 +148,7 @@ export default function BudgetMembers() {
 
 function MembersSection({ budget, myRole, onChanged }) {
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
     const [busyId, setBusyId] = useState('');
 
     const members = useMemo(() => {
@@ -178,6 +181,7 @@ function MembersSection({ budget, myRole, onChanged }) {
         try {
             setBusyId(userId);
             await api.patch(`/budgets/${encodeURIComponent(budget.slug)}/members/${userId}`, { role });
+            invalidateBudgetData(queryClient, budget.slug);
             showToast('Role updated', { type: 'success' });
             await onChanged?.();
         } catch (e) {
@@ -193,6 +197,7 @@ function MembersSection({ budget, myRole, onChanged }) {
         try {
             setBusyId(userId);
             await api.delete(`/budgets/${encodeURIComponent(budget.slug)}/members/${userId}`);
+            invalidateBudgetData(queryClient, budget.slug);
             showToast('Member removed', { type: 'success' });
             await onChanged?.();
         } catch (e) {

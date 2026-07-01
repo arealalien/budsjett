@@ -1,0 +1,282 @@
+@use "../config/fonts" as *;
+@use "../config/sizes" as *;
+
+@mixin type-style($role, $family: $font-main) {
+  font-family: $family;
+  font-size: type-size($role);
+  font-weight: type-weight($role);
+  line-height: type-line-height($role);
+  letter-spacing: type-letter-spacing($role);
+}
+
+@mixin type-truncate {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@mixin type-clamp($lines: 2) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+  overflow: hidden;
+  white-space: normal;
+  text-overflow: ellipsis;
+}
+
+@mixin icon-size-style($size) {
+  width: 1em;
+  height: 1em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 1;
+  font-size: $size;
+}
+
+body {
+  font-size: $type-body-size;
+  line-height: $type-line-height-body;
+}
+
+:where(h1) {
+  @include type-style(h1, $font-main);
+}
+
+:where(h2) {
+  @include type-style(h2, $font-main);
+}
+
+:where(h3) {
+  @include type-style(h3);
+}
+
+:where(h4) {
+  @include type-style(h4);
+}
+
+:where(h5) {
+  @include type-style(h5);
+}
+
+:where(h6) {
+  @include type-style(h6);
+}
+
+:where(p, li, figcaption) {
+  @include type-style(body);
+}
+
+:where(small) {
+  @include type-style(note);
+}
+
+:where(label) {
+  @include type-style(label);
+}
+
+:where(button) {
+  @include type-style(button);
+}
+
+:where(input, textarea, select) {
+  @include type-style(input);
+}
+
+:where(code, kbd, samp, pre) {
+  @include type-style(code, (ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace));
+}
+
+.type-display {
+  @include type-style(display, $font-main);
+}
+
+.type-hero {
+  @include type-style(hero, $font-main);
+}
+
+.type-h1 {
+  @include type-style(h1, $font-main);
+}
+
+.type-h2 {
+  @include type-style(h2, $font-main);
+}
+
+.type-h3 {
+  @include type-style(h3);
+}
+
+.type-h4 {
+  @include type-style(h4);
+}
+
+.type-h5 {
+  @include type-style(h5);
+}
+
+.type-h6 {
+  @include type-style(h6);
+}
+
+.type-lead {
+  @include type-style(lead);
+}
+
+.type-body-xl {
+  @include type-style(body-xl);
+}
+
+.type-body-lg {
+  @include type-style(body-lg);
+}
+
+.type-body-md {
+  @include type-style(body-md);
+}
+
+.type-body {
+  @include type-style(body);
+}
+
+.type-body-sm {
+  @include type-style(body-sm);
+}
+
+.type-note {
+  @include type-style(note);
+}
+
+.type-caption {
+  @include type-style(caption);
+}
+
+.type-meta {
+  @include type-style(meta);
+}
+
+.type-label {
+  @include type-style(label);
+}
+
+.type-tag {
+  @include type-style(tag);
+}
+
+.type-badge {
+  @include type-style(badge);
+}
+
+.type-button {
+  @include type-style(button);
+}
+
+.type-input {
+  @include type-style(input);
+}
+
+.type-code {
+  @include type-style(code, (ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace));
+}
+
+.type-truncate {
+  @include type-truncate;
+}
+
+.type-clamp-2 {
+  @include type-clamp(2);
+}
+
+.icon,
+.material-symbols-rounded.icon,
+.icon > .material-symbols-rounded {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+
+.icon-xs {
+  --icon-size: #{icon-size(xs)};
+}
+
+.icon-sm {
+  --icon-size: #{icon-size(sm)};
+}
+
+.icon-md {
+  --icon-size: #{icon-size(md)};
+}
+
+.icon-lg {
+  --icon-size: #{icon-size(lg)};
+}
+
+.icon-xl {
+  --icon-size: #{icon-size(xl)};
+}
+
+.icon-2xl {
+  --icon-size: #{icon-size(2xl)};
+}
+
+.icon-3xl {
+  --icon-size: #{icon-size(3xl)};
+}
+
+.icon-button {
+  --icon-size: #{icon-size(button)};
+}
+
+.material-symbols-rounded.icon-xs,
+.material-symbols-rounded.icon-sm,
+.material-symbols-rounded.icon-md,
+.material-symbols-rounded.icon-lg,
+.material-symbols-rounded.icon-xl,
+.material-symbols-rounded.icon-2xl,
+.material-symbols-rounded.icon-3xl,
+.material-symbols-rounded.icon-button,
+.icon-xs > .material-symbols-rounded,
+.icon-sm > .material-symbols-rounded,
+.icon-md > .material-symbols-rounded,
+.icon-lg > .material-symbols-rounded,
+.icon-xl > .material-symbols-rounded,
+.icon-2xl > .material-symbols-rounded,
+.icon-3xl > .material-symbols-rounded,
+.icon-button > .material-symbols-rounded {
+  @include icon-size-style(var(--icon-size));
+}
+
+.type-main {
+  font-family: $font-main;
+}
+
+.type-title {
+  font-family: $font-title;
+}
+
+.type-extralight {
+  font-weight: $type-weight-extralight;
+}
+
+.type-light {
+  font-weight: $type-weight-light;
+}
+
+.type-regular {
+  font-weight: $type-weight-regular;
+}
+
+.type-medium {
+  font-weight: $type-weight-medium;
+}
+
+.type-semibold {
+  font-weight: $type-weight-semibold;
+}
+
+.type-bold {
+  font-weight: $type-weight-bold;
+}

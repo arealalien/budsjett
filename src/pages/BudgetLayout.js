@@ -1,36 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Outlet, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { queryKeys } from '../lib/queryKeys';
 
 export default function BudgetLayout() {
     const { slug } = useParams();
-    const [budget, setBudget] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [err, setErr] = useState('');
 
-    const load = async () => {
-        setLoading(true);
-        setErr('');
-        try {
+    const {
+        data: budget = null,
+        error,
+        isLoading: loading,
+        refetch: reloadBudget,
+    } = useQuery({
+        queryKey: queryKeys.budgets.detail(slug),
+        enabled: !!slug,
+        queryFn: async () => {
             const { data } = await api.get(`/budgets/${encodeURIComponent(slug)}`);
-            setBudget(data);
-        } catch (e) {
-            setErr(e.response?.data?.error || e.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+            return data;
+        },
+    });
 
-    useEffect(() => { load(); /* eslint-disable-next-line */ }, [slug]);
+    const err = error?.response?.data?.error || error?.message || '';
 
-    if (loading) return <div className="page"><p>Loading budget…</p></div>;
-    if (err) return <div className="page"><p style={{color:'crimson'}}>{err}</p></div>;
+    if (loading) return <div className="page"><p>Loading budget...</p></div>;
+    if (err) return <div className="page"><p style={{ color: 'crimson' }}>{err}</p></div>;
     if (!budget) return <div className="page"><p>Not found.</p></div>;
 
     return (
         <main className="budget">
             <div className="budget-window">
-                <Outlet context={{ budget, reloadBudget: load }} />
+                <Outlet context={{ budget, reloadBudget }} />
             </div>
         </main>
     );

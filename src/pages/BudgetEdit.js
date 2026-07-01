@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { invalidateBudgetData } from '../lib/queryInvalidation';
 import { useToast } from '../components/utils/ToastContext';
 import Button from '../components/Button';
 import ColorPicker from '../components/ColorPicker';
@@ -69,6 +71,7 @@ export default function BudgetEdit() {
     const { budget, reloadBudget } = useOutletContext();
     const navigate = useNavigate();
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
 
     const [budgetName, setBudgetName] = useState(budget?.name || '');
     const [categories, setCategories] = useState([]);
@@ -166,6 +169,7 @@ export default function BudgetEdit() {
             };
 
             await api.patch(`/budgets/${encodeURIComponent(budget.slug)}`, body);
+            invalidateBudgetData(queryClient, budget.slug);
 
             showToast('Budget updated', { type: 'success', duration: 2200 });
             await reloadBudget?.();

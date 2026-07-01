@@ -6,7 +6,8 @@ import crypto from 'crypto';
 import { Resend } from 'resend';
 import { prisma } from '../lib/prisma.js';
 import { verifyEmailTemplate, resetPasswordTemplate } from '../lib/emails.js';
-import { cacheGetOrSet, cacheSet, cacheDel } from '../lib/cache.js';
+import { CACHE_TAGS, cacheGetOrSet, makeCacheKey } from '../lib/cache.js';
+import { invalidateUserCaches } from '../lib/cacheInvalidation.js';
 
 const router = Router();
 
@@ -122,17 +123,25 @@ function verifyJwtOrNull(token) {
     }
 }
 
-// Manual-invalidation cache (no TTL)
 async function needsOnboardingCached(userId) {
-    return cacheGetOrSet(`needsOnboarding:${userId}`, async () => {
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { onboardingSkippedAt: true },
-        });
-        if (!user) return true;
-        if (user.onboardingSkippedAt) return false;
-        const count = await prisma.budget.count({ where: { ownerId: userId } });
-        return count === 0;
+    return cacheGetOrSet('auth:needs-onboarding', {
+        key: { userId },
+        ttl: null,
+        tags: [
+            CACHE_TAGS.auth,
+            CACHE_TAGS.user(userId),
+            CACHE_TAGS.userBudgets(userId),
+        ],
+        factory: async () => {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { onboardingSkippedAt: true },
+            });
+            if (!user) return true;
+            if (user.onboardingSkippedAt) return false;
+            const count = await prisma.budget.count({ where: { ownerId: userId } });
+            return count === 0;
+        },
     });
 }
 
@@ -239,7 +248,7 @@ router.get('/verify', async (req, res, next) => {
         });
 
         // Invalidate cached “userVerified:<id>” so /me reflects verified status immediately
-        if (verifiedUserId) cacheDel(`userVerified:${verifiedUserId}`);
+        if (verifiedUserId) invalidateUserCaches(verifiedUserId);
 
         return res.json({ ok: true, message: 'Email verified. Please sign in to start onboarding.' });
     } catch (err) {
@@ -563,7 +572,7 @@ router.post('/onboarding', async (req, res, next) => {
         });
 
         // Invalidate onboarding flag for this user
-        cacheDel(`needsOnboarding:${userId}`);
+        invalidateUserCaches(userId);
 
         res.json({ ok: true, slug: budget.slug, budgetId: budget.id });
     } catch (err) {
@@ -581,7 +590,7 @@ router.post('/onboarding/skip', async (req, res, next) => {
             data: { onboardingSkippedAt: new Date() },
         });
 
-        cacheDel(`needsOnboarding:${userId}`);
+        invalidateUserCaches(userId);
 
         return res.json({ ok: true });
     } catch (err) {
@@ -637,7 +646,7 @@ router.get('/me', async (req, res, next) => {
             needsOnboarding,
         };
 
-        const etag = crypto.createHash('sha1').update(JSON.stringify(body)).digest('hex');
+        const etag = makeCacheKey(body);
         if (req.headers['if-none-match'] === etag) {
             return res.status(304).end();
         }

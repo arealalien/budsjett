@@ -1,45 +1,66 @@
-import React, { useEffect, useState } from 'react';
-import { api } from '../lib/api';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '../lib/api';
+import { queryKeys } from '../lib/queryKeys';
+
+const notificationsParams = { onlyUnread: false };
+
+const recomputeUnread = (arr) =>
+    (arr || []).filter(n => !n.readAt).length;
 
 export default function NotificationBell() {
     const [open, setOpen] = useState(false);
-    const [items, setItems] = useState([]);
-    const [unread, setUnread] = useState(0);
+    const queryClient = useQueryClient();
 
-    const recomputeUnread = (arr) =>
-        (arr || []).filter(n => !n.readAt).length;
+    const notificationsKey = queryKeys.notifications.list(notificationsParams);
+    const {
+        data: items = [],
+        refetch,
+    } = useQuery({
+        queryKey: notificationsKey,
+        queryFn: async () => {
+            const { data } = await api.get('/notifications', { params: notificationsParams });
+            return data.items || [];
+        },
+        staleTime: 20_000,
+    });
 
-    const load = async (onlyUnread = false) => {
-        const { data } = await api.get('/notifications', { params: { onlyUnread } });
-        const list = data.items || [];
-        setItems(list);
-        setUnread(recomputeUnread(list));
+    const unread = useMemo(() => recomputeUnread(items), [items]);
+
+    const refreshNotifications = async () => {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+        return refetch();
     };
 
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const { data } = await api.get('/notifications', { params: { onlyUnread: false } });
-                if (cancelled) return;
-                const list = data.items || [];
-                setItems(list);
-                setUnread(list.filter(n => !n.readAt).length);
-                } catch {}
-            })();
-        return () => { cancelled = true; };
-    }, []);
-
-    // optimistic mark-read lives here
-    const onMarkRead = async (id) => {
-        await api.patch(`/notifications/${id}/read`);
-        setItems(curr => {
-            const next = curr.map(n => n.id === id ? { ...n, readAt: new Date().toISOString() } : n);
-            setUnread(recomputeUnread(next));
-            return next;
-        });
+    const refreshAfterInvite = async () => {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all });
+        return refreshNotifications();
     };
+
+    const markReadMutation = useMutation({
+        mutationFn: async (id) => {
+            await api.patch(`/notifications/${id}/read`);
+        },
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: notificationsKey });
+            const previous = queryClient.getQueryData(notificationsKey);
+
+            queryClient.setQueryData(notificationsKey, (current = []) =>
+                current.map((n) => n.id === id ? { ...n, readAt: new Date().toISOString() } : n)
+            );
+
+            return { previous };
+        },
+        onError: (_err, _id, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(notificationsKey, context.previous);
+            }
+        },
+        onSettled: () => {
+            refreshNotifications();
+        },
+    });
 
     return (
         <div className="sidebar-left-inner-notifications">
@@ -49,13 +70,13 @@ export default function NotificationBell() {
                 onClick={async () => {
                     const next = !open;
                     setOpen(next);
-                    if (next) await load(false);
+                    if (next) await refetch();
                 }}
                 aria-label="Notifications"
             >
                 <svg id="Xnix_Line_Notification_13" data-name="Xnix/Line/Notification 13" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                    <path id="Vector" d="M1.474,7.963A5.757,5.757,0,0,1,7,2a5.757,5.757,0,0,1,5.526,5.963c0,1.317,1.431,2.6,1.473,3.92q0,.028,0,.056a1.535,1.535,0,0,1-1.474,1.59H9.333a2.546,2.546,0,0,1-.683,1.747,2.243,2.243,0,0,1-3.3,0,2.546,2.546,0,0,1-.683-1.747H1.474A1.535,1.535,0,0,1,0,11.939q0-.028,0-.056C.043,10.567,1.474,9.281,1.474,7.963Z" transform="translate(5 4)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
-                    <path id="Vector-2" data-name="Vector" d="M4.667,13.529H9.333M8,0H6" transform="translate(5 4)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                    <path id="Vector" d="M1.474,7.963A5.757,5.757,0,0,1,7,2a5.757,5.757,0,0,1,5.526,5.963c0,1.317,1.431,2.6,1.473,3.92q0,.028,0,.056a1.535,1.535,0,0,1-1.474,1.59H9.333a2.546,2.546,0,0,1-.683,1.747,2.243,2.243,0,0,1-3.3,0,2.546,2.546,0,0,1-.683-1.747H1.474A1.535,1.535,0,0,1,0,11.939q0-.028,0-.056C.043,10.567,1.474,9.281,1.474,7.963Z" transform="translate(5 4)" fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/>
+                    <path id="Vector-2" data-name="Vector" d="M4.667,13.529H9.333M8,0H6" transform="translate(5 4)" fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"/>
                 </svg>
                 {unread > 0 && (
                     <span style={{
@@ -68,15 +89,16 @@ export default function NotificationBell() {
             {open && (
                 <Panel
                     items={items}
-                    onMarkRead={onMarkRead}
-                    onRefresh={() => load(false)}
+                    onMarkRead={(id) => markReadMutation.mutate(id)}
+                    onRefresh={refreshNotifications}
+                    onInviteChanged={refreshAfterInvite}
                 />
             )}
         </div>
     );
 }
 
-function Panel({ items, onMarkRead, onRefresh }) {
+function Panel({ items, onMarkRead, onRefresh, onInviteChanged }) {
     const navigate = useNavigate();
     const [busyId, setBusyId] = useState(null);
     const mountedRef = React.useRef(true);
@@ -86,7 +108,7 @@ function Panel({ items, onMarkRead, onRefresh }) {
         try {
             setBusyId(inviteId);
             const { data } = await api.post(`/invites/${inviteId}/accept`);
-            await onRefresh();
+            await onInviteChanged();
             if (data?.slug) navigate(`/${data.slug}`);
         } catch (err) {
             alert(err.response?.data?.error || err.message);
@@ -122,7 +144,7 @@ function Panel({ items, onMarkRead, onRefresh }) {
                     return (
                         <div key={n.id} style={{ borderTop: '1px solid #eee', padding: '8px 8px 10px' }}>
                             <div style={{ marginBottom: 6 }}>
-                                You’ve been invited to <b>{d.ownerUsername}</b>’s <b>{d.budgetName}</b> budget.
+                                You have been invited to <b>{d.ownerUsername}</b>'s <b>{d.budgetName}</b> budget.
                             </div>
                             <div style={{ display: 'flex', gap: 8 }}>
                                 <button type="button" onClick={() => accept(d.inviteId)} className="btn ba-purple" disabled={busyId === d.inviteId}>Accept</button>

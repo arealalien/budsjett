@@ -39,7 +39,6 @@ h4,
 h5,
 h6 {
   text-wrap: balance;
-  font-size: $heading-small;
 }
 
 p,
@@ -48,12 +47,9 @@ figcaption {
   text-wrap: pretty;
 }
 
-p,
-a,
-button,
-input,
-textarea {
-  font-size: $paragraph;
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
