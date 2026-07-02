@@ -19,6 +19,7 @@ export const useUiStore = create(
             animationMode: 'static',
             sidebarCollapsed: readLegacySidebarCollapsed(),
             chartPeriods: {},
+            chartLayouts: {},
 
             setAnimationMode: (mode) => {
                 set({ animationMode: ANIMATION_MODES.has(mode) ? mode : 'static' });
@@ -48,6 +49,27 @@ export const useUiStore = create(
                     return { chartPeriods: next };
                 });
             },
+
+            setChartLayout: (layoutId, layout) => {
+                if (!layoutId || !Array.isArray(layout)) return;
+
+                set((state) => ({
+                    chartLayouts: {
+                        ...state.chartLayouts,
+                        [layoutId]: layout,
+                    },
+                }));
+            },
+
+            resetChartLayout: (layoutId) => {
+                if (!layoutId) return;
+
+                set((state) => {
+                    const next = { ...state.chartLayouts };
+                    delete next[layoutId];
+                    return { chartLayouts: next };
+                });
+            },
         }),
         {
             name: 'budsjett-ui',
@@ -56,6 +78,7 @@ export const useUiStore = create(
                 animationMode: state.animationMode,
                 sidebarCollapsed: state.sidebarCollapsed,
                 chartPeriods: state.chartPeriods,
+                chartLayouts: state.chartLayouts,
             }),
         }
     )

@@ -1,16 +1,14 @@
 import React from 'react';
 import { useOutletContext } from 'react-router-dom';
-import SpendingTrend from "../components/dashboard/SpendingTrend";
-import CategoryTrend from "../components/dashboard/CategoryTrend";
-import CategoryTotals from "../components/dashboard/CategoryTotals";
+import AnalyticsOverview from '../components/dashboard/AnalyticsOverview';
 
 const toRgbTriplet = (color) => {
     const m = String(color).match(/^\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*$/);
-    return m ? `${m[1]} ${m[2]} ${m[3]}` : color; // if already CSS color, leave as-is
+    return m ? `${m[1]} ${m[2]} ${m[3]}` : color;
 };
 
 export default function Analytics() {
-    const { budget } = useOutletContext();
+    const { budget, theme, bannerPalette } = useOutletContext();
 
     // Publish variables like --cat-groceries: "34 197 94"
     const catCssVars = (budget?.categories || []).reduce((vars, c) => {
@@ -22,9 +20,12 @@ export default function Analytics() {
 
     return (
         <div className="analytics" style={{ ...catCssVars, width: '100%' }}>
-            <SpendingTrend />
-            <CategoryTrend />
-            <CategoryTotals />
+            <AnalyticsOverview
+                budget={budget}
+                view="analytics"
+                theme={theme}
+                palette={bannerPalette}
+            />
         </div>
     );
 }

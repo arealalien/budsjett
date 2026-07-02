@@ -21,6 +21,7 @@ export const queryKeys = {
         categoryTotals: (slug, period) => ['reports', slug, 'category-totals', period],
         categoryTrend: (slug, period) => ['reports', slug, 'category-trend', period],
         spendingTrend: (slug, period) => ['reports', slug, 'spending-trend', period],
+        analyticsOverview: (slug, period) => ['reports', slug, 'analytics-overview', period],
     },
 
     purchases: {

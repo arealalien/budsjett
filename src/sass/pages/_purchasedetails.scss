@@ -28,6 +28,11 @@
     @include align(start, stretch, column, wrap, lg);
   }
 
+  &-nav {
+    flex-wrap: wrap;
+    @include align(between, center, $gap: sm);
+  }
+
   &-back {
     color: color(gray-300);
     text-decoration: none;
@@ -35,6 +40,29 @@
 
     &:hover {
       opacity: .75;
+    }
+  }
+
+  &-edit {
+    padding: .7em .9em;
+    color: color(cyan-100);
+    background: color(cyan-700, .14);
+    border: 1px solid color(cyan-700);
+    border-radius: $button-radius;
+    text-decoration: none;
+    transition: opacity .15s cubic-bezier($transition-main, 1),
+    border-color .15s cubic-bezier($transition-main, 1),
+    background-color .15s cubic-bezier($transition-main, 1);
+    @include align(center, center, $gap: xs);
+
+    .material-symbols-rounded {
+      font-size: icon-size(button);
+    }
+
+    &:hover {
+      opacity: .9;
+      border-color: color(cyan-500);
+      background: color(cyan-700, .22);
     }
   }
 

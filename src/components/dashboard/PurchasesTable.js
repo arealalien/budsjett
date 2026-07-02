@@ -47,7 +47,7 @@ const ALL_COLUMN_DEFS = [
     { id: 'amount', label: 'Amount', sortable: 'amount', width: 145, min: 120, max: 240, align: 'right' },
     { id: 'balance', label: 'Your balance', width: 205, min: 150, max: 320, align: 'right' },
     { id: 'status', label: 'Status', width: 160, min: 130, max: 260 },
-    { id: 'actions', label: 'Actions', width: 145, min: 120, max: 220, align: 'right' },
+    { id: 'actions', label: 'Actions', width: 170, min: 150, max: 240, align: 'right' },
 ];
 
 const fmtCurrency = (n) =>
@@ -584,45 +584,6 @@ export default function PurchasesTable({ size = 'full' }) {
         },
     });
 
-    const eligibleRows = useMemo(() => {
-        return rows.filter((row) => {
-            const paidById = row.paidBy?.id;
-            const debtor = (row.shares || []).find((share) => share.userId !== paidById && share.percent > 0);
-            return row.shared && !!debtor;
-        });
-    }, [rows]);
-
-    async function bulkSettle(nextValue) {
-        if (!eligibleRows.length) return;
-
-        const ids = new Set(eligibleRows.map((row) => row.id));
-        const previous = queryClient.getQueryData(purchasesQueryKey);
-
-        try {
-            const requests = [...ids].map((id) =>
-                api.patch(`/purchases/${id}/settle`, { settled: nextValue }, { withCredentials: true })
-            );
-
-            setCurrentPurchaseItems((items) => items.map((row) => (
-                ids.has(row.id) ? applySettleLocal(row, nextValue) : row
-            )));
-
-            const results = await Promise.allSettled(requests);
-            const failures = results.filter((result) => result.status === 'rejected');
-
-            if (failures.length) {
-                alert(`${failures.length} item(s) failed to update. The rest were updated.`);
-            }
-        } catch (e) {
-            if (previous) {
-                queryClient.setQueryData(purchasesQueryKey, previous);
-            }
-            alert(e.response?.data?.error || e.message);
-        } finally {
-            invalidateBudgetData(queryClient, slug);
-        }
-    }
-
     function deletePurchase(id) {
         const ok = window.confirm('Are you sure you want to delete this purchase?');
         if (!ok) return;
@@ -632,6 +593,12 @@ export default function PurchasesTable({ size = 'full' }) {
 
     const goToPurchase = (purchaseId) => {
         navigate(`/${slug}/purchases/${purchaseId}`, {
+            state: { purchasesSearch: searchParams.toString() },
+        });
+    };
+
+    const goToEditPurchase = (purchaseId) => {
+        navigate(`/${slug}/purchases/${purchaseId}/edit`, {
             state: { purchasesSearch: searchParams.toString() },
         });
     };
@@ -1020,11 +987,26 @@ export default function PurchasesTable({ size = 'full' }) {
 
                                                             <button
                                                                 type="button"
-                                                                className="purchases-delete-btn"
+                                                                className="purchase-action-icon is-edit"
+                                                                onClick={() => goToEditPurchase(row.id)}
+                                                                title="Edit this purchase"
+                                                                aria-label="Edit this purchase"
+                                                            >
+                                                                <span className="material-symbols-rounded" aria-hidden="true">
+                                                                    edit
+                                                                </span>
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                className="purchase-action-icon is-delete"
                                                                 onClick={() => deletePurchase(row.id)}
                                                                 title="Delete this purchase"
+                                                                aria-label="Delete this purchase"
                                                             >
-                                                                Delete
+                                                                <span className="material-symbols-rounded" aria-hidden="true">
+                                                                    delete
+                                                                </span>
                                                             </button>
                                                         </div>
                                                     </div>

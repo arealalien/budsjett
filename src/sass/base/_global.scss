@@ -26,6 +26,87 @@ body {
   }
 }
 
+:root {
+  --app-theme-accent: #{color(primary-500)};
+  --app-theme-accent-strong: #{color(primary-300)};
+  --app-theme-accent-muted: #{color(primary-400)};
+  --app-theme-accent-dark: #{color(primary-700)};
+  --app-theme-accent-dark-muted: #{color(gray-700)};
+  --app-theme-accent-light: #{color(primary-200)};
+  --app-theme-accent-text: #{color(white)};
+  --app-theme-soft: color-mix(in srgb, var(--app-theme-accent) 16%, transparent);
+  --app-theme-softer: color-mix(in srgb, var(--app-theme-accent) 8%, transparent);
+  --app-theme-border: color-mix(in srgb, var(--app-theme-accent) 42%, transparent);
+  --app-theme-border-strong: color-mix(in srgb, var(--app-theme-accent) 68%, transparent);
+  --app-theme-glow: color-mix(in srgb, var(--app-theme-accent) 24%, transparent);
+  --app-theme-focus: 2px color-mix(in srgb, var(--app-theme-accent) 30%, transparent);
+  --color: var(--app-theme-accent);
+}
+
+.app-container {
+  min-height: 100dvh;
+}
+
+html.is-budget-themed {
+  body {
+    background-color: color-mix(in srgb, var(--app-theme-accent-dark) 12%, color(black));
+  }
+
+  .page-title {
+    color: color-mix(in srgb, var(--app-theme-accent-light) 32%, color(white));
+  }
+
+  .button-primary {
+    color: var(--app-theme-accent-text);
+    background:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--app-theme-accent-light) 18%, var(--app-theme-accent)),
+        var(--app-theme-accent)
+      );
+    box-shadow: 0 16px 34px -22px var(--app-theme-accent);
+
+    &:hover,
+    &:active {
+      color: var(--app-theme-accent-text);
+      box-shadow: 0 16px 34px -18px var(--app-theme-accent);
+    }
+  }
+
+  .button-blue,
+  .button-magic {
+    color: var(--app-theme-accent-text);
+    background:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--app-theme-accent-light) 16%, var(--app-theme-accent-strong)),
+        var(--app-theme-accent-strong)
+      );
+  }
+
+  .button-gray,
+  .button-gray-border,
+  .button-gray-shadow {
+    background-color: color-mix(in srgb, var(--app-theme-accent-dark) 7%, color(gray-900));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-theme-accent) 14%, color(gray-800));
+  }
+
+  input[type='checkbox'].check-custom,
+  input[type='radio'].check-custom,
+  input[type='checkbox'],
+  input[type='radio'] {
+    --active: var(--app-theme-accent);
+    --focus: var(--app-theme-focus);
+    --border-hover: var(--app-theme-accent);
+  }
+
+  input,
+  textarea,
+  select {
+    accent-color: var(--app-theme-accent);
+  }
+}
+
  .material-symbols-rounded {
    font-variation-settings:
        'FILL' 0,

@@ -32,6 +32,7 @@ import BudgetSettings from "./pages/BudgetSettings";
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import PurchaseDetails from './pages/PurchaseDetails';
+import EditPurchase from './pages/EditPurchase';
 import AccountSettings from './pages/AccountSettings';
 
 const router = createBrowserRouter([
@@ -59,6 +60,7 @@ const router = createBrowserRouter([
                     { path: 'analytics', element: <Analytics /> },
                     { path: 'statistics', element: <Statistics /> },
                     { path: 'purchases', element: <Purchases /> },
+                    { path: 'purchases/:purchaseId/edit', element: <EditPurchase /> },
                     { path: 'purchases/:purchaseId', element: <PurchaseDetails /> },
                     { path: 'reports', element: <Reports /> },
                     { path: 'members', element: <BudgetMembers /> },

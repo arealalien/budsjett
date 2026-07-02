@@ -460,6 +460,180 @@ router.post('/:slug/purchases', async (req, res, next) => {
     }
 });
 
+router.patch('/:slug/purchases/:purchaseId', async (req, res, next) => {
+    try {
+        const userId = req.userId;
+        const { slug, purchaseId } = req.params;
+
+        const budget = await prisma.budget.findFirst({
+            where: { slug, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
+            include: { members: true, categories: { select: { id: true } } },
+        });
+        if (!budget) return res.status(404).json({ error: 'Budget not found' });
+
+        const purchase = await prisma.purchase.findFirst({
+            where: { id: purchaseId, budgetId: budget.id, deletedAt: null },
+            include: { shares: true },
+        });
+        if (!purchase) return res.status(404).json({ error: 'Purchase not found' });
+
+        const myMember = budget.members.find((member) => member.userId === userId);
+        const myRole = budget.ownerId === userId ? 'OWNER' : (myMember?.role || 'MEMBER');
+        const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
+        const isCreatorOrPayer = purchase.createdById === userId || purchase.paidById === userId;
+
+        if (!isAdmin && !isCreatorOrPayer) {
+            return res.status(403).json({ error: 'Not allowed to edit this purchase' });
+        }
+
+        const {
+            itemName, categoryId, categoryIds, amount, paidAt, paidById: paidByIdRaw,
+            shared: sharedRaw, splitPercentForPayer: splitRaw, notes, sharesOverride
+        } = createPurchaseInBudgetSchema.parse(req.body);
+
+        const selectedCategoryIds = [...new Set((categoryIds?.length ? categoryIds : [categoryId]).filter(Boolean))];
+        const budgetCategoryIds = new Set(budget.categories.map((category) => category.id));
+        const invalidCategoryIds = selectedCategoryIds.filter((id) => !budgetCategoryIds.has(id));
+
+        if (invalidCategoryIds.length) {
+            return res.status(400).json({ error: 'One or more categories do not belong to this budget' });
+        }
+
+        const primaryCategoryId = selectedCategoryIds[0];
+        const memberIds = new Set([budget.ownerId, ...budget.members.map((member) => member.userId)]);
+        const allMemberIds = Array.from(memberIds);
+        const paidById = paidByIdRaw || purchase.paidById || userId;
+
+        if (!memberIds.has(paidById)) {
+            return res.status(400).json({ error: 'paidById is not a member of this budget' });
+        }
+
+        let shared = sharedRaw;
+        if (allMemberIds.length === 1) shared = false;
+        if (shared === undefined) shared = allMemberIds.length > 1;
+
+        let sharesCreate = [];
+        if (Array.isArray(sharesOverride) && sharesOverride.length) {
+            const rows = sharesOverride.map((share) => {
+                if (!memberIds.has(share.userId)) {
+                    throw Object.assign(new Error('sharesOverride contains non-member'), { status: 400 });
+                }
+                return { userId: share.userId, percent: Math.round(share.percent) };
+            });
+            const sum = rows.reduce((total, row) => total + row.percent, 0);
+
+            if (sum !== 100 && rows.length) {
+                const idx = rows.reduce(
+                    (bestIdx, row, index, all) => row.percent > all[bestIdx].percent ? index : bestIdx,
+                    0
+                );
+                rows[idx].percent += (100 - sum);
+            }
+
+            sharesCreate = rows;
+        } else if (!shared) {
+            sharesCreate = [{ userId: paidById, percent: 100 }];
+        } else if (allMemberIds.length === 2) {
+            const otherId = allMemberIds.find((id) => id !== paidById) || paidById;
+            const p1 = Math.round(splitRaw ?? 50);
+            const p2 = 100 - p1;
+            sharesCreate = [
+                { userId: paidById, percent: p1 },
+                { userId: otherId, percent: p2 },
+            ];
+        } else {
+            const n = allMemberIds.length;
+            const base = Math.floor(100 / n);
+            let remainder = 100 - base * n;
+            sharesCreate = allMemberIds.map((id) => ({
+                userId: id,
+                percent: base + (remainder-- > 0 ? 1 : 0),
+            }));
+        }
+
+        const oldAmountCents = Math.round(Number(purchase.amount) * 100);
+        const nextAmountCents = Math.round(Number(amount) * 100);
+        const oldSharesByUser = new Map(purchase.shares.map((share) => [share.userId, share]));
+        const canPreserveSettlement =
+            oldAmountCents === nextAmountCents &&
+            purchase.paidById === paidById &&
+            purchase.shared === shared;
+
+        const sharesData = sharesCreate.map((share) => {
+            const previous = oldSharesByUser.get(share.userId);
+            const preserve = canPreserveSettlement && previous?.percent === share.percent;
+
+            return {
+                userId: share.userId,
+                percent: share.percent,
+                fixedAmount: null,
+                isSettled: preserve ? previous.isSettled : false,
+                settledAt: preserve ? previous.settledAt : null,
+                settledById: preserve ? previous.settledById : null,
+            };
+        });
+
+        const result = await prisma.$transaction(async (tx) => {
+            await tx.purchaseCategory.deleteMany({ where: { purchaseId } });
+            await tx.purchaseShare.deleteMany({ where: { purchaseId } });
+
+            return tx.purchase.update({
+                where: { id: purchaseId },
+                data: {
+                    itemName,
+                    amount,
+                    paidAt: paidAt ?? purchase.paidAt,
+                    shared,
+                    notes: notes ?? null,
+                    category: { connect: { id: primaryCategoryId } },
+                    paidBy: { connect: { id: paidById } },
+                    categories: {
+                        create: selectedCategoryIds.map((selectedCategoryId) => ({
+                            category: { connect: { id: selectedCategoryId } },
+                        })),
+                    },
+                    shares: {
+                        create: sharesData.map((share) => ({
+                            user: { connect: { id: share.userId } },
+                            percent: share.percent,
+                            fixedAmount: share.fixedAmount,
+                            isSettled: share.isSettled,
+                            settledAt: share.settledAt,
+                            ...(share.settledById
+                                ? { settledBy: { connect: { id: share.settledById } } }
+                                : {}),
+                        })),
+                    },
+                },
+                select: {
+                    id: true,
+                    itemName: true,
+                    amount: true,
+                    shared: true,
+                    paidAt: true,
+                    updatedAt: true,
+                },
+            });
+        });
+
+        invalidateBudgetCaches({
+            budgetId: budget.id,
+            slug,
+            userIds: allMemberIds,
+        });
+
+        res.json(result);
+    } catch (err) {
+        if (err?.status) {
+            return res.status(err.status).json({ error: err.message });
+        }
+        if (err?.name === 'ZodError') {
+            return res.status(400).json({ error: err.errors.map(e => e.message).join(', ') });
+        }
+        next(err);
+    }
+});
+
 router.post('/:slug/income', async (req, res, next) => {
     try {
         const userId = req.userId;

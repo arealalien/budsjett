@@ -18,6 +18,55 @@
   }
 }
 
+html.is-budget-themed {
+  .purchases-toolbar-head h2 {
+    color: color-mix(in srgb, var(--app-theme-accent-light) 24%, color(white));
+  }
+
+  .purchases-action-button,
+  .purchases-wrap-filters-item-search,
+  .purchases-wrap-filters-item-date,
+  .purchases-wrap-filters-item-shared-toggle button,
+  .purchases-wrap-table,
+  .purchases-virtual-header,
+  .purchases-virtual-footer {
+    background: color-mix(in srgb, var(--app-theme-accent-dark) 7%, color(gray-900));
+    border-color: color-mix(in srgb, var(--app-theme-accent) 13%, color(gray-800));
+  }
+
+  .purchases-action-button:hover:not(:disabled),
+  .purchases-action-button:focus-visible,
+  .purchases-wrap-filters-item-shared-toggle button:hover,
+  .purchases-wrap-filters-item-shared-toggle button:focus-visible {
+    background: var(--app-theme-softer);
+    border-color: var(--app-theme-border);
+  }
+
+  .purchases-action-button-primary,
+  .purchases-wrap-filters-item-shared-toggle button.active {
+    color: color(white);
+    background: var(--app-theme-soft);
+    border-color: var(--app-theme-border);
+  }
+
+  .purchases-wrap-filters-item-search:focus,
+  .purchases-wrap-filters-item-date:focus {
+    border-color: var(--app-theme-accent);
+    box-shadow: 0 0 0 2px var(--app-theme-softer);
+  }
+
+  .purchases-virtual-row:hover {
+    background: var(--app-theme-softer);
+  }
+
+  .purchases-column-resizer:hover,
+  .purchases-column-resizer.is-active {
+    &::after {
+      background: var(--app-theme-accent);
+    }
+  }
+}
+
 .purchases-toolbar {
   width: 100%;
   gap: 1em;
@@ -578,14 +627,47 @@
   @include align(center, center);
 }
 
-.purchases-delete-btn {
-  padding: .55em .8em;
-  color: color(red-200);
-  background: color(red-700, .12);
-  border: 1px solid color(red-700);
+.purchase-action-icon {
+  width: 2.35em;
+  height: 2.35em;
+  padding: 0;
+  color: color(gray-200);
+  background: color(gray-800, .22);
+  border: 1px solid color(gray-700);
   border-radius: .8em;
   cursor: pointer;
-  transition: opacity .12s cubic-bezier($transition-main, 1);
+  transition: opacity .12s cubic-bezier($transition-main, 1),
+  border-color .12s cubic-bezier($transition-main, 1),
+  background-color .12s cubic-bezier($transition-main, 1),
+  color .12s cubic-bezier($transition-main, 1);
+  @include align(center, center);
+
+  .material-symbols-rounded {
+    font-size: 1.15em;
+    line-height: 1;
+  }
+
+  &.is-edit {
+    color: color(cyan-100);
+    background: color(cyan-700, .12);
+    border-color: color(cyan-700);
+
+    &:hover {
+      background: color(cyan-700, .22);
+      border-color: color(cyan-500);
+    }
+  }
+
+  &.is-delete {
+    color: color(red-200);
+    background: color(red-700, .12);
+    border-color: color(red-700);
+
+    &:hover {
+      background: color(red-700, .22);
+      border-color: color(red-500);
+    }
+  }
 
   &:hover {
     opacity: .8;

@@ -9,6 +9,49 @@
 .budget {
   padding: 2em;
 
+  &.is-themed {
+    --check-custom-color: var(--budget-theme-accent);
+
+    .page-title {
+      color: color-mix(in srgb, var(--budget-theme-accent-light) 32%, color(white));
+    }
+
+    .button-primary {
+      color: color(white);
+      background-color: var(--budget-theme-accent);
+
+      &:hover,
+      &:active {
+        color: color(white);
+      }
+    }
+
+    .button-blue {
+      color: color(white);
+      background-color: var(--budget-theme-accent-strong);
+    }
+
+    @supports (-webkit-appearance: none) or (-moz-appearance: none) {
+      input[type='checkbox'],
+      input[type='radio'] {
+        --active: var(--budget-theme-accent);
+        --focus: 2px color-mix(in srgb, var(--budget-theme-accent) 30%, transparent);
+        --border-hover: var(--budget-theme-accent);
+      }
+    }
+
+    .purchase-form {
+      --purchase-form-accent: var(--budget-theme-accent);
+    }
+
+    .dashboard-balance,
+    .budget-settings,
+    .budget-members,
+    .purchase-details {
+      --color: var(--budget-theme-accent);
+    }
+  }
+
   &-window, &-home {
     @include align(center, center, column, nowrap, 2em);
   }

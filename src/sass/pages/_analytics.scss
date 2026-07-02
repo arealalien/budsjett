@@ -1,0 +1,614 @@
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+
+.analytics,
+.statistics {
+  width: 100%;
+}
+
+.analytics-overview {
+  display: grid;
+  gap: space(lg);
+  width: 100%;
+}
+
+.analytics-header {
+  min-height: 15rem;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 0, var(--analytics-accent-soft), transparent 24rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--analytics-accent-dark) 18%, color(gray-900)), color(gray-900));
+  border: 1px solid color-mix(in srgb, var(--analytics-accent) 14%, color(gray-800));
+  border-radius: $card-radius;
+  box-shadow:
+    inset 0 1px 0 color(white, .04),
+    0 24px 60px -54px var(--analytics-accent);
+
+  &.has-banner {
+    background: color(gray-900);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: type-size(h2);
+    line-height: type-line-height(h2);
+  }
+
+  p {
+    margin: space(xs) 0 0;
+    max-width: 62ch;
+    color: color(white, .62);
+    font-size: type-size(body);
+  }
+}
+
+.analytics-header-banner {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  object-fit: cover;
+  filter: saturate(1.08);
+}
+
+.analytics-header-overlay {
+  inset: 0;
+  position: absolute;
+  background:
+    linear-gradient(90deg, color(black, .86), color(black, .48) 58%, color(black, .18)),
+    linear-gradient(0deg, color(black, .5), transparent 60%),
+    radial-gradient(circle at 15% 0, var(--analytics-accent-soft), transparent 28rem);
+}
+
+.analytics-header-content {
+  min-height: 15rem;
+  padding: $card-padding;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: space(lg);
+}
+
+.analytics-header-copy {
+  max-width: 64ch;
+}
+
+.analytics-header-actions {
+  align-self: end;
+}
+
+.analytics-eyebrow {
+  margin: 0 0 space(2xs) !important;
+  color: var(--analytics-accent-light) !important;
+  font-size: type-size(label) !important;
+  font-weight: type-weight(label);
+  text-transform: uppercase;
+}
+
+.analytics-periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: space(2xs);
+  padding: space(2xs);
+  background: color(black, .22);
+  border: 1px solid color(white, .08);
+  border-radius: radius(lg);
+  backdrop-filter: blur(18px);
+}
+
+.analytics-period-button {
+  padding: .62rem .82rem;
+  color: color(white, .68);
+  background: transparent;
+  border: 0;
+  border-radius: radius(md);
+  font: inherit;
+  font-size: type-size(button);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+
+  &:hover {
+    color: color(white);
+    background: color(white, .08);
+  }
+
+  &.is-active {
+    color: color(white);
+    background: var(--analytics-accent);
+  }
+}
+
+.analytics-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: space(md);
+}
+
+.analytics-summary-card {
+  display: flex;
+  align-items: flex-start;
+  gap: space(md);
+  min-height: 8.5rem;
+  padding: $card-padding-compact;
+  color: color(white);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--analytics-accent-dark) 5%, color(gray-900)), color(gray-900));
+  border: 1px solid color-mix(in srgb, var(--analytics-accent) 12%, color(gray-800));
+  border-radius: $card-radius;
+  box-shadow: inset 0 1px 0 color(white, .035);
+
+  &-icon {
+    flex: 0 0 auto;
+    width: 2.55rem;
+    height: 2.55rem;
+    display: grid;
+    place-items: center;
+    color: var(--analytics-accent-text, color(white));
+    background: var(--analytics-accent);
+    border-radius: radius(lg);
+    box-shadow:
+      inset 0 1px 0 color(white, .16),
+      0 12px 24px -18px var(--analytics-accent);
+  }
+
+  &-copy {
+    min-width: 0;
+    display: grid;
+    gap: space(xs);
+  }
+
+  span {
+    color: color(white, .54);
+    font-size: type-size(label);
+    font-weight: type-weight(label);
+  }
+
+  strong {
+    color: color(white);
+    font-size: type-size(h3);
+    line-height: type-line-height(h3);
+  }
+
+  p {
+    margin: 0;
+    color: color(white, .5);
+    font-size: type-size(body-sm);
+  }
+
+  &.is-blue {
+    border-color: color-mix(in srgb, var(--analytics-accent) 42%, transparent);
+  }
+
+  &.is-teal {
+    border-color: color-mix(in srgb, var(--analytics-accent-strong) 42%, transparent);
+  }
+
+  &.is-green {
+    border-color: color-mix(in srgb, var(--analytics-accent-muted) 42%, transparent);
+  }
+
+  &.is-yellow {
+    border-color: color-mix(in srgb, var(--analytics-accent-light) 42%, transparent);
+  }
+
+  &.is-red {
+    border-color: color(red-500, .35);
+  }
+
+  &.is-gray {
+    border-color: color(gray-700);
+  }
+}
+
+.analytics-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: space(lg);
+  align-items: start;
+}
+
+.analytics-chart-card {
+  height: 100%;
+  min-width: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--analytics-accent-dark) 6%, color(gray-900)), color(gray-900));
+  border-color: color-mix(in srgb, var(--analytics-accent) 12%, color(gray-800));
+  box-shadow: inset 0 1px 0 color(white, .035);
+
+  &.is-wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.dashboard-layout-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: space(2xs) space(xs);
+  color: color(white, .72);
+  background: color(white, .07);
+  border: 1px solid color(white, .08);
+  border-radius: $badge-radius;
+  font-size: type-size(badge);
+  font-weight: type-weight(badge);
+  line-height: type-line-height(badge);
+}
+
+.dashboard-layout-editor {
+  display: grid;
+  gap: space(md);
+
+  &.is-editing {
+    .dashboard-layout-card {
+      border-color: color-mix(in srgb, var(--analytics-accent) 8%, color(white, .18));
+      box-shadow:
+        inset 0 1px 0 color(white, .04),
+        0 0 0 1px color-mix(in srgb, var(--analytics-accent) 24%, transparent);
+    }
+  }
+}
+
+.dashboard-layout-editor-head {
+  padding: space(sm);
+  color: color(white);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--analytics-accent-dark) 16%, color(gray-900)),
+      color(gray-900)
+    );
+  border: 1px solid color(white, .08);
+  border-radius: $card-radius;
+  @include align(between, center, row, wrap, md);
+
+  p {
+    margin-top: space(2xs);
+    color: color(gray-500);
+    font-size: type-size(body-sm);
+  }
+}
+
+.dashboard-layout-editor-actions {
+  @include align(end, center, row, wrap, sm);
+
+  .button {
+    padding: .72em .95em;
+  }
+}
+
+.dashboard-layout-editor-canvas {
+  min-width: 0;
+}
+
+.dashboard-layout-editor-stack {
+  display: grid;
+  gap: space(lg);
+}
+
+.dashboard-layout-grid {
+  min-height: 20rem;
+
+  .react-grid-item {
+    transition:
+      transform .2s ease,
+      width .2s ease,
+      height .2s ease,
+      box-shadow .2s ease,
+      border-color .2s ease;
+
+    &.react-grid-placeholder {
+      background: color-mix(in srgb, var(--analytics-accent) 36%, color(primary-500));
+      border-radius: $card-radius;
+      opacity: .18;
+    }
+
+    &.react-draggable-dragging,
+    &.resizing {
+      transition: none;
+
+      .dashboard-layout-card {
+        border-color: color-mix(in srgb, var(--analytics-accent) 72%, color(white, .18));
+        box-shadow:
+          0 18px 60px -34px var(--analytics-accent),
+          0 0 0 1px color-mix(in srgb, var(--analytics-accent) 34%, transparent);
+      }
+    }
+  }
+}
+
+.dashboard-layout-card {
+  height: 100%;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: $card-radius;
+
+  &.is-editing {
+    background: color(black, .08);
+
+    .dashboard-layout-card-content {
+      pointer-events: none;
+    }
+
+    .dashboard-layout-card-drag-region {
+      opacity: .62;
+      pointer-events: auto;
+    }
+
+    .react-resizable-handle {
+      pointer-events: auto;
+    }
+
+    &:hover {
+      .dashboard-layout-card-drag-region {
+        opacity: 1;
+      }
+
+      .react-resizable-handle {
+        opacity: .32;
+      }
+    }
+  }
+
+  &.is-static {
+    height: auto;
+    overflow: visible;
+  }
+}
+
+.dashboard-layout-card-drag-region {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2.75rem;
+  position: absolute;
+  z-index: 5;
+  color: color(gray-300);
+  background:
+    linear-gradient(180deg, color(black, .28), color(black, 0));
+  cursor: grab;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  touch-action: none;
+  transition:
+    opacity .18s ease,
+    background-color .18s ease;
+  @include align(center, start);
+
+  &::before {
+    content: "";
+    top: space(xs);
+    width: 3rem;
+    height: .2rem;
+    position: absolute;
+    background: color-mix(in srgb, var(--analytics-accent) 52%, color(white, .24));
+    border-radius: $radius-pill;
+    transform: translateX(-50%);
+  }
+
+  &:hover {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--analytics-accent) 12%, color(black, .34)), color(black, 0));
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  span {
+    margin-top: space(md);
+    max-width: calc(100% - #{space(xl)});
+    color: color(gray-300);
+    font-size: type-size(caption);
+    font-weight: 700;
+    letter-spacing: 0;
+    opacity: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    transition: opacity .18s ease;
+    white-space: nowrap;
+  }
+
+  &:hover,
+  &:active {
+    span {
+      opacity: .78;
+    }
+  }
+}
+
+.dashboard-layout-card-content {
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+
+  > .analytics-chart-card {
+    height: 100%;
+  }
+}
+
+.dashboard-layout-card .react-resizable-handle {
+  background-image: none;
+  position: absolute;
+  z-index: 6;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transform: none !important;
+  transition:
+    opacity .18s ease,
+    background-color .18s ease,
+    border-color .18s ease;
+
+  &:hover,
+  &:active {
+    opacity: 1;
+    background: transparent;
+  }
+
+  &::after {
+    display: none;
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    background: color-mix(in srgb, var(--analytics-accent) 74%, color(white, .2));
+    border-radius: $radius-pill;
+  }
+
+  &.react-resizable-handle-s {
+    left: 0;
+    width: 100%;
+    height: 1.1rem;
+    bottom: -.55rem;
+    cursor: ns-resize;
+
+    &::before {
+      left: 0;
+      bottom: .55rem;
+      width: 100%;
+      height: 2px;
+      opacity: 0;
+    }
+  }
+
+  &.react-resizable-handle-e {
+    top: 0 !important;
+    right: -.55rem;
+    width: 1.1rem;
+    height: 100%;
+    cursor: ew-resize;
+
+    &::before {
+      top: 0;
+      right: .55rem;
+      width: 2px;
+      height: 100%;
+      opacity: 0;
+    }
+  }
+
+  &.react-resizable-handle-se {
+    width: 1.65rem;
+    height: 1.65rem;
+    right: -.55rem;
+    bottom: -.55rem;
+    cursor: nwse-resize;
+
+    &::before {
+      right: .55rem;
+      bottom: .55rem;
+      width: .68rem;
+      height: .68rem;
+      background: transparent;
+      border-color: color-mix(in srgb, var(--analytics-accent) 82%, color(white, .16));
+      border-width: 0 2px 2px 0;
+      border-style: solid;
+      border-radius: 0;
+    }
+  }
+
+  &.react-resizable-handle-e,
+  &.react-resizable-handle-s {
+    border-radius: 999px;
+  }
+}
+
+.analytics-chart-card-head {
+  display: grid;
+  gap: space(2xs);
+  margin-bottom: space(sm);
+
+  .hc-title {
+    margin: 0;
+    color: color-mix(in srgb, var(--analytics-accent-light) 18%, color(white));
+  }
+
+  p {
+    margin: 0;
+    color: color(white, .5);
+    font-size: type-size(body-sm);
+  }
+}
+
+.analytics-loading {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: space(md);
+
+  div {
+    min-height: 12rem;
+    background:
+      linear-gradient(90deg, color(white, .03), color(white, .08), color(white, .03));
+    border: 1px solid color(gray-800);
+    border-radius: $card-radius;
+    animation: analytics-loading 1.25s ease-in-out infinite;
+  }
+}
+
+.analytics-error {
+  padding: $card-padding;
+  color: color(red-200);
+  background: color(red-900, .32);
+  border: 1px solid color(red-500, .35);
+  border-radius: $card-radius;
+}
+
+.analytics-tooltip {
+  display: grid;
+  gap: space(xs);
+  min-width: 13rem;
+}
+
+.analytics-tooltip-date {
+  color: color(white, .56);
+  font-size: type-size(body-sm);
+}
+
+.analytics-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: space(lg);
+  white-space: nowrap;
+}
+
+@keyframes analytics-loading {
+  0%,
+  100% {
+    opacity: .55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .analytics-header-content {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .analytics-header-actions {
+    align-self: start;
+  }
+
+  .analytics-chart-grid,
+  .analytics-loading {
+    grid-template-columns: 1fr;
+  }
+}

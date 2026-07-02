@@ -135,3 +135,37 @@
     display: none;
   }
 }
+
+html.is-budget-themed {
+  .highcharts {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--app-theme-accent-dark) 7%, color(gray-900)), color(gray-900));
+    border-color: color-mix(in srgb, var(--app-theme-accent) 12%, color(gray-800));
+    box-shadow: inset 0 1px 0 color(white, .035);
+
+    .highcharts-grid-line,
+    .highcharts-navigator-outline {
+      stroke: color-mix(in srgb, var(--app-theme-accent) 16%, color(gray-700));
+    }
+
+    .highcharts-button-pressed {
+      .highcharts-button-box {
+        fill: var(--app-theme-accent);
+        stroke: var(--app-theme-accent);
+      }
+    }
+
+    .highcharts-input-group {
+      .highcharts-label:nth-child(2),
+      .highcharts-label:nth-child(4) {
+        text {
+          fill: var(--app-theme-accent-light) !important;
+        }
+      }
+    }
+
+    .highcharts-navigator-mask-inside {
+      fill: var(--app-theme-accent);
+    }
+  }
+}

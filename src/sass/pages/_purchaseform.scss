@@ -7,6 +7,12 @@
 .purchase {
   width: 100%;
 
+  &-edit-back {
+    width: fit-content;
+    display: inline-flex;
+    margin-bottom: 1em;
+  }
+
   &-form {
     --purchase-form-accent: #{color(primary-500)};
     --purchase-form-background: color-mix(in srgb, var(--purchase-form-accent) 4%, #{color(gray-900)});
@@ -268,7 +274,8 @@
 
       &-actions {
         padding-top: .2em;
-        @include align(end, center);
+        flex-wrap: wrap;
+        @include align(end, center, $gap: .75em);
       }
     }
 

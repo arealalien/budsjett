@@ -410,9 +410,22 @@ export default function PurchaseDetails() {
     return (
         <div className="purchase-details" style={{ '--color': primaryCategoryColor }}>
             <div className="purchase-details-top">
-                <Link to={purchasesBackTo} className="purchase-details-back">
-                    ← Back to purchases
-                </Link>
+                <div className="purchase-details-nav">
+                    <Link to={purchasesBackTo} className="purchase-details-back">
+                        ← Back to purchases
+                    </Link>
+
+                    <Link
+                        to={`/${slug}/purchases/${purchaseId}/edit`}
+                        state={{ purchasesSearch }}
+                        className="purchase-details-edit"
+                    >
+                        <span className="material-symbols-rounded" aria-hidden="true">
+                            edit
+                        </span>
+                        Edit
+                    </Link>
+                </div>
 
                 <div className="purchase-details-hero">
                     <div className="purchase-details-hero-rim" />

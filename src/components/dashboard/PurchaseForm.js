@@ -1,21 +1,31 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useOutletContext, useParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { invalidateBudgetData } from '../../lib/queryInvalidation';
 import { useAuth } from '../AuthContext';
+import { useToast } from '../utils/ToastContext';
 import Button from '../Button';
 import Dropdown from '../utils/Dropdown';
 
 const tzGuess = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+const DEFAULT_CATEGORY_COLOR = '121, 159, 236';
+const QUICK_SPLITS = new Set([50, 60, 70, 80, 100]);
+
+const currencyFormatter = new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+
+const amountInputFormatter = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
 
 const formatCurrency = (value) =>
-    new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: 'EUR',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(Number(value) || 0);
+    currencyFormatter.format(Number(value) || 0);
 
 const asCssColor = (color) => {
     if (!color) return 'rgb(150, 150, 150)';
@@ -26,11 +36,59 @@ const asCssColor = (color) => {
     return value;
 };
 
-export default function PurchaseForm() {
+const formatCentsForInput = (cents) => (
+    amountInputFormatter.format((Number(cents) || 0) / 100)
+);
+
+const amountToCents = (value) => Math.round((Number(value) || 0) * 100);
+
+const parseMoneyToCents = (raw) => {
+    if (raw == null) return 0;
+
+    let value = String(raw).trim();
+    if (!value) return 0;
+
+    value = value.replace(/\s|\u00A0/g, '');
+
+    if (value.includes(',') && value.includes('.')) {
+        value = value.replace(/\./g, '').replace(',', '.');
+    } else if (value.includes(',')) {
+        value = value.replace(',', '.');
+    }
+
+    value = value.replace(/[^\d.-]/g, '');
+
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? Math.round(numberValue * 100) : 0;
+};
+
+const toCents = (value) => parseMoneyToCents(value);
+const fromCents = (cents) => (Number(cents || 0) / 100);
+
+const formatAmountInput = (raw) => {
+    const cents = toCents(raw);
+    if (!cents && !String(raw || '').trim()) return '';
+    return formatCentsForInput(cents);
+};
+
+const toDateInputValue = (value, fallback) => {
+    if (!value) return fallback;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? fallback : date.toISOString().slice(0, 10);
+};
+
+export default function PurchaseForm({
+    mode = 'create',
+    purchase = null,
+    purchasesSearch = '',
+}) {
     const { slug } = useParams();
     const { budget = { owner: null, members: [], categories: [] } } = useOutletContext?.() ?? {};
     const { user } = useAuth();
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { showToast } = useToast();
+    const isEdit = mode === 'edit';
 
     const members = useMemo(() => {
         const ids = new Set(
@@ -107,38 +165,6 @@ export default function PurchaseForm() {
         timeZone: tzGuess,
     });
 
-    const parseMoneyToCents = (raw) => {
-        if (raw == null) return 0;
-
-        let s = String(raw).trim();
-        if (!s) return 0;
-
-        s = s.replace(/\s|\u00A0/g, '');
-
-        if (s.includes(',') && s.includes('.')) {
-            s = s.replace(/\./g, '').replace(',', '.');
-        } else if (s.includes(',')) {
-            s = s.replace(',', '.');
-        }
-
-        s = s.replace(/[^\d.-]/g, '');
-
-        const n = Number(s);
-        return Number.isFinite(n) ? Math.round(n * 100) : 0;
-    };
-
-    const toCents = (v) => parseMoneyToCents(v);
-    const fromCents = (c) => (Number(c || 0) / 100);
-
-    const formatAmountInput = (raw) => {
-        const cents = toCents(raw);
-        if (!cents && !String(raw || '').trim()) return '';
-        return new Intl.NumberFormat(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }).format(cents / 100);
-    };
-
     useEffect(() => {
         setForm((f) => {
             const availableCategoryIds = new Set(categories.map((category) => category.id));
@@ -164,6 +190,69 @@ export default function PurchaseForm() {
             setShowRecurringSettings(false);
         }
     }, [form.makeRecurring]);
+
+    useEffect(() => {
+        if (!isEdit || !purchase) return;
+
+        const purchaseCategoryIds = Array.isArray(purchase.categories) && purchase.categories.length
+            ? purchase.categories.map((category) => category.id).filter(Boolean)
+            : [purchase.category?.id].filter(Boolean);
+        const selectedCategoryIds = purchaseCategoryIds.length
+            ? [...new Set(purchaseCategoryIds)]
+            : (categories[0]?.id ? [categories[0].id] : []);
+        const paidById = purchase.paidBy?.id || user?.id || members[0]?.id || '';
+        const amountCents = amountToCents(purchase.amount);
+        const shares = Array.isArray(purchase.shares) ? purchase.shares : [];
+        const payerShare = shares.find((share) => share.userId === paidById);
+        const nextSplitPercent = Number.isFinite(Number(payerShare?.percent))
+            ? Math.max(0, Math.min(100, Number(payerShare.percent)))
+            : 50;
+        const personalOnly = {};
+
+        if (purchase.shared && members.length > 2 && amountCents > 0 && shares.length) {
+            const allocations = shares.map((share) => ({
+                userId: share.userId,
+                cents: Math.round(amountCents * (Number(share.percent) || 0) / 100),
+            }));
+            const assigned = allocations.reduce((sum, allocation) => sum + allocation.cents, 0);
+            const remainder = amountCents - assigned;
+            const preferredAllocation = allocations.find((allocation) => allocation.userId === paidById) || allocations[0];
+
+            if (preferredAllocation) {
+                preferredAllocation.cents += remainder;
+            }
+
+            allocations.forEach((allocation) => {
+                if (allocation.cents > 0) {
+                    personalOnly[allocation.userId] = formatCentsForInput(allocation.cents);
+                }
+            });
+        }
+
+        setForm((current) => ({
+            ...current,
+            itemName: purchase.itemName || '',
+            categoryId: selectedCategoryIds[0] || '',
+            categoryIds: selectedCategoryIds,
+            amount: amountCents > 0 ? formatCentsForInput(amountCents) : '',
+            paidAt: toDateInputValue(purchase.paidAt, todayISO),
+            paidById,
+            shared: singleMember ? false : !!purchase.shared,
+            splitPercentForPayer: nextSplitPercent,
+            personalOnly,
+            notes: purchase.notes || '',
+            makeRecurring: false,
+            recurrence: 'MONTHLY',
+            interval: 1,
+            startAt: todayISO,
+            timeZone: tzGuess,
+        }));
+        setSplitMode(QUICK_SPLITS.has(nextSplitPercent) ? 'quick' : 'advanced');
+        setShowPrivateBreakdown(purchase.shared && members.length > 2 && Object.keys(personalOnly).length > 0);
+        setShowRecurringSettings(false);
+        setOk(false);
+        setErr('');
+    }, [categories, isEdit, members, purchase, singleMember, todayISO, user?.id]);
 
     useEffect(() => {
         if (!form.shared) {
@@ -413,27 +502,48 @@ export default function PurchaseForm() {
                 recurring,
             };
 
-            await api.post(
-                `/budgets/${encodeURIComponent(slug)}/purchases`,
-                payload,
-                { withCredentials: true }
-            );
+            if (isEdit && purchase?.id) {
+                await api.patch(
+                    `/budgets/${encodeURIComponent(slug)}/purchases/${encodeURIComponent(purchase.id)}`,
+                    payload,
+                    { withCredentials: true }
+                );
+            } else {
+                await api.post(
+                    `/budgets/${encodeURIComponent(slug)}/purchases`,
+                    payload,
+                    { withCredentials: true }
+                );
+            }
             invalidateBudgetData(queryClient, slug);
 
             setOk(true);
             setErr('');
+            showToast(isEdit ? 'Purchase updated' : 'Purchase added', {
+                type: 'success',
+                duration: 2200,
+            });
 
-            setForm((f) => ({
-                ...f,
-                itemName: '',
-                amount: '',
-                notes: '',
-                personalOnly: {},
-            }));
-            setSplitMode('quick');
-            setShowPrivateBreakdown(false);
+            if (isEdit && purchase?.id) {
+                navigate(`/${slug}/purchases/${purchase.id}`, {
+                    replace: true,
+                    state: { purchasesSearch },
+                });
+            } else {
+                setForm((f) => ({
+                    ...f,
+                    itemName: '',
+                    amount: '',
+                    notes: '',
+                    personalOnly: {},
+                }));
+                setSplitMode('quick');
+                setShowPrivateBreakdown(false);
+            }
         } catch (e2) {
-            setErr(e2?.response?.data?.error || e2.message || 'Failed to save purchase');
+            const message = e2?.response?.data?.error || e2.message || 'Failed to save purchase';
+            setErr(message);
+            showToast(message, { type: 'error', duration: 3500 });
         } finally {
             setLoading(false);
         }
@@ -446,7 +556,7 @@ export default function PurchaseForm() {
         () => categories.find((category) => category.id === activeCategoryId) || categories[0] || null,
         [categories, activeCategoryId]
     );
-    const activeCategoryColor = asCssColor(activeCategory?.color || '121, 159, 236');
+    const activeCategoryColor = asCssColor(activeCategory?.color || DEFAULT_CATEGORY_COLOR);
 
     return (
         <form
@@ -457,8 +567,12 @@ export default function PurchaseForm() {
             <div className="purchase-form-inner">
                 <div className="purchase-form-inner-header">
                     <div className="purchase-form-inner-header-copy">
-                        <h3>New purchase</h3>
-                        <p>Add the receipt details, choose who paid, and confirm the split before saving.</p>
+                        <h3>{isEdit ? 'Edit purchase' : 'New purchase'}</h3>
+                        <p>
+                            {isEdit
+                                ? 'Update the saved purchase details, payer, categories, and split.'
+                                : 'Add the receipt details, choose who paid, and confirm the split before saving.'}
+                        </p>
                     </div>
 
                     <div className="purchase-form-inner-header-status" aria-live="polite">
@@ -721,11 +835,15 @@ export default function PurchaseForm() {
                                         className={`purchase-form-toggle ${showPrivateBreakdown ? 'active' : ''}`}
                                         onClick={() => setShowPrivateBreakdown((v) => !v)}
                                     >
-                                        {showPrivateBreakdown ? 'Hide private amounts' : 'Add private amounts'}
+                                        {showPrivateBreakdown
+                                            ? (isEdit ? 'Hide individual amounts' : 'Hide private amounts')
+                                            : (isEdit ? 'Adjust individual amounts' : 'Add private amounts')}
                                     </button>
 
                                     <small className="purchase-form-inner-grid-field-help">
-                                        Use this when one person has receipt items that only belong to them. The remainder is split.
+                                        {isEdit
+                                            ? 'These amounts recreate the saved split. Adjust them if responsibility should change.'
+                                            : 'Use this when one person has receipt items that only belong to them. The remainder is split.'}
                                     </small>
                                 </div>
                             </div>
@@ -804,13 +922,13 @@ export default function PurchaseForm() {
 
                             {personalTotals.totalC > 0 && (
                                 <div className="purchase-form-preview-row">
-                                    <span>Private part</span>
+                                    <span>{isEdit && showPrivateBreakdown ? 'Individual amounts' : 'Private part'}</span>
                                     <strong>{formatCurrency(fromCents(personalTotals.totalC))}</strong>
                                 </div>
                             )}
 
                             <div className="purchase-form-preview-row">
-                                <span>Shared part</span>
+                                <span>{isEdit && showPrivateBreakdown ? 'Remaining shared part' : 'Shared part'}</span>
                                 <strong>{formatCurrency(fromCents(preview.sharedBaseC))}</strong>
                             </div>
 
@@ -834,13 +952,13 @@ export default function PurchaseForm() {
 
                             {personalTotals.totalC > 0 && (
                                 <div className="purchase-form-preview-row">
-                                    <span>Private part</span>
+                                    <span>{isEdit && showPrivateBreakdown ? 'Individual amounts' : 'Private part'}</span>
                                     <strong>{formatCurrency(fromCents(personalTotals.totalC))}</strong>
                                 </div>
                             )}
 
                             <div className="purchase-form-preview-row">
-                                <span>Shared part</span>
+                                <span>{isEdit && showPrivateBreakdown ? 'Remaining shared part' : 'Shared part'}</span>
                                 <strong>{formatCurrency(fromCents(preview.sharedBaseC))}</strong>
                             </div>
 
@@ -859,7 +977,11 @@ export default function PurchaseForm() {
                 <section className="purchase-form-section">
                     <div className="purchase-form-section-heading">
                         <h4>Optional details</h4>
-                        <p>Add a note or create future copies of this purchase.</p>
+                        <p>
+                            {isEdit
+                                ? 'Add or update the saved note for this purchase.'
+                                : 'Add a note or create future copies of this purchase.'}
+                        </p>
                     </div>
 
                     <div className="purchase-form-inner-grid">
@@ -876,32 +998,34 @@ export default function PurchaseForm() {
                         </label>
                     </div>
 
-                    <div className="purchase-form-inner-grid">
-                        <div className="purchase-form-inner-grid-field pf-col-span-2">
-                            <label className="purchase-form-inner-grid-field-checkbox">
-                                <input
-                                    className="check-purple"
-                                    type="checkbox"
-                                    name="makeRecurring"
-                                    checked={form.makeRecurring}
-                                    onChange={onChange}
-                                />
-                                Make this a recurring purchase
-                            </label>
+                    {!isEdit && (
+                        <div className="purchase-form-inner-grid">
+                            <div className="purchase-form-inner-grid-field pf-col-span-2">
+                                <label className="purchase-form-inner-grid-field-checkbox">
+                                    <input
+                                        className="check-purple"
+                                        type="checkbox"
+                                        name="makeRecurring"
+                                        checked={form.makeRecurring}
+                                        onChange={onChange}
+                                    />
+                                    Make this a recurring purchase
+                                </label>
 
-                            {form.makeRecurring && (
-                                <button
-                                    type="button"
-                                    className={`purchase-form-toggle ${showRecurringSettings ? 'active' : ''}`}
-                                    onClick={() => setShowRecurringSettings((v) => !v)}
-                                >
-                                    {showRecurringSettings ? 'Hide repeat settings' : 'Show repeat settings'}
-                                </button>
-                            )}
+                                {form.makeRecurring && (
+                                    <button
+                                        type="button"
+                                        className={`purchase-form-toggle ${showRecurringSettings ? 'active' : ''}`}
+                                        onClick={() => setShowRecurringSettings((v) => !v)}
+                                    >
+                                        {showRecurringSettings ? 'Hide repeat settings' : 'Show repeat settings'}
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
-                    {form.makeRecurring && showRecurringSettings && (
+                    {!isEdit && form.makeRecurring && showRecurringSettings && (
                         <div className="purchase-form-inner-grid">
                             <label className="purchase-form-inner-grid-field">
                                 <span className="purchase-form-inner-grid-field-label">Starts on</span>
@@ -945,10 +1069,24 @@ export default function PurchaseForm() {
                 </section>
 
                 <div className="purchase-form-inner-actions">
+                    {isEdit && purchase?.id && (
+                        <Button
+                            className="purchase-form-cancel"
+                            variant="gray"
+                            text="Cancel"
+                            type="button"
+                            effects="none"
+                            onClick={() => {
+                                navigate(`/${slug}/purchases/${purchase.id}`, {
+                                    state: { purchasesSearch },
+                                });
+                            }}
+                        />
+                    )}
                     <Button
                         className="purchase-form-submit"
                         variant="primary"
-                        text={loading ? 'Saving...' : 'Add purchase'}
+                        text={loading ? 'Saving...' : (isEdit ? 'Save changes' : 'Add purchase')}
                         type="submit"
                         disabled={loading}
                     />
