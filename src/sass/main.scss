@@ -4,6 +4,7 @@
 /* Tools */
 @use "tools/functions/encode-colors";
 @use "tools/mixins/alignment";
+@use "tools/mixins/fields";
 @use "tools/mixins/mixins";
 @use "tools/mixins/respond";
 
@@ -31,6 +32,7 @@
 
 /* Layout */
 @use "layout/navbar";
+@use "layout/topbar";
 @use "layout/sidebar";
 @use "layout/feed";
 @use "layout/highcharts";

@@ -18,6 +18,7 @@ export const useUiStore = create(
         (set) => ({
             animationMode: 'static',
             sidebarCollapsed: readLegacySidebarCollapsed(),
+            sidebarWidth: null,
             chartPeriods: {},
             chartLayouts: {},
 
@@ -27,6 +28,11 @@ export const useUiStore = create(
 
             setSidebarCollapsed: (collapsed) => {
                 set({ sidebarCollapsed: Boolean(collapsed) });
+            },
+
+            setSidebarWidth: (width) => {
+                const nextWidth = Number(width);
+                set({ sidebarWidth: Number.isFinite(nextWidth) && nextWidth > 0 ? nextWidth : null });
             },
 
             toggleSidebarCollapsed: () => {
@@ -77,6 +83,7 @@ export const useUiStore = create(
             partialize: (state) => ({
                 animationMode: state.animationMode,
                 sidebarCollapsed: state.sidebarCollapsed,
+                sidebarWidth: state.sidebarWidth,
                 chartPeriods: state.chartPeriods,
                 chartLayouts: state.chartLayouts,
             }),

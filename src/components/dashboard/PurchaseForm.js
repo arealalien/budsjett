@@ -9,7 +9,6 @@ import Button from '../Button';
 import Dropdown from '../utils/Dropdown';
 
 const tzGuess = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-const DEFAULT_CATEGORY_COLOR = '121, 159, 236';
 const QUICK_SPLITS = new Set([50, 60, 70, 80, 100]);
 
 const currencyFormatter = new Intl.NumberFormat(undefined, {
@@ -28,7 +27,7 @@ const formatCurrency = (value) =>
     currencyFormatter.format(Number(value) || 0);
 
 const asCssColor = (color) => {
-    if (!color) return 'rgb(150, 150, 150)';
+    if (!color) return null;
 
     const value = String(color).trim();
     if (/^\d+\s*,\s*\d+\s*,\s*\d+$/.test(value)) return `rgb(${value})`;
@@ -116,17 +115,13 @@ export default function PurchaseForm({
 
     const categories = useMemo(() => budget?.categories || [], [budget?.categories]);
     const categoryOptions = useMemo(() => (
-        categories.map((category) => {
-            const color = asCssColor(category.color);
-
-            return {
-                value: category.id,
-                label: category.name,
-                searchText: category.name,
-                color,
-                variant: 'custom',
-            };
-        })
+        categories.map((category) => ({
+            value: category.id,
+            label: category.name,
+            searchText: category.name,
+            color: asCssColor(category.color),
+            variant: 'custom',
+        }))
     ), [categories]);
     const payerOptions = useMemo(() => (
         members.map((member) => ({
@@ -551,18 +546,11 @@ export default function PurchaseForm({
 
     const payerSplit = Math.max(0, Math.min(100, Number(form.splitPercentForPayer) || 0));
     const otherSplit = 100 - payerSplit;
-    const activeCategoryId = form.categoryIds?.[0] || form.categoryId || categories[0]?.id || '';
-    const activeCategory = useMemo(
-        () => categories.find((category) => category.id === activeCategoryId) || categories[0] || null,
-        [categories, activeCategoryId]
-    );
-    const activeCategoryColor = asCssColor(activeCategory?.color || DEFAULT_CATEGORY_COLOR);
 
     return (
         <form
             onSubmit={onSubmit}
             className="purchase-form"
-            style={{ '--purchase-form-accent': activeCategoryColor }}
         >
             <div className="purchase-form-inner">
                 <div className="purchase-form-inner-header">
@@ -656,8 +644,7 @@ export default function PurchaseForm({
                                 options={categoryOptions}
                                 placeholder="Choose categories"
                                 variant="gray"
-                                className="purchase-form-category-dropdown"
-                                colorFromSelected
+                                className="purchase-form-dropdown purchase-form-category-dropdown"
                                 multiple
                                 searchable
                                 searchPlaceholder="Search categories..."
@@ -686,7 +673,7 @@ export default function PurchaseForm({
                                 options={payerOptions}
                                 placeholder="Choose who paid"
                                 variant="gray"
-                                className="purchase-form-category-dropdown"
+                                className="purchase-form-dropdown purchase-form-payer-dropdown"
                                 searchable={payerOptions.length > 5}
                                 searchPlaceholder="Search members..."
                                 noResultsText="No members found"

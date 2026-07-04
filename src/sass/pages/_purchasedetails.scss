@@ -1,13 +1,25 @@
 @use "../config/colors" as *;
 @use "../abstracts/utilities" as *;
 @use "../config/sizes" as *;
-@use "../config/z-index" as *;
 @use "../tools/functions/encode-colors" as *;
 @use "../tools/mixins/alignment" as *;
-@use "sass:math";
 
 .purchase-details {
+  --purchase-accent: var(--app-theme-accent, rgb(var(--color, 121, 159, 236)));
+  --purchase-accent-rgb: var(--color, 121, 159, 236);
+  --purchase-accent-strong: var(--app-theme-accent-strong, var(--purchase-accent));
+  --purchase-accent-muted: var(--app-theme-accent-muted, var(--purchase-accent));
+  --purchase-accent-dark: var(--app-theme-accent-dark, #{color(gray-900)});
+  --purchase-accent-light: var(--app-theme-accent-light, var(--purchase-accent));
+  --purchase-surface: color-mix(in srgb, var(--purchase-accent-dark) 9%, #{color(gray-900)});
+  --purchase-surface-strong: color-mix(in srgb, var(--purchase-accent-dark) 16%, #{color(gray-900)});
+  --purchase-border: color-mix(in srgb, var(--purchase-accent) 20%, #{color(gray-800)});
+  --purchase-border-strong: color-mix(in srgb, var(--purchase-accent) 42%, #{color(gray-700)});
+  --purchase-card-bg: color-mix(in srgb, var(--purchase-accent) 9%, #{color(gray-900)});
+  --purchase-card-border: color-mix(in srgb, var(--purchase-accent) 26%, #{color(gray-800)});
+
   width: 100%;
+  color: color(gray-100);
   gap: $stack-gap-loose;
   @include align(start, stretch, column);
 
@@ -25,7 +37,8 @@
   }
 
   &-top {
-    @include align(start, stretch, column, wrap, lg);
+    gap: $stack-gap;
+    @include align(start, stretch, column);
   }
 
   &-nav {
@@ -33,26 +46,20 @@
     @include align(between, center, $gap: sm);
   }
 
-  &-back {
-    color: color(gray-300);
-    text-decoration: none;
-    transition: opacity .15s cubic-bezier($transition-main, 1);
-
-    &:hover {
-      opacity: .75;
-    }
-  }
-
+  &-back,
   &-edit {
-    padding: .7em .9em;
-    color: color(cyan-100);
-    background: color(cyan-700, .14);
-    border: 1px solid color(cyan-700);
+    min-height: 2.65rem;
+    padding: .65rem .85rem;
+    border: 1px solid var(--purchase-border);
     border-radius: $button-radius;
+    font-size: type-size(body-sm);
+    line-height: 1;
     text-decoration: none;
-    transition: opacity .15s cubic-bezier($transition-main, 1),
-    border-color .15s cubic-bezier($transition-main, 1),
-    background-color .15s cubic-bezier($transition-main, 1);
+    transition:
+      color .16s cubic-bezier($transition-main, 1),
+      background-color .16s cubic-bezier($transition-main, 1),
+      border-color .16s cubic-bezier($transition-main, 1),
+      transform .16s cubic-bezier($transition-main, 1);
     @include align(center, center, $gap: xs);
 
     .material-symbols-rounded {
@@ -60,61 +67,108 @@
     }
 
     &:hover {
-      opacity: .9;
-      border-color: color(cyan-500);
-      background: color(cyan-700, .22);
+      border-color: var(--purchase-border-strong);
+      transform: translateY(-1px);
+    }
+  }
+
+  &-back {
+    color: color(gray-300);
+    background: color-mix(in srgb, var(--purchase-accent-dark) 8%, #{color(gray-900)});
+
+    &:hover {
+      color: color(white);
+      background: color-mix(in srgb, var(--purchase-accent) 10%, #{color(gray-900)});
+    }
+  }
+
+  &-edit {
+    color: var(--app-theme-accent-text, #{color(white)});
+    background: var(--purchase-accent);
+    border-color: color-mix(in srgb, var(--purchase-accent) 68%, transparent);
+
+    &:hover {
+      background: color-mix(in srgb, var(--purchase-accent) 88%, #{color(white)});
     }
   }
 
   &-hero {
-    padding: $card-padding-roomy;
+    padding: clamp(1rem, 2vw, 1.6rem);
     position: relative;
     width: 100%;
-    background-color: color(gray-900);
-    border: 1px solid color(gray-800);
+    background: color-mix(in srgb, var(--purchase-accent) 8%, #{color(gray-900)});
+    border: 1px solid var(--purchase-border);
     border-radius: $card-radius-roomy;
     overflow: hidden;
 
-    &-rim {
-      $size: 28;
-      top: - calc($size / 1.6) + em;
-      left: 50%;
-      transform: translateX(-50%);
-      width: $size + em;
-      aspect-ratio: 1 / 1;
-      position: absolute;
-      background-color: color(white);
-      border-radius: $radius-round;
-      filter: blur(calc($size / 1.6) + rem);
-      opacity: .08;
-      pointer-events: none;
+    &-inner {
+      position: relative;
+      z-index: 1;
+      gap: $stack-gap;
+      @include align(start, stretch, column);
     }
 
-    &-glow {
-      $size: 65;
-      right: - calc($size / 3) + em;
-      bottom: - calc($size / 1.1) + em;
-      width: $size + em;
-      aspect-ratio: 1 / 1;
-      position: absolute;
-      background-color: rgb(var(--color));
-      border-radius: $radius-round;
-      filter: blur(calc($size / 2) + rem);
-      opacity: .18;
-      pointer-events: none;
+    &-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: $grid-gap;
+
+      &-item {
+        min-width: 0;
+        min-height: 4.2rem;
+        padding: $card-padding-compact;
+        border: 1px solid color-mix(in srgb, var(--purchase-accent) 18%, #{color(gray-800)});
+        border-radius: $card-radius;
+        background: color-mix(in srgb, var(--purchase-accent-dark) 10%, #{color(black, .55)});
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: space(2xs);
+
+        &.is-person {
+          flex-direction: row;
+          align-items: center;
+          justify-content: flex-start;
+          gap: space(sm);
+        }
+
+        span {
+          color: color(gray-400);
+          font-size: type-size(body-sm);
+        }
+
+        strong {
+          min-width: 0;
+          color: color(gray-100);
+          font-weight: type-weight(h3);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
     }
   }
 
   &-heading {
-    @include align(between, start, $gap: lg);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: $grid-gap;
 
     &-left {
-      @include align(start, start, column, $gap: sm);
+      min-width: 0;
+      gap: space(sm);
+      @include align(start, start, column);
 
       h1 {
         margin: 0;
-        font-size: type-size(h1);
+        max-width: 22ch;
+        color: color(white);
+        font-size: clamp(1.75rem, 2.8vw, 3.1rem);
         font-weight: type-weight(h2);
+        letter-spacing: 0;
+        line-height: 1.04;
+        overflow-wrap: anywhere;
       }
     }
   }
@@ -125,78 +179,97 @@
   }
 
   &-pill {
+    --pill-color: var(--purchase-accent);
+
     padding: $chip-padding;
-    border: 1px solid rgba(var(--color), .8);
+    border: 1px solid color-mix(in srgb, var(--pill-color) 58%, transparent);
     border-radius: $chip-radius;
-    background: rgba(var(--color), .15);
-    color: color(white, .8);
+    background: color-mix(in srgb, var(--pill-color) 16%, transparent);
+    color: color-mix(in srgb, var(--pill-color) 22%, #{color(white)});
     font-size: type-size(body-sm);
+    font-weight: type-weight(body);
+    white-space: nowrap;
 
     &.is-shared {
-      color: color(cyan-100, .8);
-      border-color: color(cyan-700);
-      background: color(cyan-700, .15);
+      border-color: color-mix(in srgb, var(--purchase-accent-light) 42%, transparent);
+      background: color-mix(in srgb, var(--purchase-accent) 18%, transparent);
+      color: color-mix(in srgb, var(--purchase-accent-light) 26%, #{color(white)});
     }
 
     &.is-personal {
-      color: color(gray-200, .8);
       border-color: color(gray-700);
-      background: color(gray-800, .45);
+      background: color(gray-800, .32);
+      color: color(gray-200);
     }
 
     &.has-note {
-      color: color(purple-200, .8);
-      border-color: color(purple-700);
-      background: color(purple-700, .16);
+      border-color: color-mix(in srgb, var(--purchase-accent-muted) 44%, transparent);
+      background: color-mix(in srgb, var(--purchase-accent-muted) 14%, transparent);
+      color: color-mix(in srgb, var(--purchase-accent-light) 18%, #{color(white)});
     }
   }
 
   &-amount {
-    padding: $card-padding-compact;
-    border: 1px solid color(white, .1);
-    border-radius: $card-radius-roomy;
-    background: color(white, .04);
+    min-width: min(16rem, 100%);
+    padding: $card-padding;
+    border: 1px solid color-mix(in srgb, var(--purchase-accent) 28%, #{color(gray-700)});
+    border-radius: $card-radius;
+    background: color-mix(in srgb, var(--purchase-accent) 10%, #{color(black, .45)});
     @include align(start, start, column, $gap: xs);
 
     span {
-      color: color(gray-500);
+      color: color(gray-400);
       font-size: type-size(body-sm);
       font-weight: $type-weight-light;
     }
 
     strong {
-      font-size: type-size(h3);
+      color: color(white);
+      font-size: clamp(1.35rem, 2vw, 2rem);
       font-weight: type-weight(h3);
+      line-height: 1.1;
+      white-space: nowrap;
     }
   }
 
   &-grid {
     display: grid;
-    grid-template-columns: 1.3fr 1fr;
+    grid-template-columns: minmax(0, 1.2fr) minmax(19rem, .8fr);
+    align-items: start;
     gap: $grid-gap;
   }
 
   &-card {
+    min-width: 0;
     padding: $card-padding;
     position: relative;
-    background-color: color(black, .9);
-    border: 1px solid color(gray-800);
+    background: var(--purchase-card-bg);
+    border: 1px solid var(--purchase-card-border);
     border-radius: $card-radius;
     overflow: hidden;
     gap: $stack-gap;
     @include align(start, stretch, column);
 
+    &.highcharts {
+      padding: $card-padding;
+      background: var(--purchase-card-bg);
+      border-color: var(--purchase-card-border);
+    }
+
     &-chart,
     &-wide {
-      grid-column: span 2;
+      grid-column: 1 / -1;
     }
 
     &-head {
+      flex-wrap: wrap;
       @include align(between, start, $gap: md);
 
       h3 {
         margin: 0;
+        color: color(white);
         font-size: type-size(body-xl);
+        font-weight: type-weight(h3);
       }
 
       p {
@@ -208,22 +281,56 @@
   }
 
   &-chart {
-    width: 100%;
+    &-head {
+      align-items: center;
+    }
 
-    .highcharts-container,
-    .highcharts-root {
+    &-badge {
+      padding: .7rem .85rem;
+      border: 1px solid color-mix(in srgb, var(--purchase-accent) 30%, transparent);
       border-radius: $card-radius;
+      background: color-mix(in srgb, var(--purchase-accent) 8%, transparent);
+      text-align: right;
+      @include align(end, end, column, $gap: 2xs);
+
+      span {
+        color: color(gray-400);
+        font-size: type-size(body-sm);
+      }
+
+      strong {
+        color: color(white);
+        font-weight: type-weight(h3);
+      }
+    }
+
+    &-shell {
+      min-height: 21rem;
+      margin: space(xs) -.35rem -.35rem;
+
+      .highcharts-container,
+      .highcharts-root {
+        border-radius: $card-radius;
+        overflow: visible !important;
+      }
+
+      .highcharts-background {
+        fill: transparent;
+      }
     }
   }
 
   &-list {
-    gap: space(2xs);
+    gap: 0;
     @include align(start, stretch, column);
 
     &-row {
+      display: grid;
+      grid-template-columns: minmax(7rem, .45fr) minmax(0, 1fr);
+      align-items: center;
+      gap: $grid-gap;
       padding: $menu-item-padding 0;
-      border-bottom: 1px solid color(gray-800);
-      @include align(between, center, $gap: md);
+      border-bottom: 1px solid color-mix(in srgb, var(--purchase-accent) 10%, #{color(gray-800)});
 
       &:last-child {
         border-bottom: none;
@@ -235,16 +342,31 @@
       }
 
       > strong {
+        min-width: 0;
         text-align: right;
+        overflow-wrap: anywhere;
       }
+    }
+  }
+
+  &-person {
+    min-width: 0;
+    @include align(end, center, $gap: sm);
+
+    strong {
+      min-width: 0;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 
   &-note {
     padding: $card-padding-compact;
-    border: 1px solid color(gray-800);
+    border: 1px solid color-mix(in srgb, var(--purchase-accent) 14%, #{color(gray-800)});
     border-radius: $card-radius;
-    background: color(gray-800, .2);
+    background: color-mix(in srgb, var(--purchase-accent-dark) 8%, #{color(gray-800, .2)});
     color: color(gray-200);
     line-height: type-line-height(body);
     white-space: pre-wrap;
@@ -252,10 +374,10 @@
 
   &-empty {
     padding: $card-padding-compact;
-    border: 1px dashed color(gray-700);
+    border: 1px dashed color-mix(in srgb, var(--purchase-accent) 20%, #{color(gray-700)});
     border-radius: $card-radius;
     color: color(gray-500);
-    background: color(gray-800, .12);
+    background: color-mix(in srgb, var(--purchase-accent-dark) 8%, #{color(gray-800, .12)});
   }
 
   &-share-list {
@@ -264,17 +386,32 @@
   }
 
   &-share-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: $grid-gap;
     padding: $card-padding-compact;
-    border: 1px solid color(gray-800);
+    border: 1px solid color-mix(in srgb, var(--purchase-accent) 14%, #{color(gray-800)});
     border-radius: $card-radius;
-    background: color(gray-800, .18);
-    @include align(between, center, $gap: md);
+    background: color-mix(in srgb, var(--purchase-accent-dark) 8%, #{color(gray-800, .18)});
   }
 
   &-share-user {
+    min-width: 0;
+    gap: space(2xs);
+    @include align(start, start, column);
+
     strong {
       display: block;
-      margin-bottom: .2em;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &-top {
+      min-width: 0;
+      @include align(start, center, $gap: sm);
     }
   }
 
@@ -290,6 +427,7 @@
 
     strong {
       display: block;
+      color: color(white);
     }
   }
 
@@ -312,27 +450,73 @@
     }
   }
 
-  &-person {
-    @include align(end, center, $gap: sm);
+  @media (max-width: 68rem) {
+    &-heading,
+    &-grid {
+      grid-template-columns: 1fr;
+    }
 
-    strong {
-      text-align: right;
+    &-amount {
+      width: fit-content;
+    }
+
+    &-hero-meta {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
-  &-share-user {
-    gap: space(2xs);
-    @include align(start, start, column);
-
-    strong {
-      display: block;
-      margin-bottom: 0;
+  @media (max-width: 46rem) {
+    &-nav {
+      align-items: stretch;
+      flex-direction: column;
     }
 
-    &-top {
-      @include align(start, center, $gap: sm);
+    &-back,
+    &-edit {
+      width: 100%;
+      justify-content: center;
+    }
+
+    &-hero {
+      padding: $card-padding;
+    }
+
+    &-hero-meta {
+      grid-template-columns: 1fr;
+    }
+
+    &-amount {
+      width: 100%;
+    }
+
+    &-chart-badge {
+      width: 100%;
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    &-list-row {
+      grid-template-columns: 1fr;
+      gap: space(2xs);
+
+      > strong,
+      .purchase-details-person {
+        justify-content: flex-start;
+        text-align: left;
+      }
+
+      .purchase-details-person strong {
+        text-align: left;
+      }
+    }
+
+    &-share-row {
+      grid-template-columns: 1fr;
+    }
+
+    &-share-values {
+      align-items: flex-start;
+      text-align: left;
     }
   }
-
-
 }

@@ -3,6 +3,7 @@
 @use "../config/sizes" as *;
 @use "../tools/functions/encode-colors" as *;
 @use "../tools/mixins/alignment" as *;
+@use "../tools/mixins/fields" as *;
 
 .purchase {
   width: 100%;
@@ -10,43 +11,55 @@
   &-edit-back {
     width: fit-content;
     display: inline-flex;
-    margin-bottom: 1em;
+    margin-bottom: space(md);
   }
 
   &-form {
-    --purchase-form-accent: #{color(primary-500)};
-    --purchase-form-background: color-mix(in srgb, var(--purchase-form-accent) 4%, #{color(gray-900)});
-    --purchase-form-section-background: color-mix(in srgb, var(--purchase-form-accent) 6%, #{color(gray-900)});
+    --purchase-form-accent: var(--budget-theme-accent, var(--app-theme-accent, #{color(primary-500)}));
+    --purchase-form-accent-strong: var(--budget-theme-accent-strong, var(--app-theme-accent-strong, var(--purchase-form-accent)));
+    --purchase-form-accent-muted: var(--budget-theme-accent-muted, var(--app-theme-accent-muted, var(--purchase-form-accent)));
+    --purchase-form-accent-dark: var(--budget-theme-accent-dark, var(--app-theme-accent-dark, #{color(primary-700)}));
+    --purchase-form-accent-light: var(--budget-theme-accent-light, var(--app-theme-accent-light, var(--purchase-form-accent-strong)));
+    --purchase-form-background: color-mix(in srgb, var(--purchase-form-accent-dark) 9%, #{color(gray-900)});
+    --purchase-form-section-background: color-mix(in srgb, var(--purchase-form-accent-dark) 13%, #{color(gray-900)});
     --purchase-form-accent-border: color-mix(in srgb, var(--purchase-form-accent) 18%, #{color(gray-800)});
     --purchase-form-accent-surface: color-mix(in srgb, var(--purchase-form-accent) 9%, #{color(gray-900)});
     --purchase-form-accent-surface-strong: color-mix(in srgb, var(--purchase-form-accent) 16%, #{color(gray-900)});
     --purchase-form-accent-active: color-mix(in srgb, var(--purchase-form-accent) 64%, #{color(gray-800)});
     --purchase-form-accent-hover: color-mix(in srgb, var(--purchase-form-accent) 28%, #{color(gray-800)});
-    --purchase-form-accent-text: color-mix(in srgb, var(--purchase-form-accent) 58%, #{color(white)});
+    --purchase-form-accent-text: color-mix(in srgb, var(--purchase-form-accent-light) 52%, #{color(white)});
+    --field-text-color: #{color(gray-100)};
+    --field-bg: var(--purchase-form-accent-surface);
+    --field-border-color: var(--purchase-form-accent-border);
+    --field-radius: #{$field-radius};
+    --field-focus-border: var(--purchase-form-accent);
+    --field-focus-bg: var(--purchase-form-accent-surface-strong);
+    --field-focus-ring: color-mix(in srgb, var(--purchase-form-accent) 24%, transparent);
+
     width: 100%;
     position: relative;
     background-color: var(--purchase-form-background);
     border: 1px solid var(--purchase-form-accent-border);
-    border-radius: 1em;
+    border-radius: $card-radius;
     overflow: visible;
     @include align(center, center, column);
 
     &-inner {
-      padding: 1.5em;
+      padding: $card-padding;
       width: 100%;
       background-color: transparent;
       border-radius: inherit;
       display: grid;
-      gap: 1.25em;
+      gap: space(lg);
 
       &-header {
-        padding-bottom: 1.1em;
+        padding-bottom: space(md);
         width: 100%;
         flex-wrap: wrap;
-        @include align(between, start, $gap: 1em);
+        @include align(between, start, $gap: md);
 
         &-copy {
-          @include align(start, start, column, $gap: .35em);
+          @include align(start, start, column, $gap: 2xs);
 
           h3 {
             color: var(--purchase-form-accent-text);
@@ -69,8 +82,8 @@
         }
 
         &-badge {
-          padding: .45em .75em;
-          border-radius: .7em;
+          padding: space(xs) space(sm);
+          border-radius: $badge-radius;
           font-size: $paragraph-small;
           font-weight: 700;
 
@@ -90,7 +103,7 @@
 
       &-grid {
         display: grid;
-        gap: 1em 1.2em;
+        gap: space(md) space(lg);
         grid-template-columns: repeat(2, 1fr);
 
         .pf-col-span-2 {
@@ -100,7 +113,7 @@
         &-field {
           width: 100%;
           min-width: 0;
-          @include align(start, start, column, $gap: .6em);
+          @include align(start, start, column, $gap: xs);
 
           &-label {
             color: var(--purchase-form-accent-text);
@@ -114,22 +127,8 @@
           }
 
           &-input {
-            padding: 1em 1.2em;
-            width: 100%;
-            border: 1px solid var(--purchase-form-accent-border);
-            border-radius: .8em;
-            background: var(--purchase-form-accent-surface);
-            color: color(gray-100);
+            @include field-surface;
             min-height: 3.25em;
-            transition: border-color .15s cubic-bezier($transition-main, 1),
-            background-color .15s cubic-bezier($transition-main, 1);
-
-            &:focus {
-              outline: none;
-              border-color: var(--purchase-form-accent);
-              background-color: var(--purchase-form-accent-surface-strong);
-              box-shadow: 0 0 0 2px color-mix(in srgb, var(--purchase-form-accent) 24%, transparent);
-            }
 
             &[type="number"] {
               -moz-appearance: textfield;
@@ -155,7 +154,7 @@
             padding: 3px;
             width: 100%;
             border: 1px solid var(--purchase-form-accent-border);
-            border-radius: .85em;
+            border-radius: $field-radius;
             background-color: var(--purchase-form-accent-surface);
             @include align(center, between);
 
@@ -169,7 +168,7 @@
               color: color(gray-400);
               background-color: transparent;
               border: none;
-              border-radius: .65em;
+              border-radius: $field-radius-compact;
               cursor: pointer;
               font: inherit;
               font-size: $paragraph-small;
@@ -195,7 +194,7 @@
 
           &-split-row {
             width: 100%;
-            @include align(between, center, $gap: 1em);
+            @include align(between, center, $gap: md);
 
             &-label {
               color: color(gray-400);
@@ -203,11 +202,11 @@
             }
 
             &-chip {
-              padding: .4em .7em;
+              padding: space(xs) space(sm);
               color: color(gray-100);
               background: var(--purchase-form-accent-surface-strong);
               border: 1px solid var(--purchase-form-accent-border);
-              border-radius: .65em;
+              border-radius: $chip-radius;
               font-size: $paragraph-small;
               font-weight: 700;
             }
@@ -217,7 +216,7 @@
             padding: 3px;
             width: 100%;
             border: 1px solid var(--purchase-form-accent-border);
-            border-radius: .85em;
+            border-radius: $field-radius;
             background-color: var(--purchase-form-accent-surface);
             @include align(between, center);
 
@@ -227,7 +226,7 @@
               color: color(gray-400);
               background-color: transparent;
               border: none;
-              border-radius: .65em;
+              border-radius: $field-radius-compact;
               cursor: pointer;
               font: inherit;
               font-size: $paragraph-small;
@@ -247,8 +246,8 @@
           }
 
           .pf-input-with-prefix {
-            padding: 0 1em;
-            @include align(start, center, $gap: .75em);
+            padding: 0 space(md);
+            @include align(start, center, $gap: sm);
 
             input {
               padding: 1em 0;
@@ -273,19 +272,19 @@
       }
 
       &-actions {
-        padding-top: .2em;
+        padding-top: space(2xs);
         flex-wrap: wrap;
-        @include align(end, center, $gap: .75em);
+        @include align(end, center, $gap: sm);
       }
     }
 
     &-section {
-      padding: 1.15em;
+      padding: $panel-padding-compact;
       border: 1px solid var(--purchase-form-accent-border);
-      border-radius: .9em;
+      border-radius: $panel-radius-compact;
       background: var(--purchase-form-section-background);
       display: grid;
-      gap: 1em;
+      gap: space(md);
 
       &-heading {
         @include align(start, start, column, $gap: .2em);
@@ -311,7 +310,7 @@
       color: color(gray-200);
       background: var(--purchase-form-accent-surface);
       border: 1px solid var(--purchase-form-accent-border);
-      border-radius: .75em;
+      border-radius: $button-radius;
       cursor: pointer;
       font: inherit;
       font-size: $paragraph-small;
@@ -332,20 +331,20 @@
     }
 
     &-split-panel {
-      padding: 1em;
+      padding: space(md);
       width: 100%;
       border: 1px solid var(--purchase-form-accent-border);
-      border-radius: .85em;
+      border-radius: $panel-radius-compact;
       background: color-mix(in srgb, var(--purchase-form-accent) 7%, #{color(gray-900)});
-      @include align(start, stretch, column, $gap: .9em);
+      @include align(start, stretch, column, $gap: md);
     }
 
     &-preview {
-      padding: 1.1em 1.2em;
+      padding: $panel-padding-compact;
       border: 1px solid var(--purchase-form-accent-border);
-      border-radius: .85em;
+      border-radius: $panel-radius-compact;
       background: color-mix(in srgb, var(--purchase-form-accent) 7%, #{color(gray-900)});
-      @include align(start, stretch, column, $gap: .75em);
+      @include align(start, stretch, column, $gap: sm);
 
       &.is-empty {
         color: color(gray-500);
@@ -354,7 +353,7 @@
       &-row {
         width: 100%;
         color: color(gray-200);
-        @include align(between, center, $gap: 1em);
+        @include align(between, center, $gap: md);
 
         span {
           color: color(gray-400);
@@ -368,25 +367,25 @@
       }
 
       &-highlight {
-        padding: .9em 1em;
+        padding: space(sm) space(md);
         color: color(gray-100);
         background: var(--purchase-form-accent-surface-strong);
         border: 1px solid var(--purchase-form-accent-border);
-        border-radius: .75em;
+        border-radius: $field-radius;
         font-weight: 600;
       }
 
       &-list {
-        padding-top: .2em;
-        @include align(start, stretch, column, $gap: .5em);
+        padding-top: space(2xs);
+        @include align(start, stretch, column, $gap: xs);
 
         &-item {
-          padding: .75em .9em;
+          padding: space(sm) space(md);
           border: 1px solid var(--purchase-form-accent-border);
-          border-radius: .75em;
+          border-radius: $field-radius;
           background: var(--purchase-form-accent-surface);
           color: color(gray-200);
-          @include align(between, center, $gap: 1em);
+          @include align(between, center, $gap: md);
 
           strong {
             color: color(white);
@@ -404,15 +403,15 @@
 
 .pf-label-row {
   width: 100%;
-  @include align(between, center, $gap: .65em);
+  @include align(between, center, $gap: xs);
 }
 
 .pf-chip {
-  padding: .25em .55em;
+  padding: space(2xs) space(xs);
   color: color(gray-100);
   background: var(--purchase-form-accent-surface-strong);
   border: 1px solid var(--purchase-form-accent-border);
-  border-radius: .65em;
+  border-radius: $chip-radius;
   font-size: $paragraph-small;
   font-weight: 700;
 }
@@ -443,13 +442,16 @@
   }
 }
 
-.purchase-form-category-dropdown {
+.purchase-form-dropdown {
+  --dropdown-accent: var(--purchase-form-accent);
+  --option-color-base: var(--purchase-form-accent);
+
   width: 100%;
 
   .dropdown__trigger {
     min-width: 0;
     min-height: 3.25em;
-    border-radius: .8em;
+    border-radius: $field-radius;
     background: var(--purchase-form-accent-surface);
     border-color: var(--purchase-form-accent-border);
 
@@ -461,13 +463,34 @@
 
   .dropdown__menu {
     width: 100%;
+    border-color: var(--purchase-form-accent-border);
+    background: color-mix(in srgb, var(--purchase-form-accent-dark) 12%, #{color(gray-900)});
+  }
+
+  .dropdown__option {
+    --option-color-base: var(--purchase-form-accent);
+  }
+
+  .dropdown__value {
+    --selected-option-color: #{color(gray-100)};
+  }
+
+  .dropdown__checkbox {
+    --border-hover: var(--option-color-active);
+    --focus: 2px color-mix(in srgb, var(--option-color-active) 30%, transparent);
+  }
+}
+
+.purchase-form-payer-dropdown {
+  .dropdown__option {
+    --option-color-base: #{color(gray-300)};
   }
 }
 
 @media (max-width: 760px) {
   .purchase-form {
     &-inner {
-      padding: 1em;
+      padding: space(md);
 
       &-grid {
         grid-template-columns: 1fr;
@@ -499,7 +522,7 @@
     }
 
     &-section {
-      padding: 1em;
+      padding: space(md);
     }
   }
 }

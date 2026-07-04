@@ -134,17 +134,23 @@
 }
 
 .analytics-summary-card {
+  --analytics-card-accent: var(--analytics-accent);
+  --analytics-card-ink: #{color(black, .82)};
+  --analytics-card-muted: #{color(black, .52)};
+  --analytics-card-icon-bg: #{color(black, .1)};
+  --analytics-card-icon-border: #{color(black, .08)};
   display: flex;
   align-items: flex-start;
   gap: space(md);
   min-height: 8.5rem;
   padding: $card-padding-compact;
-  color: color(white);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--analytics-accent-dark) 5%, color(gray-900)), color(gray-900));
-  border: 1px solid color-mix(in srgb, var(--analytics-accent) 12%, color(gray-800));
-  border-radius: $card-radius;
-  box-shadow: inset 0 1px 0 color(white, .035);
+  color: var(--analytics-card-ink);
+  background-color: var(--analytics-card-accent);
+  border: 1px solid color-mix(in srgb, var(--analytics-card-accent) 80%, #{color(white)});
+  border-radius: $card-radius-roomy;
+  box-shadow:
+    inset 0 1px 0 color(white, .18),
+    0 16px 34px -26px var(--analytics-card-accent);
 
   &-icon {
     flex: 0 0 auto;
@@ -152,12 +158,11 @@
     height: 2.55rem;
     display: grid;
     place-items: center;
-    color: var(--analytics-accent-text, color(white));
-    background: var(--analytics-accent);
+    color: var(--analytics-card-ink);
+    background: var(--analytics-card-icon-bg);
+    border: 1px solid var(--analytics-card-icon-border);
     border-radius: radius(lg);
-    box-shadow:
-      inset 0 1px 0 color(white, .16),
-      0 12px 24px -18px var(--analytics-accent);
+    box-shadow: inset 0 1px 0 color(white, .16);
   }
 
   &-copy {
@@ -167,45 +172,45 @@
   }
 
   span {
-    color: color(white, .54);
+    color: var(--analytics-card-muted);
     font-size: type-size(label);
     font-weight: type-weight(label);
   }
 
   strong {
-    color: color(white);
+    color: var(--analytics-card-ink);
     font-size: type-size(h3);
     line-height: type-line-height(h3);
   }
 
   p {
     margin: 0;
-    color: color(white, .5);
+    color: var(--analytics-card-muted);
     font-size: type-size(body-sm);
   }
 
   &.is-blue {
-    border-color: color-mix(in srgb, var(--analytics-accent) 42%, transparent);
+    --analytics-card-accent: var(--analytics-accent);
   }
 
   &.is-teal {
-    border-color: color-mix(in srgb, var(--analytics-accent-strong) 42%, transparent);
+    --analytics-card-accent: var(--analytics-accent-strong);
   }
 
   &.is-green {
-    border-color: color-mix(in srgb, var(--analytics-accent-muted) 42%, transparent);
+    --analytics-card-accent: var(--analytics-accent-muted);
   }
 
   &.is-yellow {
-    border-color: color-mix(in srgb, var(--analytics-accent-light) 42%, transparent);
+    --analytics-card-accent: var(--analytics-accent-light);
   }
 
   &.is-red {
-    border-color: color(red-500, .35);
+    --analytics-card-accent: #{color(red-400)};
   }
 
   &.is-gray {
-    border-color: color(gray-700);
+    --analytics-card-accent: #{color(gray-400)};
   }
 }
 
@@ -219,8 +224,7 @@
 .analytics-chart-card {
   height: 100%;
   min-width: 0;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--analytics-accent-dark) 6%, color(gray-900)), color(gray-900));
+  background: color-mix(in srgb, var(--analytics-accent-dark) 5%, color(gray-900));
   border-color: color-mix(in srgb, var(--analytics-accent) 12%, color(gray-800));
   box-shadow: inset 0 1px 0 color(white, .035);
 

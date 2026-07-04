@@ -26,7 +26,8 @@ body {
   }
 }
 
-:root {
+:root,
+.app-container {
   --app-theme-accent: #{color(primary-500)};
   --app-theme-accent-strong: #{color(primary-300)};
   --app-theme-accent-muted: #{color(primary-400)};
@@ -40,16 +41,38 @@ body {
   --app-theme-border-strong: color-mix(in srgb, var(--app-theme-accent) 68%, transparent);
   --app-theme-glow: color-mix(in srgb, var(--app-theme-accent) 24%, transparent);
   --app-theme-focus: 2px color-mix(in srgb, var(--app-theme-accent) 30%, transparent);
-  --color: var(--app-theme-accent);
+  --color: 121, 159, 236;
 }
 
 .app-container {
   min-height: 100dvh;
+  --app-sidebar-width: #{$sidebar-width};
+}
+
+.app-container.sidebar-collapsed {
+  --app-sidebar-width: 6em;
+}
+
+.app-container.sidebar-resizing {
+  .topbar,
+  &.user main {
+    transition: none;
+  }
+}
+
+body.sidebar-resize-active,
+body.sidebar-resize-active * {
+  cursor: ew-resize !important;
+  user-select: none;
 }
 
 html.is-budget-themed {
   body {
-    background-color: color-mix(in srgb, var(--app-theme-accent-dark) 12%, color(black));
+    background-color: color-mix(in srgb, var(--app-theme-accent-dark) 25%, color(gray-900));
+  }
+
+  main {
+    background-color: color-mix(in srgb, var(--app-theme-accent-dark) 14%, color(black));
   }
 
   .page-title {
@@ -107,13 +130,14 @@ html.is-budget-themed {
   }
 }
 
- .material-symbols-rounded {
-   font-variation-settings:
-       'FILL' 0,
-       'wght' 300,
-       'GRAD' 0,
-       'opsz' 24
- }
+.material-symbols-rounded {
+  user-select: none;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 300,
+    'GRAD' 0,
+    'opsz' 24;
+}
 
 .view-width {
   width: $view-width !important;
@@ -130,7 +154,11 @@ main {
   will-change: margin-left;
 }
 .user main {
-  margin-left: $sidebar-width;
+  top: $navbar-height;
+  margin-left: var(--app-sidebar-width, #{$sidebar-width});
+  border-top-left-radius: $card-radius;
+  overflow-x: hidden;
+  height: calc(100vh - $navbar-height);
 }
 .nouser main {
   margin-left: 6em;

@@ -1,11 +1,23 @@
 @use "sass:map";
 
 $z-index: (
+    below-backdrop: -2,
+    backdrop: -1,
+    behind: -1,
+    base: 1,
+    raised: 2,
+    surface: 3,
+    surface-hover: 4,
+    effect: 5,
+    content: 10,
+    dropdown: 20,
     modal: 10000,
     navbar: 9900,
     bannerContent: 30,
     bannerOverlay: 20,
-    behind: -1,
+    toast: 9999,
+    modal-backdrop: 9999,
+    modal-raised: 10020,
 );
 
 @function zi($key) {

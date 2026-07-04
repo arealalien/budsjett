@@ -24,7 +24,6 @@ html.is-budget-themed {
   }
 
   .purchases-action-button,
-  .purchases-wrap-filters-item-search,
   .purchases-wrap-filters-item-date,
   .purchases-wrap-filters-item-shared-toggle button,
   .purchases-wrap-table,
@@ -49,7 +48,6 @@ html.is-budget-themed {
     border-color: var(--app-theme-border);
   }
 
-  .purchases-wrap-filters-item-search:focus,
   .purchases-wrap-filters-item-date:focus {
     border-color: var(--app-theme-accent);
     box-shadow: 0 0 0 2px var(--app-theme-softer);
@@ -166,17 +164,12 @@ html.is-budget-themed {
     gap: .3em;
     @include align(start, stretch, column);
 
-    &-searchbox {
-      grid-column: span 2;
-    }
-
     > span {
       color: color(gray-500);
       font-size: $paragraph-small;
       margin-left: .85em;
     }
 
-    &-search,
     &-date {
       width: 100%;
       padding: 1em 1.1em;
@@ -285,34 +278,6 @@ html.is-budget-themed {
   border-radius: 1em;
   overflow: hidden;
 
-  &-rim {
-    $size: 40;
-    top: - calc($size / 1.5) + em;
-    left: - calc($size / 2.5) + em;
-    width: $size + em;
-    aspect-ratio: 1 / 1;
-    position: absolute;
-    background-color: color(white);
-    border-radius: 50%;
-    filter: blur(calc($size / 1.5) + rem);
-    pointer-events: none;
-    opacity: .1;
-  }
-
-  &-glow {
-    $size: 140;
-    right: - calc($size / 3) + em;
-    bottom: - calc($size / 1.1) + em;
-    width: $size + em;
-    aspect-ratio: 1 / 1;
-    position: absolute;
-    background-color: color(purple-500);
-    border-radius: 50%;
-    filter: blur(calc($size / 2) + rem);
-    pointer-events: none;
-    opacity: .2;
-  }
-
   &-state {
     min-height: 16em;
     padding: 1.25em;
@@ -338,6 +303,44 @@ html.is-budget-themed {
   background-color: color(gray-900);
   border-radius: 1em;
   scrollbar-color: color(gray-700) transparent;
+
+  &::-webkit-scrollbar {
+    width: .8rem;
+    height: .8rem;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: color(gray-900);
+    border-radius: 999px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: color(gray-700);
+    border: 3px solid color(gray-900);
+    border-radius: 999px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: color(gray-600);
+  }
+}
+
+.purchases-wrap:not(.compact) {
+  .purchases-wrap-table {
+    overflow: hidden;
+  }
+
+  .purchases-virtual-scroll {
+    max-height: none;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-gutter: stable;
+  }
+
+  .purchases-virtual-table {
+    min-width: 100%;
+  }
 }
 
 .purchases-virtual-table {
@@ -385,11 +388,12 @@ html.is-budget-themed {
     white-space: nowrap;
   }
 
-  b {
-    color: color(purple-300);
-    font-size: $paragraph-small;
-    font-weight: 600;
+  .purchases-sort-icon {
+    display: inline-flex;
+    font-size: 1.05rem;
+    line-height: 1;
     margin-left: .35em;
+    vertical-align: -.2em;
   }
 }
 
@@ -457,7 +461,7 @@ html.is-budget-themed {
 
 .purchases-cell {
   min-width: 0;
-  padding: 1em;
+  padding: 0 1em;
   overflow: hidden;
   @include align(start, center);
 
@@ -490,7 +494,7 @@ html.is-budget-themed {
 
 .purchase-main {
   min-width: 0;
-  display: block;
+  @include align(center, start, column);
 
   &-title {
     max-width: 100%;
@@ -578,6 +582,16 @@ html.is-budget-themed {
   color: color(white);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.purchases-cell.paidBy {
+  justify-content: center;
+}
+
+.purchase-user-avatar {
+  width: 2.65em;
+  height: 2.65em;
+  @include align(center, center);
 }
 
 .purchase-status-group {
@@ -686,13 +700,9 @@ html.is-budget-themed {
 
   .purchases-wrap-filters {
     grid-template-columns: 1fr;
-
-    &-item-searchbox {
-      grid-column: auto;
-    }
   }
 
-  .purchases-virtual-scroll {
+  .purchases-wrap.compact .purchases-virtual-scroll {
     max-height: 70vh;
   }
 }

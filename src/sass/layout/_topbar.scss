@@ -1,0 +1,150 @@
+@use "sass:math";
+@use "../config/colors" as *;
+@use "../abstracts/utilities" as *;
+@use "../config/sizes" as *;
+@use "../config/z-index" as *;
+@use "../tools/functions/encode-colors" as *;
+@use "../tools/mixins/alignment" as *;
+
+.topbar {
+  top: 0;
+  left: var(--app-sidebar-width, #{$sidebar-width});
+  width: calc(100% - var(--app-sidebar-width, #{$sidebar-width}));
+  position: absolute;
+  height: $navbar-height;
+  padding: 0 clamp(1rem, 2vw, 2rem);
+  background-color: color(black);
+  border-bottom: 1px solid color(gray-900);
+  transition:
+    left .3s cubic-bezier(.175, .685, .32, 1),
+    width .3s cubic-bezier(.175, .685, .32, 1),
+    background-color .18s ease,
+    border-color .18s ease;
+  @include align(center, center);
+  @include z-index(navbar);
+}
+
+.topbar-search {
+  position: relative;
+  width: min(36rem, 100%);
+  min-width: 14rem;
+  @include align(stretch, center);
+
+  &-icon {
+    left: 1rem;
+    position: absolute;
+    color: color(gray-500);
+    pointer-events: none;
+  }
+
+  &-input {
+    width: 100%;
+    min-height: 3em;
+    padding: .85em 6.25em .85em 2.85em;
+    color: color(gray-100);
+    background: color(gray-900);
+    border: 1px solid color(gray-800);
+    border-radius: 999px;
+    font-size: $paragraph-small;
+    transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+
+    &::placeholder {
+      color: color(gray-500);
+    }
+
+    &::-webkit-search-cancel-button {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: color(primary-500);
+      box-shadow: 0 0 0 2px color(primary-500, .18);
+    }
+  }
+
+  &-clear,
+  &-submit {
+    top: 50%;
+    position: absolute;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 50%;
+    color: color(gray-200);
+    background: transparent;
+    cursor: pointer;
+    @include align(center, center);
+
+    span {
+      font-size: 1.25rem;
+    }
+
+    &:hover,
+    &:focus-visible {
+      color: color(white);
+      outline: none;
+    }
+  }
+
+  &-clear {
+    right: 3.15rem;
+    width: 2em;
+    height: 2em;
+  }
+
+  &-submit {
+    right: .35rem;
+    width: 2.35em;
+    height: 2.35em;
+    color: color(white);
+    background: color(primary-700, .45);
+    transition: background-color .18s ease, box-shadow .18s ease;
+
+    &:hover,
+    &:focus-visible {
+      background: color(primary-700, .72);
+      box-shadow: 0 0 0 2px color(primary-500, .18);
+    }
+  }
+}
+
+html.is-budget-themed {
+  .topbar {
+    background-color: color-mix(in srgb, var(--app-theme-accent-dark) 25%, color(gray-900));
+    border-color: color-mix(in srgb, var(--app-theme-accent) 12%, color(gray-900));
+  }
+
+  .topbar-search {
+    &-input {
+      background: color-mix(in srgb, var(--app-theme-accent-dark) 8%, color(gray-900));
+      border-color: color-mix(in srgb, var(--app-theme-accent) 16%, color(gray-800));
+
+      &:focus {
+        border-color: var(--app-theme-accent);
+        box-shadow: 0 0 0 2px var(--app-theme-softer);
+      }
+    }
+
+    &-submit {
+      background: var(--app-theme-soft);
+
+      &:hover,
+      &:focus-visible {
+        background: color-mix(in srgb, var(--app-theme-accent) 28%, transparent);
+        box-shadow: 0 0 0 2px var(--app-theme-softer);
+      }
+    }
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    padding: 0 .75rem;
+  }
+
+  .topbar-search {
+    width: 100%;
+    min-width: 0;
+  }
+}

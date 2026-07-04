@@ -1,0 +1,63 @@
+@use "../../config/colors" as *;
+@use "../../abstracts/utilities" as *;
+@use "../../config/z-index" as *;
+@use "../functions/encode-colors" as *;
+@use "./alignment" as *;
+
+@mixin field-input-wrap($cross: center) {
+  width: 100%;
+  position: relative;
+  @include align(start, $cross);
+}
+
+@mixin field-icon($left: 1.3em, $center: true, $child-icon: true) {
+  left: $left;
+  position: absolute;
+  color: var(--field-icon-color, #{color(white)});
+  @include z-index(content);
+
+  @if $center {
+    top: 50%;
+    transform: translateY(-50%);
+  } @else {
+    top: 1.3em;
+  }
+
+  @if $child-icon {
+    .material-symbols-rounded {
+      font-size: 1.125rem;
+    }
+  }
+}
+
+@mixin field-surface($with-icon: false, $textarea: false) {
+  width: 100%;
+  color: var(--field-text-color, #{color(white)});
+  background-color: var(--field-bg, #{color(gray-900)});
+  border: 1px solid var(--field-border-color, #{color(gray-800)});
+  border-radius: var(--field-radius, #{$card-radius-compact});
+  transition:
+    border-color .2s cubic-bezier($transition-main, 1),
+    background-color .2s cubic-bezier($transition-main, 1),
+    box-shadow .2s cubic-bezier($transition-main, 1);
+
+  @if $textarea {
+    padding: $card-padding-compact;
+    resize: none;
+  } @else {
+    padding: $field-padding-roomy;
+  }
+
+  @if $with-icon {
+    padding-left: calc(space(2xl) + space(2xs));
+  }
+
+  &:focus,
+  &:focus-visible,
+  &:focus-within {
+    outline: none;
+    border-color: var(--field-focus-border, var(--outline-color, #{color(primary-500)}));
+    background-color: var(--field-focus-bg, var(--field-bg, #{color(gray-900)}));
+    box-shadow: 0 0 0 3px var(--field-focus-ring, #{color(primary-500, .14)});
+  }
+}

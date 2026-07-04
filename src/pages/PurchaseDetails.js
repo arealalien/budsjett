@@ -1,30 +1,32 @@
-import React, { useMemo } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import React, { useEffect, useMemo } from 'react';
+import { Link, useLocation, useOutletContext, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
-import { queryKeys } from '../lib/queryKeys';
 import { format } from 'date-fns';
 import nb from 'date-fns/locale/nb';
-import Loader from '../components/Loader';
-import Highcharts from "highcharts/highstock";
-import HighchartsReact from "highcharts-react-official";
+import Highcharts from 'highcharts/highstock';
+import HighchartsReact from 'highcharts-react-official';
+import tinycolor from 'tinycolor2';
 import Avatar from '../components/Avatar';
+import Loader from '../components/Loader';
+import { api } from '../lib/api';
+import { queryKeys } from '../lib/queryKeys';
+import { toCssColor } from '../lib/budgetTheme';
 
 Highcharts.setOptions({
     chart: {
         animation: {
             duration: 1200,
-            easing: "easeOutQuart"
+            easing: 'easeOutQuart',
         },
         style: {
-            fontFamily: "Inter, system-ui, sans-serif"
-        }
+            fontFamily: 'Inter, system-ui, sans-serif',
+        },
     },
     plotOptions: {
         series: {
             animation: {
                 duration: 1400,
-                easing: "easeOutQuart"
+                easing: 'easeOutQuart',
             },
             lineWidth: 2,
             states: {
@@ -32,100 +34,164 @@ Highcharts.setOptions({
                     enabled: true,
                     lineWidth: 3,
                     halo: {
-                        size: 14,
-                        opacity: 0.2
-                    }
-                }
+                        size: 0,
+                        opacity: 0,
+                    },
+                },
             },
             marker: {
                 enabled: false,
                 states: {
                     hover: {
                         enabled: true,
-                        radius: 5
-                    }
-                }
-            }
+                        radius: 5,
+                    },
+                },
+            },
         },
         areaspline: {
             lineWidth: 3,
-            marker: { enabled: false }
-        }
+            marker: { enabled: false },
+        },
     },
     tooltip: {
-        borderRadius: 6
-    }
+        borderRadius: 6,
+    },
 });
 
-function toRGB(color, fallback = '121, 159, 236') {
-    if (!color) return `rgb(${fallback})`;
+const DEFAULT_CATEGORY_TRIPLET = '121, 159, 236';
+const DEFAULT_CATEGORY_COLOR = `rgb(${DEFAULT_CATEGORY_TRIPLET})`;
+const PURCHASE_THEME_KEYS = [
+    '--app-theme-accent',
+    '--app-theme-accent-strong',
+    '--app-theme-accent-muted',
+    '--app-theme-accent-dark',
+    '--app-theme-accent-dark-muted',
+    '--app-theme-accent-light',
+    '--app-theme-accent-text',
+    '--app-theme-soft',
+    '--app-theme-softer',
+    '--app-theme-border',
+    '--app-theme-border-strong',
+    '--app-theme-glow',
+    '--app-theme-focus',
+    '--budget-theme-accent',
+    '--budget-theme-accent-rgb',
+    '--budget-theme-accent-strong',
+    '--budget-theme-accent-muted',
+    '--budget-theme-accent-dark',
+    '--budget-theme-accent-dark-muted',
+    '--budget-theme-accent-light',
+    '--color',
+];
 
-    if (/^rgb\(/i.test(color) || /^#/.test(color)) {
-        return color;
-    }
-
-    if (/^\s*\d+\s*,\s*\d+\s*,\s*\d+\s*$/.test(color)) {
-        return `rgb(${color})`;
-    }
-
-    return `rgb(${fallback})`;
+function colorForCategory(value) {
+    const color = tinycolor(toCssColor(value, DEFAULT_CATEGORY_COLOR));
+    return color.isValid() ? color : tinycolor(DEFAULT_CATEGORY_COLOR);
 }
 
-function toRGBA(color, alpha = 1, fallback = '121, 159, 236') {
-    if (!color) return `rgba(${fallback}, ${alpha})`;
-
-    if (/^rgba\(/i.test(color)) {
-        return color.replace(
-            /^rgba\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)$/i,
-            `rgba($1, $2, $3, ${alpha})`
-        );
-    }
-
-    if (/^rgb\(/i.test(color)) {
-        return color.replace(/^rgb\((.*)\)$/i, `rgba($1, ${alpha})`);
-    }
-
-    if (/^\s*\d+\s*,\s*\d+\s*,\s*\d+\s*$/.test(color)) {
-        return `rgba(${color}, ${alpha})`;
-    }
-
-    return `rgba(${fallback}, ${alpha})`;
+function tripletForColor(color) {
+    const { r, g, b } = color.toRgb();
+    return `${r}, ${g}, ${b}`;
 }
 
-const fmtCurrency = (n) =>
-    (Number.isFinite(n) ? n : Number(n))
-        .toLocaleString(undefined, { style: 'currency', currency: 'EUR' });
+function buildCategoryTheme(value) {
+    const base = colorForCategory(value);
+    const accent = base.toHexString();
+    const isLight = base.isLight();
+    const accentStrong = base.clone().saturate(10).lighten(isLight ? 4 : 16).toHexString();
+    const accentMuted = base.clone().desaturate(18).lighten(isLight ? 0 : 7).toHexString();
+    const accentDark = base.clone().saturate(8).darken(isLight ? 34 : 16).toHexString();
+    const accentDarkMuted = base.clone().desaturate(22).darken(isLight ? 28 : 12).toHexString();
+    const accentLight = base.clone().desaturate(4).lighten(isLight ? 12 : 32).toHexString();
+    const accentText = tinycolor.mostReadable(accent, ['#0b0f19', '#ffffff'], {
+        includeFallbackColors: true,
+    }).toHexString();
+    const triplet = tripletForColor(base);
+    const appStyle = {
+        '--app-theme-accent': accent,
+        '--app-theme-accent-strong': accentStrong,
+        '--app-theme-accent-muted': accentMuted,
+        '--app-theme-accent-dark': accentDark,
+        '--app-theme-accent-dark-muted': accentDarkMuted,
+        '--app-theme-accent-light': accentLight,
+        '--app-theme-accent-text': accentText,
+        '--app-theme-soft': `color-mix(in srgb, ${accent} 16%, transparent)`,
+        '--app-theme-softer': `color-mix(in srgb, ${accent} 8%, transparent)`,
+        '--app-theme-border': `color-mix(in srgb, ${accent} 42%, transparent)`,
+        '--app-theme-border-strong': `color-mix(in srgb, ${accent} 68%, transparent)`,
+        '--app-theme-glow': 'transparent',
+        '--app-theme-focus': `2px color-mix(in srgb, ${accent} 30%, transparent)`,
+        '--budget-theme-accent': accent,
+        '--budget-theme-accent-rgb': triplet,
+        '--budget-theme-accent-strong': accentStrong,
+        '--budget-theme-accent-muted': accentMuted,
+        '--budget-theme-accent-dark': accentDark,
+        '--budget-theme-accent-dark-muted': accentDarkMuted,
+        '--budget-theme-accent-light': accentLight,
+        '--color': triplet,
+    };
+
+    return {
+        accent,
+        accentStrong,
+        accentMuted,
+        accentDark,
+        accentDarkMuted,
+        accentLight,
+        triplet,
+        rgba: (alpha) => `rgba(${triplet}, ${alpha})`,
+        appStyle,
+        pageStyle: {
+            '--color': triplet,
+            '--purchase-accent': accent,
+            '--purchase-accent-rgb': triplet,
+            '--purchase-accent-strong': accentStrong,
+            '--purchase-accent-muted': accentMuted,
+            '--purchase-accent-dark': accentDark,
+            '--purchase-accent-dark-muted': accentDarkMuted,
+            '--purchase-accent-light': accentLight,
+        },
+    };
+}
+
+const fmtCurrency = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number)
+        ? number.toLocaleString(undefined, { style: 'currency', currency: 'EUR' })
+        : '-';
+};
 
 const fmtDateTime = (value) => {
+    const date = new Date(value);
+    if (!value || Number.isNaN(date.getTime())) return '-';
+
     try {
-        return format(new Date(value), "d. MMMM yyyy 'kl.' HH:mm", { locale: nb });
+        return format(date, "d. MMMM yyyy 'kl.' HH:mm", { locale: nb });
     } catch {
-        return '—';
+        return '-';
     }
 };
 
 const fmtDateOnly = (value) => {
+    const date = new Date(value);
+    if (!value || Number.isNaN(date.getTime())) return '-';
+
     try {
-        return format(new Date(value), "d. MMMM yyyy", { locale: nb });
+        return format(date, 'd. MMMM yyyy', { locale: nb });
     } catch {
-        return '—';
+        return '-';
     }
 };
 
-const avatarVersionOf = (u) => u?.avatarUpdatedAt || u?.avatarStorageKey || undefined;
-const nameOf = (u) => u?.name || u?.displayName || u?.username || '—';
-
-const CHART_COLORS = {
-    area: "#799fec",
-    point: "#E64D8A",
-    grid: "rgba(255,255,255,0.08)",
-    text: "rgba(255,255,255,0.78)",
-    plotLine: "rgba(255,255,255,0.2)"
-};
+const avatarVersionOf = (user) => user?.avatarUpdatedAt || user?.avatarStorageKey || undefined;
+const nameOf = (user) => user?.name || user?.displayName || user?.username || '-';
 
 export default function PurchaseDetails() {
     const { slug, purchaseId } = useParams();
     const location = useLocation();
+    const outletContext = useOutletContext();
+    const budgetTheme = outletContext?.theme;
 
     const {
         data: purchase = null,
@@ -175,59 +241,66 @@ export default function PurchaseDetails() {
     }, [purchase]);
 
     const primaryCategory = purchaseCategories[0] || purchase?.category || null;
-    const primaryCategoryColor = primaryCategory?.color || '121, 159, 236';
+    const primaryCategoryColor = primaryCategory?.color || DEFAULT_CATEGORY_COLOR;
     const categoryLabel = purchaseCategories.length
         ? purchaseCategories.map((category) => category.name).filter(Boolean).join(', ')
         : 'No category';
+    const categoryTheme = useMemo(
+        () => buildCategoryTheme(primaryCategoryColor),
+        [primaryCategoryColor]
+    );
 
     const shareRows = useMemo(() => {
         if (!purchase?.shares?.length) return [];
         const baseAmount = Math.abs(Number(purchase.amount) || 0);
 
-        return purchase.shares.map((s) => {
-            const amount = s.fixedAmount != null
-                ? Number(s.fixedAmount)
-                : Math.round(baseAmount * (Number(s.percent) || 0)) / 100;
+        return purchase.shares.map((share) => {
+            const amount = share.fixedAmount != null
+                ? Number(share.fixedAmount)
+                : Math.round(baseAmount * (Number(share.percent) || 0)) / 100;
 
             return {
-                ...s,
+                ...share,
                 computedAmount: amount,
             };
         });
     }, [purchase]);
 
+    const purchaseAmount = Number(purchase?.amount) || 0;
+    const absolutePurchaseAmount = Math.abs(purchaseAmount);
+    const splitSummary = shareRows.length
+        ? `${shareRows.length} ${shareRows.length === 1 ? 'member' : 'members'}`
+        : 'No split';
+
     const chartOptions = useMemo(() => {
         if (!purchase) return null;
 
-        const purchaseTs = new Date(purchase.paidAt).getTime();
-        const purchaseAmount = Math.abs(Number(purchase.amount) || 0);
-
-        const categoryBaseColor = primaryCategoryColor;
-        const categoryRgb = toRGB(categoryBaseColor);
-        const categoryGlow = toRGBA(categoryBaseColor, 0.75);
-        const categoryFillTop = toRGBA(categoryBaseColor, 0.3);
-        const categoryFillMid = toRGBA(categoryBaseColor, 0.18);
-        const categoryFillBottom = toRGBA(categoryBaseColor, 0.06);
+        const rawPurchaseTs = new Date(purchase.paidAt).getTime();
+        const purchaseTs = Number.isFinite(rawPurchaseTs) ? rawPurchaseTs : Date.now();
+        const purchaseValue = Math.abs(Number(purchase.amount) || 0);
+        const categoryRgb = categoryTheme.accent;
+        const chartText = 'rgba(255,255,255,0.72)';
+        const chartMuted = 'rgba(255,255,255,0.48)';
+        const chartGrid = categoryTheme.rgba(0.14);
 
         let areaPoints = [];
 
         if (trendData?.series?.length) {
-            areaPoints = trendData.series[0].points.map((p) => [
-                new Date(p.x).getTime(),
-                p.y
-            ]);
+            areaPoints = trendData.series[0]?.points || [];
         } else if (trendData?.points?.length) {
-            areaPoints = trendData.points.map((p) => [
-                new Date(p.x).getTime(),
-                p.y
-            ]);
+            areaPoints = trendData.points;
         }
+
+        areaPoints = areaPoints
+            .map((point) => [new Date(point.x).getTime(), Math.abs(Number(point.y) || 0)])
+            .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y))
+            .sort((a, b) => a[0] - b[0]);
 
         if (!areaPoints.length) {
             const pad = 1000 * 60 * 60 * 24 * 7;
             areaPoints = [
                 [purchaseTs - pad, 0],
-                [purchaseTs, purchaseAmount],
+                [purchaseTs, purchaseValue],
                 [purchaseTs + pad, 0],
             ];
         }
@@ -235,165 +308,239 @@ export default function PurchaseDetails() {
         const firstTs = areaPoints[0]?.[0] ?? purchaseTs;
         const lastTs = areaPoints[areaPoints.length - 1]?.[0] ?? purchaseTs;
         const defaultWindow = 1000 * 60 * 60 * 24 * 30;
-
-        const min = Math.max(firstTs, purchaseTs - defaultWindow);
-        const max = Math.min(lastTs, purchaseTs + defaultWindow);
+        const windowMin = Math.max(firstTs, purchaseTs - defaultWindow);
+        const windowMax = Math.min(lastTs, purchaseTs + defaultWindow);
+        const hasWindow = Number.isFinite(windowMin) && Number.isFinite(windowMax) && windowMin < windowMax;
 
         return {
             chart: {
-                backgroundColor: "transparent",
-                type: "area",
-                height: 360
+                backgroundColor: 'transparent',
+                height: 330,
+                spacing: [18, 8, 6, 4],
+                style: {
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                },
             },
-
             title: { text: null },
             credits: { enabled: false },
-
+            legend: { enabled: false },
+            exporting: { enabled: false },
             xAxis: {
-                type: "datetime",
-                min,
-                max,
+                type: 'datetime',
+                min: hasWindow ? windowMin : undefined,
+                max: hasWindow ? windowMax : undefined,
+                lineColor: categoryTheme.rgba(0.2),
+                tickColor: categoryTheme.rgba(0.18),
+                labels: {
+                    style: {
+                        color: chartMuted,
+                        fontSize: '11px',
+                    },
+                },
                 crosshair: {
                     width: 1,
-                    color: "rgba(255,255,255,0.15)",
-                    dashStyle: "ShortDot"
+                    color: categoryTheme.rgba(0.3),
+                    dashStyle: 'ShortDot',
                 },
                 plotLines: [
                     {
                         value: purchaseTs,
-                        color: CHART_COLORS.plotLine,
-                        width: 1,
-                        dashStyle: "ShortDash",
+                        color: categoryTheme.rgba(0.55),
+                        width: 2,
+                        dashStyle: 'ShortDash',
                         zIndex: 4,
                         label: {
-                            text: "Purchase",
+                            text: 'This purchase',
                             rotation: 0,
                             y: 16,
                             style: {
-                                color: "rgba(255,255,255,0.6)",
-                                fontSize: "11px"
-                            }
-                        }
-                    }
-                ]
+                                color: chartText,
+                                fontSize: '11px',
+                                fontWeight: 600,
+                            },
+                        },
+                    },
+                ],
             },
-
             yAxis: {
+                min: 0,
                 title: { text: null },
-                gridLineColor: CHART_COLORS.grid,
+                gridLineColor: chartGrid,
                 labels: {
                     style: {
-                        color: CHART_COLORS.text
+                        color: chartMuted,
+                        fontSize: '11px',
                     },
                     formatter: function () {
                         return fmtCurrency(this.value);
-                    }
-                }
+                    },
+                },
             },
-
             tooltip: {
                 shared: true,
                 useHTML: true,
-                backgroundColor: "rgba(10,10,18,0.95)",
-                borderColor: "rgba(255,255,255,0.08)",
+                backgroundColor: 'rgba(10,10,16,0.96)',
+                borderColor: categoryTheme.rgba(0.38),
+                borderRadius: 8,
                 shadow: false,
                 style: {
-                    color: "#fff",
-                    fontSize: "13px"
+                    color: '#fff',
+                    fontSize: '13px',
                 },
                 formatter: function () {
-                    const date = Highcharts.dateFormat("%b %e, %Y", this.x);
-                    const points = this.points || [];
+                    const date = Highcharts.dateFormat('%e %b %Y', this.x);
+                    const points = this.points?.length ? this.points : this.point ? [this.point] : [];
 
                     let html = `
-                    <div style="display:flex;flex-direction:column;gap:6px;">
-                        <div style="font-size:12px;opacity:.6;margin-bottom:2px;">${date}</div>
-                `;
-
-                    points.forEach((p) => {
-                        html += `
-                        <div style="display:flex;justify-content:space-between;gap:20px;">
-                            <span style="color:${p.color}">${p.series.name}</span>
-                            <b>${fmtCurrency(p.y)}</b>
-                        </div>
+                        <div style="display:flex;flex-direction:column;gap:8px;min-width:190px;">
+                            <div style="font-size:12px;opacity:.64;">${date}</div>
                     `;
+
+                    points.forEach((point) => {
+                        const color = point.color || point.series?.color || categoryRgb;
+                        html += `
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:22px;">
+                                <span style="display:flex;align-items:center;gap:7px;color:rgba(255,255,255,.78);">
+                                    <span style="width:8px;height:8px;border-radius:99px;background:${color};display:inline-block;"></span>
+                                    ${point.series.name}
+                                </span>
+                                <b style="color:#fff;">${fmtCurrency(point.y)}</b>
+                            </div>
+                        `;
                     });
 
-                    html += `</div>`;
+                    html += '</div>';
                     return html;
-                }
+                },
             },
-
-            legend: { enabled: false },
-            navigator: { enabled: false },
-            scrollbar: { enabled: false },
-            rangeSelector: { enabled: false },
-
             plotOptions: {
                 series: {
                     animation: {
-                        duration: 1200
+                        duration: 1000,
                     },
                     marker: {
-                        enabled: false
-                    }
-                }
+                        enabled: false,
+                    },
+                    states: {
+                        hover: {
+                            halo: {
+                                size: 0,
+                                opacity: 0,
+                            },
+                        },
+                        inactive: {
+                            opacity: 0.85,
+                        },
+                    },
+                },
+                areaspline: {
+                    threshold: null,
+                    lineWidth: 3,
+                    marker: {
+                        enabled: false,
+                    },
+                },
             },
-
             series: [
                 {
-                    name: "Budget spending",
-                    type: "areaspline",
+                    name: 'Budget spending',
+                    type: 'areaspline',
                     data: areaPoints,
                     color: categoryRgb,
-                    shadow: {
-                        color: categoryGlow,
-                        offsetX: 0,
-                        offsetY: 0,
-                        opacity: 0.25,
-                        width: 15
-                    },
-                    fillColor: {
-                        linearGradient: [0, 0, 0, 300],
-                        stops: [
-                            [0, categoryFillTop],
-                            [0.7, categoryFillMid],
-                            [1, categoryFillBottom]
-                        ]
-                    },
-                    zIndex: 1
+                    shadow: false,
+                    fillColor: categoryTheme.rgba(0.14),
+                    zIndex: 1,
                 },
                 {
-                    name: "This purchase",
-                    type: "scatter",
-                    data: [[purchaseTs, purchaseAmount]],
-                    color: categoryRgb,
+                    name: 'This purchase',
+                    type: 'scatter',
+                    data: [[purchaseTs, purchaseValue]],
+                    color: categoryTheme.accentLight,
                     marker: {
                         enabled: true,
-                        radius: 6,
-                        lineWidth: 2,
-                        lineColor: "#fff",
+                        radius: 7,
+                        lineWidth: 3,
+                        lineColor: '#fff',
                         fillColor: categoryRgb,
-                        symbol: "circle"
+                        symbol: 'circle',
                     },
                     dataLabels: {
                         enabled: true,
-                        formatter: function () {
-                            return "Purchase";
-                        },
+                        format: 'Purchase',
+                        crop: false,
+                        overflow: 'allow',
                         style: {
-                            color: "#fff",
-                            textOutline: "none",
-                            fontSize: "11px",
-                            fontWeight: 600
+                            color: '#fff',
+                            textOutline: 'none',
+                            fontSize: '11px',
+                            fontWeight: 700,
                         },
-                        y: -12
+                        y: -14,
                     },
-                    zIndex: 5
-                }
-            ]
+                    zIndex: 5,
+                },
+            ],
         };
-    }, [primaryCategoryColor, purchase, trendData]);
+    }, [categoryTheme, purchase, trendData]);
+
+    useEffect(() => {
+        if (!purchase || typeof document === 'undefined') return undefined;
+
+        const root = document.documentElement;
+        const app = document.querySelector('.app-container');
+        const targets = [root, app].filter(Boolean);
+        const rootHadThemeClass = root.classList.contains('is-budget-themed');
+        const appHadThemeClass = app?.classList.contains('is-themed') ?? false;
+        const previousValues = new Map(
+            targets.map((target) => [
+                target,
+                PURCHASE_THEME_KEYS.reduce((acc, key) => {
+                    acc[key] = target.style.getPropertyValue(key);
+                    return acc;
+                }, {}),
+            ])
+        );
+
+        const applyTheme = () => {
+            root.classList.add('is-budget-themed');
+            app?.classList.add('is-themed');
+
+            targets.forEach((target) => {
+                PURCHASE_THEME_KEYS.forEach((key) => {
+                    target.style.setProperty(key, categoryTheme.appStyle[key]);
+                });
+            });
+        };
+
+        applyTheme();
+
+        const timer = typeof window !== 'undefined'
+            ? window.setTimeout(applyTheme, 0)
+            : null;
+
+        return () => {
+            if (timer !== null) window.clearTimeout(timer);
+
+            targets.forEach((target) => {
+                const values = previousValues.get(target) || {};
+
+                PURCHASE_THEME_KEYS.forEach((key) => {
+                    const budgetValue = budgetTheme?.hasTheme ? budgetTheme.style?.[key] : null;
+
+                    if (budgetValue) {
+                        target.style.setProperty(key, budgetValue);
+                    } else if (values[key]) {
+                        target.style.setProperty(key, values[key]);
+                    } else {
+                        target.style.removeProperty(key);
+                    }
+                });
+            });
+
+            root.classList.toggle('is-budget-themed', budgetTheme?.hasTheme ?? rootHadThemeClass);
+            app?.classList.toggle('is-themed', budgetTheme?.hasTheme ?? appHadThemeClass);
+        };
+    }, [budgetTheme, categoryTheme, purchase]);
 
     if (loading) {
         return <Loader />;
@@ -408,11 +555,14 @@ export default function PurchaseDetails() {
     }
 
     return (
-        <div className="purchase-details" style={{ '--color': primaryCategoryColor }}>
+        <div className="purchase-details" style={categoryTheme.pageStyle}>
             <div className="purchase-details-top">
                 <div className="purchase-details-nav">
                     <Link to={purchasesBackTo} className="purchase-details-back">
-                        ← Back to purchases
+                        <span className="material-symbols-rounded" aria-hidden="true">
+                            arrow_back
+                        </span>
+                        Back to purchases
                     </Link>
 
                     <Link
@@ -428,16 +578,19 @@ export default function PurchaseDetails() {
                 </div>
 
                 <div className="purchase-details-hero">
-                    <div className="purchase-details-hero-rim" />
-                    <div className="purchase-details-hero-glow" />
-
                     <div className="purchase-details-hero-inner">
                         <div className="purchase-details-heading">
-                            <div  className="purchase-details-heading-left">
+                            <div className="purchase-details-heading-left">
                                 <div className="purchase-details-pills" title={categoryLabel}>
                                     {purchaseCategories.length ? (
                                         purchaseCategories.map((category) => (
-                                            <span key={category.id} className="purchase-details-pill">
+                                            <span
+                                                key={category.id}
+                                                className="purchase-details-pill"
+                                                style={{
+                                                    '--pill-color': toCssColor(category.color, categoryTheme.accent),
+                                                }}
+                                            >
                                                 {category.name}
                                             </span>
                                         ))
@@ -457,12 +610,41 @@ export default function PurchaseDetails() {
                                         </span>
                                     )}
                                 </div>
-                                <h1>{purchase.itemName}</h1>
+
+                                <h1>{purchase.itemName || 'Untitled purchase'}</h1>
                             </div>
 
                             <div className="purchase-details-amount">
                                 <span>Total</span>
-                                <strong>{fmtCurrency(Number(purchase.amount))}</strong>
+                                <strong>{fmtCurrency(purchaseAmount)}</strong>
+                            </div>
+                        </div>
+
+                        <div className="purchase-details-hero-meta">
+                            <div className="purchase-details-hero-meta-item is-person">
+                                <Avatar
+                                    user={purchase.paidBy}
+                                    size="2.55rem"
+                                    n={3.25}
+                                    version={avatarVersionOf(purchase.paidBy)}
+                                    alt={nameOf(purchase.paidBy)}
+                                    fallbackSrc="/images/avatar-placeholder.jpg"
+                                />
+
+                                <div>
+                                    <span>Paid by</span>
+                                    <strong>{nameOf(purchase.paidBy)}</strong>
+                                </div>
+                            </div>
+
+                            <div className="purchase-details-hero-meta-item">
+                                <span>Paid on</span>
+                                <strong>{fmtDateTime(purchase.paidAt)}</strong>
+                            </div>
+
+                            <div className="purchase-details-hero-meta-item">
+                                <span>Split</span>
+                                <strong>{purchase.shared ? splitSummary : 'Personal purchase'}</strong>
                             </div>
                         </div>
                     </div>
@@ -471,21 +653,29 @@ export default function PurchaseDetails() {
 
             <div className="purchase-details-grid">
                 {chartOptions && (
-                    <div
-                        className={`purchase-details-card purchase-details-card-chart highcharts`}
-                        style={{ '--color': primaryCategoryColor }}
-                    >
-                        <h3 className="hc-title">Purchase in timeline</h3>
+                    <div className="purchase-details-card purchase-details-card-chart">
+                        <div className="purchase-details-card-head purchase-details-chart-head">
+                            <div>
+                                <h3>Spending timeline</h3>
+                                <p>How this purchase sits in the budget history.</p>
+                            </div>
 
-                        <HighchartsReact
-                            highcharts={Highcharts}
-                            constructorType="stockChart"
-                            options={chartOptions}
-                        />
+                            <div className="purchase-details-chart-badge">
+                                <span>This purchase</span>
+                                <strong>{fmtCurrency(absolutePurchaseAmount)}</strong>
+                            </div>
+                        </div>
+
+                        <div className="purchase-details-chart-shell">
+                            <HighchartsReact
+                                highcharts={Highcharts}
+                                options={chartOptions}
+                            />
+                        </div>
                     </div>
                 )}
 
-                <div className="purchase-details-card">
+                <div className="purchase-details-card purchase-details-card-overview">
                     <div className="purchase-details-card-head">
                         <div>
                             <h3>Overview</h3>
@@ -496,7 +686,7 @@ export default function PurchaseDetails() {
                     <div className="purchase-details-list">
                         <div className="purchase-details-list-row">
                             <span>Category</span>
-                            <strong>{purchase.category?.name || '—'}</strong>
+                            <strong>{categoryLabel}</strong>
                         </div>
 
                         <div className="purchase-details-list-row">
@@ -522,8 +712,8 @@ export default function PurchaseDetails() {
                         </div>
 
                         <div className="purchase-details-list-row">
-                            <span>Shared</span>
-                            <strong>{purchase.shared ? 'Yes' : 'No'}</strong>
+                            <span>Split</span>
+                            <strong>{purchase.shared ? splitSummary : 'No'}</strong>
                         </div>
 
                         <div className="purchase-details-list-row">
@@ -555,7 +745,7 @@ export default function PurchaseDetails() {
                     </div>
                 </div>
 
-                <div className="purchase-details-card">
+                <div className="purchase-details-card purchase-details-card-notes">
                     <div className="purchase-details-card-head">
                         <div>
                             <h3>Notes</h3>
@@ -586,33 +776,33 @@ export default function PurchaseDetails() {
                         <div className="purchase-details-empty">No split data available.</div>
                     ) : (
                         <div className="purchase-details-share-list">
-                            {shareRows.map((s) => (
-                                <div key={`${purchase.id}-${s.userId}`} className="purchase-details-share-row">
+                            {shareRows.map((share) => (
+                                <div key={`${purchase.id}-${share.userId}`} className="purchase-details-share-row">
                                     <div className="purchase-details-share-user">
                                         <div className="purchase-details-share-user-top">
                                             <Avatar
-                                                user={s.user}
+                                                user={share.user}
                                                 size="2.6rem"
                                                 n={3.25}
-                                                version={avatarVersionOf(s.user)}
-                                                alt={nameOf(s.user)}
+                                                version={avatarVersionOf(share.user)}
+                                                alt={nameOf(share.user)}
                                                 fallbackSrc="/images/avatar-placeholder.jpg"
                                             />
 
-                                            <strong>{nameOf(s.user)}</strong>
+                                            <strong>{nameOf(share.user)}</strong>
                                         </div>
 
                                         <div className="purchase-details-share-meta">
-                                            {s.fixedAmount != null ? 'Fixed amount' : `${s.percent}% share`}
+                                            {share.fixedAmount != null ? 'Fixed amount' : `${share.percent}% share`}
                                         </div>
                                     </div>
 
                                     <div className="purchase-details-share-values">
-                                        <strong>{fmtCurrency(s.computedAmount)}</strong>
+                                        <strong>{fmtCurrency(share.computedAmount)}</strong>
 
-                                        <span className={`purchase-details-share-status ${s.isSettled ? 'is-settled' : 'is-open'}`}>
-                                            {s.isSettled
-                                                ? `Settled${s.settledAt ? ` · ${fmtDateOnly(s.settledAt)}` : ''}`
+                                        <span className={`purchase-details-share-status ${share.isSettled ? 'is-settled' : 'is-open'}`}>
+                                            {share.isSettled
+                                                ? `Settled${share.settledAt ? ` - ${fmtDateOnly(share.settledAt)}` : ''}`
                                                 : 'Open'}
                                         </span>
                                     </div>

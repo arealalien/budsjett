@@ -3,6 +3,7 @@
 @use "../config/radius" as *;
 @use "../config/sizes" as *;
 @use "../config/spacing" as *;
+@use "../config/z-index" as *;
 @use "../tools/functions/encode-colors" as *;
 @use "../tools/mixins/alignment" as *;
 
@@ -145,7 +146,7 @@
     position: absolute;
     pointer-events: none;
     color: currentColor;
-    z-index: 1;
+    @include z-index(raised);
     @include align(center, center, $display: inline-flex);
     transition:
       transform 0.35s cubic-bezier($transition-main, 1),
@@ -195,7 +196,7 @@
     transform: translateY(-0.35em) scale(0.98);
     transform-origin: top center;
     box-shadow: 0 1.2em 2.5em color(black, 0.25);
-    z-index: 20;
+    @include z-index(dropdown);
     @include align(stretch, stretch, column);
     transition:
       opacity 0.25s cubic-bezier($transition-main, 1),

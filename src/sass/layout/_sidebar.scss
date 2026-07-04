@@ -13,10 +13,51 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   background-color: color(black);
-  border-right: 1px solid color(gray-900);
   gap: 1em;
+  overflow-x: hidden;
   will-change: width;
   @include z-index(navbar);
+
+  &.is-resizing {
+    transition: none !important;
+  }
+
+  &-resize-handle {
+    top: 0;
+    right: 0;
+    width: .75rem;
+    height: 100%;
+    position: absolute;
+    cursor: ew-resize;
+    touch-action: none;
+    outline: none;
+    @include align(center, center);
+    @include z-index(navbar);
+
+    &::before {
+      content: "";
+      width: 2px;
+      height: calc(100% - #{space(lg)});
+      background: transparent;
+      border-radius: $radius-pill;
+      transition:
+        background-color .16s cubic-bezier($transition-main, 1),
+        box-shadow .16s cubic-bezier($transition-main, 1);
+    }
+
+    &:hover,
+    &:focus-visible {
+      &::before {
+        background-color: color(gray-500);
+        box-shadow: 0 0 0 3px color(gray-500, .12);
+      }
+    }
+  }
+
+  &.is-resizing &-resize-handle::before {
+    background-color: color(primary-500);
+    box-shadow: 0 0 0 4px color(primary-500, .12);
+  }
 
   &.is-collapsed {
     .sidebar-toggle {
@@ -254,8 +295,7 @@
 
 html.is-budget-themed {
   .sidebar {
-    background-color: color-mix(in srgb, var(--app-theme-accent-dark) 12%, color(black));
-    border-right-color: color-mix(in srgb, var(--app-theme-accent) 14%, color(gray-900));
+    background-color: color-mix(in srgb, var(--app-theme-accent-dark) 25%, color(gray-900));
 
     &-top-icon svg {
       path,
@@ -263,48 +303,103 @@ html.is-budget-themed {
       polygon {
         fill: color-mix(in srgb, var(--app-theme-accent-light) 34%, color(white));
       }
+
+      .cls-1 {
+        fill: var(--app-theme-accent);
+      }
+    }
+
+    &-resize-handle {
+      &:hover,
+      &:focus-visible {
+        &::before {
+          background-color: var(--app-theme-accent);
+          box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-theme-accent) 16%, transparent);
+        }
+      }
+    }
+
+    &.is-resizing {
+      .sidebar-resize-handle::before {
+        background-color: var(--app-theme-accent);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-theme-accent) 18%, transparent);
+      }
     }
 
     &-toggle {
-      color: color-mix(in srgb, var(--app-theme-accent-light) 34%, color(white));
+      color: color(gray-300);
+
+      &:hover {
+        color: color(white);
+      }
     }
 
     &-divider {
-      background-color: color-mix(in srgb, var(--app-theme-accent) 14%, color(gray-800));
+      background-color: color-mix(in srgb, var(--app-theme-accent) 12%, #{color(gray-800)});
+    }
+
+    &-menu-title {
+      color: color-mix(in srgb, var(--app-theme-accent-light) 35%, color(gray-500));
+    }
+
+    &-menu-item-button {
+      color: color(gray-300);
+
+      &:hover {
+        color: var(--app-theme-accent);
+        background-color: var(--app-theme-softer);
+      }
     }
 
     &-menu-item-link {
-      color: color-mix(in srgb, var(--app-theme-accent-light) 10%, color(gray-100));
+      color: color(gray-300);
 
       & div {
         background-color: var(--app-theme-soft);
       }
 
       &:hover {
+        color: color(white);
+        background-color: var(--app-theme-softer);
+
+        > .material-symbols-rounded {
+          color: var(--app-theme-accent);
+        }
+      }
+
+      &.active {
+        color: color(white);
+        background-color: color-mix(in srgb, var(--app-theme-accent) 20%, transparent);
+
+        > .material-symbols-rounded {
+          color: var(--app-theme-accent);
+          font-variation-settings:
+              'FILL' 1;
+        }
+
+        &:hover {
+          background-color: color-mix(in srgb, var(--app-theme-accent) 20%, transparent);
+        }
+      }
+    }
+
+    &-menu-useritem-link {
+      &:hover {
+        color: color(white);
         background-color: var(--app-theme-softer);
       }
 
       &.active {
         color: color(white);
-        background: var(--app-theme-soft);
-        box-shadow: inset 0 0 0 1px var(--app-theme-border);
-
-        > .material-symbols-rounded {
-          color: var(--app-theme-accent-light);
-          text-shadow: 0 0 24px var(--app-theme-glow);
-        }
-
-        &:hover {
-          background: var(--app-theme-soft);
-        }
+        background-color: var(--app-theme-soft);
       }
     }
 
     &-logout:hover {
-      background: var(--app-theme-soft);
+      background: var(--app-theme-softer);
 
       > .material-symbols-rounded {
-        color: var(--app-theme-accent-light);
+        color: var(--app-theme-accent);
       }
     }
   }

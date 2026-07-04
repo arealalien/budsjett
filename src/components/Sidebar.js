@@ -13,24 +13,31 @@ export default function Sidebar({ handleLogout, user }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const slug = useCurrentBudgetSlug();
     const preferredCollapsed = useUiStore((state) => state.sidebarCollapsed);
+    const preferredWidth = useUiStore((state) => state.sidebarWidth);
     const setSidebarCollapsed = useUiStore((state) => state.setSidebarCollapsed);
+    const setSidebarWidth = useUiStore((state) => state.setSidebarWidth);
 
     const {
         phase,
         isCollapsed: sidebarCollapsed,
+        isResizing,
         toggle: toggleSidebar,
         sidebarStyle,
         iconStyle,
         iconHidden,
+        isCompact,
+        resizeHandleProps,
     } = useSidebarTransition({
         initialCollapsed: preferredCollapsed,
+        initialOpenWidth: preferredWidth,
         onCollapsedChange: setSidebarCollapsed,
-        outMs: 300,
-        widthMs: 300,
-        inMs: 300,
+        onOpenWidthChange: setSidebarWidth,
         openWidth: "20em",
         closedWidth: "6em",
-        easing: "cubic-bezier(.175, .685, .32, 1)",
+        minOpenWidth: "14em",
+        maxOpenWidth: "32em",
+        collapseThreshold: "10em",
+        expandThreshold: "12em",
     });
 
     useEffect(() => {
@@ -79,13 +86,14 @@ export default function Sidebar({ handleLogout, user }) {
     };
 
     return  (
-        <div className={`sidebar ${sidebarCollapsed ? 'is-collapsed' : ''}`}
+        <div className={`sidebar ${isCompact ? 'is-collapsed' : ''} ${isResizing ? 'is-resizing' : ''}`}
              style={sidebarStyle}
              data-phase={phase}
         >
+            <div className="sidebar-resize-handle" {...resizeHandleProps} />
             <div className="sidebar-top"
                  style={{
-                     justifyContent: iconHidden ? "center" : "space-between",
+                     justifyContent: isCompact ? "center" : "space-between",
                  }}
             >
                 <NavLink
@@ -139,7 +147,7 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">home</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Dashboard</span>
@@ -160,7 +168,7 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">add</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>New purchase</span>
@@ -184,7 +192,7 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">analytics</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Analytics</span>
@@ -205,7 +213,7 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">area_chart</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Statistics</span>
@@ -226,7 +234,7 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">receipt_long</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Purchases</span>
@@ -247,13 +255,13 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">docs</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Reports</span>
                             )}
                         </NavLink>
-                        {sidebarCollapsed ? (
+                        {isCompact ? (
                             <></>
                         ) : (
                             <p className="sidebar-menu-item-button">
@@ -278,13 +286,13 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">groups_2</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Budget members</span>
                             )}
                         </NavLink>
-                        {sidebarCollapsed ? (
+                        {isCompact ? (
                             <></>
                         ) : (
                             <p className="sidebar-menu-item-button">
@@ -306,7 +314,7 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">rebase_edit</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Edit budget</span>
@@ -327,7 +335,7 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">settings</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Budget settings</span>
@@ -351,7 +359,7 @@ export default function Sidebar({ handleLogout, user }) {
                             }
                         >
                             <span className="material-symbols-rounded">settings</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Account settings</span>
@@ -366,7 +374,7 @@ export default function Sidebar({ handleLogout, user }) {
                     <li className="sidebar-menu-item">
                         <div className="sidebar-menu-item-link sidebar-logout" onClick={handleLogout}>
                             <span className="material-symbols-rounded">logout</span>
-                            {sidebarCollapsed ? (
+                            {isCompact ? (
                                 <></>
                             ) : (
                                 <span>Log out</span>

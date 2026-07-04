@@ -7,6 +7,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../AuthContext';
 import Dropdown from '../utils/Dropdown';
 import Loader from '../Loader';
+import Avatar from '../Avatar';
 import { queryKeys } from '../../lib/queryKeys';
 import { invalidateBudgetData } from '../../lib/queryInvalidation';
 
@@ -43,7 +44,7 @@ const DEFAULT_FILTERS = {
 const ALL_COLUMN_DEFS = [
     { id: 'date', label: 'Date', sortable: 'paidAt', width: 150, min: 120, max: 240 },
     { id: 'purchase', label: 'Purchase', sortable: 'itemName', width: 380, min: 230, max: 680 },
-    { id: 'paidBy', label: 'Paid by', width: 170, min: 130, max: 280 },
+    { id: 'paidBy', label: 'Paid by', width: 88, min: 76, max: 120 },
     { id: 'amount', label: 'Amount', sortable: 'amount', width: 145, min: 120, max: 240, align: 'right' },
     { id: 'balance', label: 'Your balance', width: 205, min: 150, max: 320, align: 'right' },
     { id: 'status', label: 'Status', width: 160, min: 130, max: 260 },
@@ -191,6 +192,10 @@ function getPaidByName(paidBy) {
     return paidBy.name || paidBy.displayName || paidBy.username || '-';
 }
 
+function avatarVersionOf(user) {
+    return user?.avatarStorageKey || user?.avatarUpdatedAt || undefined;
+}
+
 function getNotePreview(notes) {
     if (!notes) return '';
     if (notes.length <= 80) return notes;
@@ -225,6 +230,48 @@ function readStoredWidths(storageKey, columns) {
     }
 }
 
+function getScrollParent(node) {
+    let parent = node?.parentElement;
+
+    while (parent && parent !== document.body) {
+        const overflowY = window.getComputedStyle(parent).overflowY;
+
+        if (['auto', 'scroll', 'overlay'].includes(overflowY)) {
+            return parent;
+        }
+
+        parent = parent.parentElement;
+    }
+
+    return window;
+}
+
+function getScrollParentHeight(scrollParent) {
+    return scrollParent === window
+        ? window.innerHeight || document.documentElement.clientHeight || 640
+        : scrollParent.clientHeight || 640;
+}
+
+function getScrollParentTop(scrollParent) {
+    return scrollParent === window
+        ? 0
+        : scrollParent.getBoundingClientRect().top;
+}
+
+function getScrollTopForNode(node, scrollParent) {
+    return Math.max(0, getScrollParentTop(scrollParent) - node.getBoundingClientRect().top);
+}
+
+function scrollNodeToTop(node, scrollParent) {
+    const delta = node.getBoundingClientRect().top - getScrollParentTop(scrollParent);
+
+    if (scrollParent === window) {
+        window.scrollBy({ top: delta });
+    } else {
+        scrollParent.scrollTop += delta;
+    }
+}
+
 function CheckIcon() {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" width="12.121" height="12.121" viewBox="0 0 12.121 12.121">
@@ -243,6 +290,7 @@ function CheckIcon() {
 
 export default function PurchasesTable({ size = 'full' }) {
     const isCompact = size === 'compact';
+    const usesPageScroll = !isCompact;
     const navigate = useNavigate();
     const { slug } = useParams();
     const { budget } = useOutletContext();
@@ -250,6 +298,8 @@ export default function PurchasesTable({ size = 'full' }) {
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
     const scrollRef = useRef(null);
+    const scrollParentRef = useRef(null);
+    const didMountFiltersRef = useRef(false);
 
     const filters = useMemo(() => readFilters(searchParams), [searchParams]);
     const apiParams = useMemo(() => paramsForApi(filters), [filters]);
@@ -358,8 +408,6 @@ export default function PurchasesTable({ size = 'full' }) {
         })),
     ], [users]);
 
-    const [searchDraft, setSearchDraft] = useState(filters.q);
-
     const updateUrlParams = useCallback((patch) => {
         const next = new URLSearchParams(searchParams);
 
@@ -377,25 +425,24 @@ export default function PurchasesTable({ size = 'full' }) {
         setSearchParams(next, { replace: true });
     }, [searchParams, setSearchParams]);
 
-    useEffect(() => {
-        setSearchDraft(filters.q);
-    }, [filters.q]);
-
-    useEffect(() => {
-        if (searchDraft === filters.q) return undefined;
-
-        const timeout = window.setTimeout(() => {
-            updateUrlParams({ q: searchDraft });
-        }, 280);
-
-        return () => window.clearTimeout(timeout);
-    }, [filters.q, searchDraft, updateUrlParams]);
-
     const filterSignature = useMemo(() => JSON.stringify(apiParams), [apiParams]);
 
     useEffect(() => {
-        scrollRef.current?.scrollTo({ top: 0 });
-    }, [filterSignature]);
+        const node = scrollRef.current;
+        if (!node) return;
+
+        if (!didMountFiltersRef.current) {
+            didMountFiltersRef.current = true;
+            if (!usesPageScroll) node.scrollTo({ top: 0 });
+            return;
+        }
+
+        if (usesPageScroll) {
+            scrollNodeToTop(node, scrollParentRef.current || getScrollParent(node));
+        } else {
+            node.scrollTo({ top: 0 });
+        }
+    }, [filterSignature, usesPageScroll]);
 
     const purchasesQueryKey = queryKeys.budgets.purchases(slug, {
         ...apiParams,
@@ -440,29 +487,64 @@ export default function PurchasesTable({ size = 'full' }) {
 
     const [scrollState, setScrollState] = useState({ top: 0, height: 640 });
 
+    const measureScroll = useCallback(() => {
+        const node = scrollRef.current;
+        if (!node) return;
+        const scrollParent = usesPageScroll
+            ? scrollParentRef.current || getScrollParent(node)
+            : node;
+
+        if (usesPageScroll) {
+            scrollParentRef.current = scrollParent;
+        }
+
+        const nextState = usesPageScroll
+            ? {
+                top: getScrollTopForNode(node, scrollParent),
+                height: getScrollParentHeight(scrollParent),
+            }
+            : {
+                top: node.scrollTop,
+                height: node.clientHeight || 640,
+            };
+
+        setScrollState((current) => (
+            current.top === nextState.top && current.height === nextState.height
+                ? current
+                : nextState
+        ));
+    }, [usesPageScroll]);
+
     useEffect(() => {
         const node = scrollRef.current;
         if (!node) return undefined;
 
-        function measure() {
-            setScrollState({
-                top: node.scrollTop,
-                height: node.clientHeight || 640,
-            });
+        const scrollParent = usesPageScroll ? getScrollParent(node) : node;
+        scrollParentRef.current = scrollParent;
+        measureScroll();
+
+        if (usesPageScroll) {
+            scrollParent.addEventListener('scroll', measureScroll, { passive: true });
+            window.addEventListener('resize', measureScroll);
+
+            return () => {
+                scrollParent.removeEventListener('scroll', measureScroll);
+                window.removeEventListener('resize', measureScroll);
+            };
         }
 
-        measure();
-        window.addEventListener('resize', measure);
+        node.addEventListener('scroll', measureScroll, { passive: true });
+        window.addEventListener('resize', measureScroll);
 
-        return () => window.removeEventListener('resize', measure);
-    }, []);
+        return () => {
+            node.removeEventListener('scroll', measureScroll);
+            window.removeEventListener('resize', measureScroll);
+        };
+    }, [measureScroll, usesPageScroll]);
 
-    const handleScroll = useCallback((event) => {
-        setScrollState({
-            top: event.currentTarget.scrollTop,
-            height: event.currentTarget.clientHeight || 640,
-        });
-    }, []);
+    useEffect(() => {
+        measureScroll();
+    }, [measureScroll, rows.length, isFetchingNextPage]);
 
     const virtualCount = rows.length + (isFetchingNextPage ? 1 : 0);
     const bodyViewportHeight = Math.max(rowHeight, scrollState.height - HEADER_HEIGHT);
@@ -509,7 +591,6 @@ export default function PurchasesTable({ size = 'full' }) {
     }, [filters.sortBy, filters.sortDir, updateUrlParams]);
 
     const resetFilters = useCallback(() => {
-        setSearchDraft('');
         setSearchParams(new URLSearchParams(), { replace: true });
     }, [setSearchParams]);
 
@@ -631,16 +712,6 @@ export default function PurchasesTable({ size = 'full' }) {
                     </div>
 
                     <div className="purchases-wrap-filters">
-                        <label className="purchases-wrap-filters-item purchases-wrap-filters-item-searchbox">
-                            <span>Search</span>
-                            <input
-                                className="purchases-wrap-filters-item-search"
-                                value={searchDraft}
-                                onChange={(event) => setSearchDraft(event.target.value)}
-                                placeholder="Search item, note, category, or payer..."
-                            />
-                        </label>
-
                         <div className="purchases-wrap-filters-item">
                             <span>Category</span>
                             <Dropdown
@@ -743,19 +814,15 @@ export default function PurchasesTable({ size = 'full' }) {
             )}
 
             <div className="purchases-wrap-table">
-                <div className="purchases-wrap-table-rim" />
-                <div className="purchases-wrap-table-glow" />
-
                 <div
                     ref={scrollRef}
                     className="purchases-virtual-scroll"
-                    onScroll={handleScroll}
                 >
                     <div
                         className="purchases-virtual-table"
                         role="table"
                         aria-rowcount={total}
-                        style={{ minWidth: tableMinWidth }}
+                        style={{ width: tableMinWidth, minWidth: '100%' }}
                     >
                         <div
                             className="purchases-virtual-header"
@@ -769,6 +836,7 @@ export default function PurchasesTable({ size = 'full' }) {
                                     <div
                                         key={column.id}
                                         role="columnheader"
+                                        aria-sort={column.sortable ? (active ? (filters.sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined}
                                         className={[
                                             'purchases-virtual-header-cell',
                                             column.align === 'right' ? 'align-right' : '',
@@ -780,7 +848,12 @@ export default function PurchasesTable({ size = 'full' }) {
                                         <span>
                                             {column.label}
                                             {active && (
-                                                <b aria-hidden="true">{filters.sortDir === 'asc' ? ' up' : ' down'}</b>
+                                                <b
+                                                    className="material-symbols-rounded purchases-sort-icon"
+                                                    aria-hidden="true"
+                                                >
+                                                    {filters.sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                                </b>
                                             )}
                                         </span>
 
@@ -898,10 +971,24 @@ export default function PurchasesTable({ size = 'full' }) {
                                                 }
 
                                                 if (column.id === 'paidBy') {
+                                                    const paidByName = getPaidByName(row.paidBy);
+
                                                     return (
-                                                        <div key={column.id} className="purchases-cell paidBy" role="cell">
-                                                            <span className="purchase-user-pill">
-                                                                {getPaidByName(row.paidBy)}
+                                                        <div
+                                                            key={column.id}
+                                                            className="purchases-cell paidBy"
+                                                            role="cell"
+                                                            title={`Paid by ${paidByName}`}
+                                                        >
+                                                            <span className="purchase-user-avatar" aria-label={`Paid by ${paidByName}`}>
+                                                                <Avatar
+                                                                    user={row.paidBy}
+                                                                    alt={paidByName}
+                                                                    size="2.35em"
+                                                                    n={3}
+                                                                    version={avatarVersionOf(row.paidBy)}
+                                                                    fallbackSrc="/images/avatar-placeholder.jpg"
+                                                                />
                                                             </span>
                                                         </div>
                                                     );

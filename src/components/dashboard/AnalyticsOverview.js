@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
+import tinycolor from 'tinycolor2';
 import { api } from '../../lib/api';
 import { queryKeys } from '../../lib/queryKeys';
 import { getBudgetTheme } from '../../lib/budgetTheme';
@@ -247,11 +248,33 @@ function ChartCard({ title, subtitle, children, className = '' }) {
     );
 }
 
+function summaryCardStyle(accent) {
+    const color = tinycolor(accent);
+    if (!color.isValid()) {
+        return accent ? { '--analytics-card-accent': accent } : undefined;
+    }
+
+    const normalized = color.toHexString();
+    const useLightText = tinycolor.readability(normalized, '#ffffff') > tinycolor.readability(normalized, '#000000');
+
+    return {
+        '--analytics-card-accent': normalized,
+        '--analytics-card-ink': useLightText ? 'rgba(255, 255, 255, .92)' : 'rgba(0, 0, 0, .82)',
+        '--analytics-card-muted': useLightText ? 'rgba(255, 255, 255, .64)' : 'rgba(0, 0, 0, .52)',
+        '--analytics-card-icon-bg': useLightText ? 'rgba(255, 255, 255, .14)' : 'rgba(0, 0, 0, .1)',
+        '--analytics-card-icon-border': useLightText ? 'rgba(255, 255, 255, .18)' : 'rgba(0, 0, 0, .08)',
+    };
+}
+
 function SummaryCards({ cards }) {
     return (
         <div className="analytics-summary-grid">
             {cards.map((card) => (
-                <div key={card.label} className={`analytics-summary-card ${card.tone ? `is-${card.tone}` : ''}`}>
+                <div
+                    key={card.label}
+                    className={`analytics-summary-card ${card.tone ? `is-${card.tone}` : ''}`}
+                    style={summaryCardStyle(card.color)}
+                >
                     <div className="analytics-summary-card-icon material-symbols-rounded" aria-hidden="true">
                         {card.icon || 'monitoring'}
                     </div>
@@ -985,6 +1008,7 @@ export default function AnalyticsOverview({
                 value: formatNumber(summary.purchaseCount),
                 detail: `${formatMoney(summary.avgPurchase)} average`,
                 tone: 'blue',
+                color: chartColors.blue,
                 icon: 'receipt_long',
             },
             {
@@ -992,6 +1016,7 @@ export default function AnalyticsOverview({
                 value: formatMoney(summary.sharedSpending),
                 detail: 'Purchases split across members',
                 tone: 'teal',
+                color: chartColors.teal,
                 icon: 'groups',
             },
             {
@@ -999,6 +1024,7 @@ export default function AnalyticsOverview({
                 value: formatMoney(summary.personalSpending),
                 detail: 'Purchases assigned to one person',
                 tone: 'gray',
+                color: chartColors.gray,
                 icon: 'person',
             },
             {
@@ -1006,6 +1032,7 @@ export default function AnalyticsOverview({
                 value: formatMoney(summary.netCashflow),
                 detail: 'Income minus total spending',
                 tone: Number(summary.netCashflow || 0) >= 0 ? 'green' : 'red',
+                color: Number(summary.netCashflow || 0) >= 0 ? chartColors.green : chartColors.red,
                 icon: 'account_balance_wallet',
             },
         ]
@@ -1015,6 +1042,7 @@ export default function AnalyticsOverview({
                 value: formatMoney(summary.totalSpending),
                 detail: rangeLabel(data, period),
                 tone: 'blue',
+                color: chartColors.blue,
                 icon: 'payments',
             },
             {
@@ -1022,6 +1050,7 @@ export default function AnalyticsOverview({
                 value: formatMoney(summary.myResponsibility),
                 detail: `${formatMoney(summary.myNetCashflow)} after my income`,
                 tone: Number(summary.myNetCashflow || 0) >= 0 ? 'green' : 'yellow',
+                color: Number(summary.myNetCashflow || 0) >= 0 ? chartColors.green : chartColors.yellow,
                 icon: 'person_check',
             },
             {
@@ -1029,6 +1058,7 @@ export default function AnalyticsOverview({
                 value: formatMoney(summary.myPaid),
                 detail: 'Cash that left my account',
                 tone: 'teal',
+                color: chartColors.teal,
                 icon: 'credit_card',
             },
             {
@@ -1036,6 +1066,7 @@ export default function AnalyticsOverview({
                 value: formatMoney(summary.totalIncome),
                 detail: `${formatMoney(summary.myIncome)} recorded for me`,
                 tone: 'green',
+                color: chartColors.green,
                 icon: 'trending_up',
             },
         ];
